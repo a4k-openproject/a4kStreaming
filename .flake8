@@ -1,0 +1,41 @@
+[flake8]
+max-complexity = 10
+max-line-length=140
+statistics = True
+show-source = True
+
+ignore = 
+    E126,
+    E128,
+    E131,
+    E201,
+    E202,
+    E302,
+    E305,
+    E306,
+    E402,
+    E501
+    E701,
+    E704,
+    E722,
+    E731,
+    F401,
+    W503,
+    W504,
+    C901,
+    N801,
+    N802,
+    N806,
+
+exclude =
+    .git,
+    .githooks,
+    .github,
+    .pytest_cache,
+    __pycache__,
+    packages,
+    resources,
+    scripts,
+    tmp,
+    providers,
+    providerModules,

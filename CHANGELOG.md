@@ -1,0 +1,30 @@
+* [v0.1.0](https://github.com/newt-sc/a4kStreaming/releases/tag/plugin.video.a4kstreaming%2Fplugin.video.a4kstreaming-0.1.0):
+  * IMDb:
+    * Authentication via cookie
+    * Browsing for titles
+      * Trending
+      * Fan Favourites
+      * Recommended
+      * Discover by Year
+    * Browsing Shows
+      * Seasons
+      * Season episodes
+    * Lists
+    * Watchlist
+    * Search for titles or people
+    * Mark as watched/unwatched (by rating/unrating a title)
+      * Auto mark as watched when played more than 90 percents
+    * Add/Remove to/from list
+    * Artwork for posters, thumbnails and fanart
+    * Trailers
+    * Rate/Unrate titles
+  * Provider support
+    * Install
+    * Manage
+    * Auto update
+    * Caching of results
+  * Debrid support
+    * Premiumize
+  * Misc
+    * Migrate watched titles from Trakt.tv to IMDb (via rating)
+    * Migrate movies and shows collection from Trakt.tv to IMDb custom lists

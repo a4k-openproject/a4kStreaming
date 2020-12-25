@@ -1,0 +1,151 @@
+# XBMC Media Center language file
+msgid ""
+msgstr ""
+
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: en\n"
+
+# Categories
+msgctxt "#33001"
+msgid "General"
+msgstr ""
+
+msgctxt "#33002"
+msgid "Views"
+msgstr ""
+
+msgctxt "#33003"
+msgid "Provider"
+msgstr ""
+
+msgctxt "#33004"
+msgid "Debrid"
+msgstr ""
+
+msgctxt "#33005"
+msgid "IMDb"
+msgstr ""
+
+msgctxt "#33006"
+msgid "Misc"
+msgstr ""
+
+# General
+msgctxt "#33101"
+msgid "Page size"
+msgstr ""
+
+msgctxt "#33102"
+msgid "Mark as watched effective title rating"
+msgstr ""
+
+# Views
+msgctxt "#33200"
+msgid "Menu views"
+msgstr ""
+
+msgctxt "#33201"
+msgid "Titles view"
+msgstr ""
+
+msgctxt "#33202"
+msgid "Seasons view"
+msgstr ""
+
+msgctxt "#33203"
+msgid "Episodes view"
+msgstr ""
+
+msgctxt "#33204"
+msgid "Movie view"
+msgstr ""
+
+msgctxt "#33205"
+msgid "Episode view"
+msgstr ""
+
+# ViewTypes
+msgctxt "#33211"
+msgid "Poster"
+msgstr ""
+
+msgctxt "#33212"
+msgid "Icon Wall"
+msgstr ""
+
+msgctxt "#33213"
+msgid "Shift"
+msgstr ""
+
+msgctxt "#33214"
+msgid "Info Wall"
+msgstr ""
+
+msgctxt "#33215"
+msgid "Wide List"
+msgstr ""
+
+msgctxt "#33216"
+msgid "Wall"
+msgstr ""
+
+# Provider
+msgctxt "#33301"
+msgid "Install"
+msgstr ""
+
+msgctxt "#33302"
+msgid "Manage"
+msgstr ""
+
+msgctxt "#33303"
+msgid "Check for an update"
+msgstr ""
+
+# Debrid
+msgctxt "#33401"
+msgid "Premiumize"
+msgstr ""
+
+msgctxt "#33402"
+msgid "API key: "
+msgstr ""
+
+# IMDb
+msgctxt "#33501"
+msgid "Authentication"
+msgstr ""
+
+msgctxt "#33502"
+msgid "Cookie[at-main]: "
+msgstr ""
+
+msgctxt "#33503"
+msgid "Verify"
+msgstr ""
+
+# Misc
+msgctxt "#33601"
+msgid "Migrate Trakt.tv's watched status to IMDb (via rating)"
+msgstr ""
+
+msgctxt "#33602"
+msgid "Trakt API key (Client ID): "
+msgstr ""
+
+msgctxt "#33603"
+msgid "Trakt username (User slug): "
+msgstr ""
+
+msgctxt "#33604"
+msgid "Migrate Status"
+msgstr ""
+
+msgctxt "#33605"
+msgid "Migrate Trakt.tv's collections to IMDb (requires existing lists)"
+msgstr ""
+
+msgctxt "#33606"
+msgid "Migrate Collections"
+msgstr ""

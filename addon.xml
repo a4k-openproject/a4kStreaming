@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<addon id="plugin.video.a4kstreaming"
+       name="a4kStreaming"
+       version="0.1.0"
+       provider-name="Unknown">
+    <requires>
+      <import addon="script.module.requests"/>
+      <import addon="script.module.beautifulsoup4"/>
+    </requires>
+    <extension point="xbmc.python.pluginsource" library="main.py">
+      <provides>video</provides>
+    </extension>
+    <extension point="xbmc.service" library="main_service.py" />
+    <extension point="xbmc.addon.metadata">
+        <summary lang="en">a4kStreaming - IMDb-based media browser</summary>
+        <description>
+IMDb-based media browser with streaming support via external providers.
+        </description>
+        <platform>all</platform>
+        <reuselanguageinvoker>true</reuselanguageinvoker>
+        <license>MIT License</license>
+        <website>https://github.com/newt-sc/a4kStreaming</website>
+        <source>https://github.com/newt-sc/a4kStreaming</source>
+        <assets>
+            <icon>icon.png</icon>
+        </assets>
+        <news>
+[v0.1.0]:
+  * IMDb:
+    * Authentication via cookie
+    * Browsing for titles
+      * Trending
+      * Fan Favourites
+      * Recommended
+      * Discover by Year
+    * Browsing Shows
+      * Seasons
+      * Season episodes
+    * Lists
+    * Watchlist
+    * Search for titles or people
+    * Mark as watched/unwatched (by rating/unrating a title)
+      * Auto mark as watched when played more than 90 percents
+    * Add/Remove to/from list
+    * Artwork for posters, thumbnails and fanart
+    * Trailers
+    * Rate/Unrate titles
+  * Provider support
+    * Install
+    * Manage
+    * Auto update
+    * Caching of results
+  * Debrid support
+    * Premiumize
+  * Misc
+    * Migrate watched titles from Trakt.tv to IMDb (via rating)
+    * Migrate movies and shows collection from Trakt.tv to IMDb custom lists
+        </news>
+    </extension>
+</addon>

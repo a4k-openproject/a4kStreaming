@@ -1,0 +1,17 @@
+name: Release
+on:
+  push:
+    branches: [ master ]
+  workflow_dispatch: ~
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    if: "startsWith(github.event.head_commit.message, 'release: v')"
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: release
+      run: |
+        sh ./scripts/release.sh ${{ secrets.GITHUB_TOKEN }} "${{ github.event.head_commit.message }}"

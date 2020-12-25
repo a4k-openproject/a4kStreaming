@@ -1,0 +1,6 @@
+requests
+beautifulsoup4
+pytest
+flake8
+coverage
+coveralls

@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<settings>
+    <!-- General -->
+    <category label="33001">
+        <setting id="general.page_size"              label="33101" type="slider" default="29" option="int" range="10,100"/>
+        <setting id="general.mark_as_watched_rating" label="33102" type="slider" default="7" option="int" range="1,10"/>
+    </category>
+    <!-- Views -->
+    <category label="33002">
+        <setting id="views.menu"     type="enum" label="33200" lvalues='33211|33212|33213|33214|33215|33216' default="4"/>
+        <setting id="views.titles"   type="enum" label="33201" lvalues='33211|33212|33213|33214|33215|33216' default="5"/>
+        <setting id="views.seasons"  type="enum" label="33202" lvalues='33211|33212|33213|33214|33215|33216' default="4"/>
+        <setting id="views.episodes" type="enum" label="33203" lvalues='33211|33212|33213|33214|33215|33216' default="4"/>
+        <setting id="views.movie"    type="enum" label="33204" lvalues='33211|33212|33213|33214|33215|33216' default="0"/>
+        <setting id="views.episode"  type="enum" label="33205" lvalues='33211|33212|33213|33214|33215|33216' default="0"/>
+    </category>
+    <!-- Provider -->
+    <category label="33003">
+        <setting id="provider.install" type="action" label="33301" action="RunPlugin(plugin://plugin.video.a4kstreaming/?action=provider&type=install)"/>
+        <setting id="provider.manage"  type="action" label="33302" action="RunPlugin(plugin://plugin.video.a4kstreaming/?action=provider&type=manage)"/>
+        <setting id="provider.check"   type="action" label="33303" action="RunPlugin(plugin://plugin.video.a4kstreaming/?action=provider&type=new_version_check)"/>
+    </category>
+    <!-- Debrid -->
+    <category label="33004">
+        <setting type="lsep" label="33401"/>
+        <setting type="sep"/>
+        <setting id="premiumize.apikey" type="text" label="33402" default=""/>
+    </category>
+    <!-- IMDb -->
+    <category label="33005">
+        <setting type="lsep" label="33501"/>
+        <setting type="sep"/>
+        <setting id="imdb.at-main"   type="text"   label="33502" default=""/>
+    </category>
+    <!-- Misc -->
+    <category label="33006">
+        <setting id="trakt.clientid"  type="text"   label="33602" default=""/>
+        <setting id="trakt.username"  type="text"   label="33603" default=""/>
+        <setting type="lsep" label="33601"/>
+        <setting type="sep"/>
+        <setting id="trakt.migrate_status"   type="action" label="33604" action="RunPlugin(plugin://plugin.video.a4kstreaming/?action=trakt&type=migrate_status)"/>
+        <setting type="lsep" label="33605"/>
+        <setting type="sep"/>
+        <setting id="trakt.migrate_collections"   type="action" label="33606" action="RunPlugin(plugin://plugin.video.a4kstreaming/?action=trakt&type=migrate_collections)"/>
+    </category>
+</settings>

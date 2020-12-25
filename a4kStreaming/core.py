@@ -1,0 +1,108 @@
+# -*- coding: utf-8 -*-
+
+import sys
+import os
+import json
+import threading
+import time
+import base64
+import importlib
+import traceback
+from collections import OrderedDict
+from datetime import datetime, date
+
+from .lib import (
+    kodi,
+    logger,
+    request,
+    utils,
+    cache,
+)
+
+core = sys.modules[__name__]
+utils.core = core
+
+api_mode_enabled = True
+url = ''
+handle = None
+
+viewTypes = [
+    51,   # Poster
+    52,   # Icon Wall
+    53,   # Shift
+    54,   # Info Wall
+    55,   # Wide List
+    500,  # Wall
+]
+viewType = None
+
+from .explorer import root, query, profile, trailer, years, play, search
+from .provider import provider, provider_meta
+from .trakt import trakt
+
+provider(core, core.utils.DictAsObject({ 'type': 'install', 'init': True }))
+
+def not_supported():
+    kodi.notification('Not supported yet')
+    utils.end_action(core, True)
+
+def main(url, handle, paramstring):
+    core.api_mode_enabled = False
+    core.url = url
+    core.handle = handle
+
+    params = utils.DictAsObject(utils.parse_qsl(paramstring))
+
+    action = params.get('action', None)
+
+    if action is None:
+        core.viewType = kodi.get_setting('views.menu')
+        kodi.xbmcplugin.setContent(handle, 'videos')
+        root(core)
+
+    elif action == 'years':
+        core.viewType = kodi.get_setting('views.menu')
+        kodi.xbmcplugin.setContent(handle, 'videos')
+        years(core, params)
+
+    elif action == 'search':
+        core.viewType = kodi.get_setting('views.titles')
+        core.kodi.xbmcplugin.setContent(core.handle, 'movies')
+        search(core, params)
+
+    elif action == 'query':
+        if params.type == 'seasons':
+            core.viewType = kodi.get_setting('views.seasons')
+        elif params.type == 'episodes':
+            core.viewType = kodi.get_setting('views.episodes')
+        elif params.type == 'browse':
+            core.viewType = kodi.get_setting('views.movie')
+        else:
+            core.viewType = kodi.get_setting('views.titles')
+        query(core, params)
+
+    elif action == 'profile':
+        profile(core, params)
+        return
+
+    elif action == 'trailer':
+        trailer(core, params)
+        return
+
+    elif action == 'play':
+        play(core, params)
+        return
+
+    elif action == 'provider':
+        provider(core, params)
+        return
+
+    elif action == 'trakt':
+        trakt(core, params)
+        return
+
+    else:
+        not_supported()
+
+    kodi.xbmcplugin.endOfDirectory(handle)
+    utils.apply_viewtype(core)

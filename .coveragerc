@@ -1,0 +1,9 @@
+[run]
+omit =
+    main.py
+
+[report]
+exclude_lines =
+    pragma: no cover
+    if py2
+    if core\.utils\.py2

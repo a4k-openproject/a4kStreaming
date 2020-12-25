@@ -1,0 +1,35 @@
+name: Suite
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - '.github/workflows/cron-tests-suite.yml'
+  schedule:
+    - cron:  '0 7 * * *'
+  workflow_dispatch: ~
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: setup-python
+      uses: actions/setup-python@v2
+      with:
+        python-version: 3.7
+
+    - name: install
+      run: |
+        python -m pip install --upgrade pip
+        python -m pip install -r requirements.txt
+
+    - name: test
+      env:
+        A4KSTREAMING_IMDB_TOKEN: ${{ secrets.A4KSTREAMING_IMDB_TOKEN }}
+        A4KSTREAMING_PREMIUMIZE_APIKEY: ${{ secrets.A4KSTREAMING_PREMIUMIZE_APIKEY }}
+        A4KSTREAMING_PROVIDER_URL: ${{ secrets.A4KSTREAMING_PROVIDER_URL }}
+      run: |
+        pytest -v ./tests/test_suite.py

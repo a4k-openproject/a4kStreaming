@@ -1,0 +1,321 @@
+__meta_data = None
+
+def __meta(core):
+    global __meta_data
+
+    if not __meta_data:
+        meta = core.utils.get_json(core.utils.provider_data_dir, 'meta.json')
+        __meta_data = core.utils.DictAsObject(meta)
+
+    return __meta_data
+
+def __new_version_check(core, params):
+    if not __meta(core).name:
+        if not params.silent:
+            core.kodi.notification('Provider not installed')
+        return
+
+    local_meta = __meta(core)
+    request = {
+        'method': 'GET',
+        'url': local_meta.remote_meta
+    }
+    response = core.request.execute(core, request)
+    if response.status_code != 200:
+        if not params.silent:
+            core.kodi.notification('Something went wrong. Check logs')
+            core.logger.notice(response.text)
+        return
+    remote_meta = core.utils.DictAsObject(core.json.loads(response.text))
+    if core.utils.versiontuple(remote_meta.version) <= core.utils.versiontuple(local_meta.version):
+        if not params.silent:
+            core.kodi.notification('Latest version already installed')
+        return
+    if not params.silent:
+        core.kodi.notification('Installing new version v%s' % remote_meta.version)
+    __install(core, core.utils.DictAsObject({ 'install': 1, 'zip_url': '%s%s-%s.zip' % (remote_meta.update_directory, remote_meta.name, remote_meta.version) }))
+
+def __sources_module_name(core):
+    sources_root = core.os.listdir(core.os.path.join(core.utils.provider_sources_dir, '%s/en' % __meta(core).name))
+    sources_root = list(filter(lambda v: core.os.path.splitext(v)[1] == '', sources_root))
+    return 'providers.%s.en.%s' % (__meta(core).name, sources_root[-1])
+
+def __update_config(core):
+    provider = core.cache.get_provider()
+    sources = core.importlib.import_module(__sources_module_name(core)).__all__
+    sources = [source.upper() for source in sources]
+
+    for source in provider.keys():
+        if source not in sources:
+            provider.pop(source)
+
+    for source in sources:
+        if provider.get(source, None) is None:
+            provider[source] = True
+
+    core.cache.save_provider(provider)
+
+def __install(core, params):
+    global __meta_data
+
+    if params.init:
+        if core.os.path.exists(core.utils.provider_data_dir) and core.os.path.exists(core.utils.provider_sources_dir) and core.os.path.exists(core.utils.provider_modules_dir):
+            return
+
+    zip_name = 'provider.zip'
+    zip_perm_path = core.os.path.join(core.kodi.addon_profile, zip_name)
+
+    try:
+        if not params.init:
+            if params.install:
+                selection = params.install
+            else:
+                selection = core.kodi.xbmcgui.Dialog().select(
+                    'Install provider',
+                    ['From File', 'From URL'],
+                )
+
+            zip_path = None
+            if selection == 0:
+                if params.zip_path:
+                    zip_path = params.zip_path
+                else:
+                    zip_path = core.kodi.xbmcgui.Dialog().browse(1, 'Choose provider zip', '', '.zip', True, False)
+                    if zip_path.startswith('ftp://'):
+                        zip_path = core.utils.download_zip(core, zip_path, zip_name)
+                if not zip_path:
+                    return
+            elif selection == 1:
+                if params.zip_url:
+                    zip_url = params.zip_url
+                else:
+                    keyboard = core.kodi.xbmc.Keyboard('', 'Enter provider zip URL')
+                    keyboard.doModal()
+                    if not keyboard.isConfirmed():
+                        return
+                    zip_url = keyboard.getText()
+
+                zip_path = core.utils.download_zip(core, zip_url, zip_name)
+            else:
+                return
+
+            if zip_path != zip_perm_path:
+                core.utils.shutil.copyfile(zip_path, zip_perm_path)
+
+        elif not core.os.path.exists(zip_perm_path):
+            return
+
+        core.utils.extract_zip(zip_perm_path, core.utils.provider_data_dir)
+        try:
+            core.utils.shutil.rmtree(core.utils.provider_sources_dir, ignore_errors=True)
+            core.os.rename(core.os.path.join(core.utils.provider_data_dir, core.os.path.basename(core.utils.provider_sources_dir)), core.utils.provider_sources_dir)
+            core.utils.shutil.rmtree(core.utils.provider_modules_dir, ignore_errors=True)
+            core.os.rename(core.os.path.join(core.utils.provider_data_dir, core.os.path.basename(core.utils.provider_modules_dir)), core.utils.provider_modules_dir)
+        except:
+            if not params.init:
+                core.kodi.notification('Unsupported provider')
+            return
+
+        __meta_data = None
+        __update_config(core)
+
+        if not params.init:
+            core.kodi.notification('%s installed v%s' % (__meta(core).name, __meta(core).version))
+    except Exception as e:
+        if not params.init:
+            core.kodi.notification('Something went wrong. Check logs')
+        core.logger.notice(e)
+        return
+
+def __manage(core, params):
+    if not __meta(core).name:
+        core.kodi.notification('Provider not installed')
+        return
+
+    provider = core.cache.get_provider()
+    sources = list(provider.keys())
+    sources.sort()
+
+    multiselect = core.kodi.xbmcgui.Dialog().multiselect(
+        '%s v%s' % (__meta(core).name, __meta(core).version),
+        sources,
+        preselect=[i for i, key in enumerate(sources) if provider[key]]
+    )
+
+    if not multiselect:
+        return
+
+    for i, key in enumerate(sources):
+        provider[key] = True if i in multiselect else False
+
+    core.cache.save_provider(provider)
+
+def __search(core, params):
+    provider = core.cache.get_provider()
+
+    sources = {}
+    for key in provider:
+        if not provider[key]:
+            continue
+
+        source = core.importlib.import_module(__sources_module_name(core) + ('.%s' % key.lower()))
+        sources[key] = source.sources()
+
+    threads = []
+    search = lambda: None
+    search.results = {}
+    search.cached = {}
+
+    for key in sources.keys():
+        def get_sources(key):
+            source = sources[key]
+            results = []
+            try:
+                if params.title.mediatype == 'movie':
+                    try:
+                        results += source.movie(params.title.title, params.title.year, params.title.imdbnumber)
+                    except:
+                        results += source.movie(params.title.title, params.title.year)
+                else:
+                    simple_info = {
+                        'show_title': params.title.tvshowtitle,
+                        'show_aliases': [],
+                        'year': params.title.year,
+                        'country': params.title.country,
+                        'episode_title': params.title.title,
+                        'season_number': str(params.title.season),
+                        'episode_number': str(params.title.episode),
+                        'no_seasons': str(params.title.seasons[-1])
+                    }
+                    all_info = { 'info': { 'tvshow.imdb_id': params.title.tvshowid } }
+                    results += source.episode(simple_info, all_info)
+
+                if len(results) > 0:
+                    request = {
+                        'method': 'POST',
+                        'url': 'https://www.premiumize.me/api/cache/check?apikey=%s' % core.utils.get_debrid_apikey(core),
+                        'data': {
+                            'items[]': [item['hash'] for item in results]
+                        },
+                    }
+
+                    response = core.request.execute(core, request)
+                    if response.status_code == 200:
+                        parsed_response = core.json.loads(response.text)
+                        for i, status in enumerate(parsed_response['response']):
+                            result = results[i]
+                            search.results[result['hash']] = True
+                            if not status:
+                                continue
+
+                            result['ref'] = params.title
+
+                            size = float(parsed_response['filesize'][i]) / 1024 / 1024 / 1024
+                            if size <= 0:
+                                size = float(result['size']) / 1024
+                            result['size'] = round(size, 1)
+
+                            core.utils.cleanup_result(result)
+                            search.cached[result['hash']] = result
+
+            except Exception as e:
+                core.logger.notice(e)
+            finally:
+                sources.pop(key)
+
+        thread = core.threading.Thread(target=get_sources, args=(key,))
+        threads.append(thread)
+
+    progress = core.kodi.xbmcgui.DialogProgress()
+    progress_total = len(sources)
+
+    def progress_msg():
+        quality = core.OrderedDict([('4K', 0), ('1080P', 0), ('720P', 0), ('SD', 0), ('CAM', 0 )])
+        for key in list(search.cached.keys()):
+            quality[search.cached[key]['quality']] += 1
+
+        line1 = '[COLOR gray]Total[/COLOR]: [B]%s[/B] [COLOR gray]|[/COLOR] [COLOR gray]Cached[/COLOR]: [B]%s[/B]' % (len(search.results), len(search.cached))
+        line2 = ' [COLOR gray]|[/COLOR] '.join(['[COLOR gray]%s:[/COLOR] [B]%s[/B]' % (key, quality[key]) for key in quality])
+
+        pending = sorted(list(sources.keys()))
+        max_visible = 2
+        pending_names = ' [COLOR gray]|[/COLOR] '.join(pending[:max_visible])
+        if len(sources) > max_visible:
+            pending_names += '[COLOR gray]...[/COLOR]'
+
+        line3 = '[COLOR gray]Pending:[/COLOR] [B]%s[/B] [COLOR gray](%s)[/COLOR]' % (len(pending), pending_names)
+
+        if core.utils.py2:
+            msg = [line1, line2, line3]
+        else:
+            msg = [line1 + '\n' + line2 + '\n' + line3]
+
+        msg = [core.utils.re.sub(r' ', '  ', line) for line in msg]
+        return msg
+
+    search.dialog = False
+    def canceled():
+        return search.dialog and progress.iscanceled()
+
+    def update_progress():
+        if search.dialog:
+            progress.update(int(float(progress_total - len(sources)) / progress_total * 100), *progress_msg())
+
+    def close_progress():
+        if search.dialog:
+            progress.close()
+
+    search.done = False
+    def execute():
+        time_after_start = core.utils.time_ms() - params.start_time
+        if time_after_start < 1000:
+            core.kodi.xbmc.sleep(int(round(1000 - time_after_start)))
+        progress.create(core.kodi.addon_name, *progress_msg())
+        search.dialog = True
+
+        chunk_size = len(sources)
+        for chunk in core.utils.chunk(threads, chunk_size):
+            if canceled():
+                break
+
+            for thread in chunk:
+                thread.start()
+                if canceled():
+                    break
+
+            for thread in chunk:
+                thread.join()
+                if canceled():
+                    break
+        search.done = True
+
+    exec_thread = core.threading.Thread(target=execute)
+    exec_thread.start()
+
+    while(not canceled() and not search.done):
+        core.kodi.xbmc.sleep(1000)
+        update_progress()
+
+    try:
+        for source in sources:
+            source.cancel_operations()
+    except:
+        pass
+
+    close_progress()
+    return search.cached
+
+def provider_meta(core):
+    return __meta(core)
+
+def provider(core, params):
+    if params.type == 'install':
+        return __install(core, params)
+    elif params.type == 'new_version_check':
+        return __new_version_check(core, params)
+    elif params.type == 'manage':
+        return __manage(core, params)
+    elif params.type == 'search':
+        return __search(core, params)
+    else:
+        core.not_supported()
