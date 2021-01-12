@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <addon id="plugin.video.a4kstreaming"
        name="a4kStreaming"
-       version="0.2.0"
+       version="0.3.0"
        provider-name="Unknown">
     <requires>
       <import addon="script.module.requests"/>
@@ -25,6 +25,9 @@ IMDb-based media browser with streaming support via external providers.
             <icon>icon.png</icon>
         </assets>
         <news>
+[v0.3.0]:
+  * Fix browsing shows which do not have any episodes with release dates
+  * Fix some titles being filtered out
 [v0.2.0]:
   * Speedup loading by removing query for watchlist status
   * Order lists by date added (desc)
