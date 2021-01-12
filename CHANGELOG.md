@@ -1,3 +1,9 @@
+* [v0.2.0](https://github.com/newt-sc/a4kStreaming/releases/tag/plugin.video.a4kstreaming%2Fplugin.video.a4kstreaming-0.2.0):
+  * Speedup loading by removing query for watchlist status
+  * Order lists by date added (desc)
+  * Add separate setting for lists page size
+  * Improve posters quality
+  * Improve cast for movies
 * [v0.1.0](https://github.com/newt-sc/a4kStreaming/releases/tag/plugin.video.a4kstreaming%2Fplugin.video.a4kstreaming-0.1.0):
   * IMDb:
     * Authentication via cookie

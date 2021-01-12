@@ -37,6 +37,10 @@ msgid "Page size"
 msgstr ""
 
 msgctxt "#33102"
+msgid "Lists page size"
+msgstr ""
+
+msgctxt "#33103"
 msgid "Mark as watched effective title rating"
 msgstr ""
 
