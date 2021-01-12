@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <addon id="plugin.video.a4kstreaming"
        name="a4kStreaming"
-       version="0.1.0"
+       version="0.2.0"
        provider-name="Unknown">
     <requires>
       <import addon="script.module.requests"/>
@@ -25,6 +25,12 @@ IMDb-based media browser with streaming support via external providers.
             <icon>icon.png</icon>
         </assets>
         <news>
+[v0.2.0]:
+  * Speedup loading by removing query for watchlist status
+  * Order lists by date added (desc)
+  * Add separate setting for lists page size
+  * Improve posters quality
+  * Improve cast for movies
 [v0.1.0]:
   * IMDb:
     * Authentication via cookie

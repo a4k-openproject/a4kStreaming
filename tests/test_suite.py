@@ -178,7 +178,7 @@ def test_year():
 def test_browse_movie():
     a4kstreaming_api = api.A4kStreamingApi({'kodi': True})
 
-    fn = __invoke(a4kstreaming_api, 'query', { 'type': 'browse', 'id': 'tt0108160' })
+    fn = __invoke(a4kstreaming_api, 'query', { 'type': 'browse', 'id': 'tt6723592' })
 
     assert len(fn.results) > 0
 

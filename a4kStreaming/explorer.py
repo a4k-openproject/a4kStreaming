@@ -22,56 +22,34 @@ def __set_wide_image_as_primary(title):
         if len(wide_images) > 0:
             title['primaryImage'] = wide_images[0]
 
-def __get_title_status(core, status, title_ids):
-    class_types = []
-    if status.watchlist:
-        class_types.append('WATCH_LIST')
+def __set_titles_contextmenu(title, list_item):
+    tvseries = title['titleType'] == 'tvSeries'
+    has_rating = title.get('userRating', None) is not None
+    context_menu_items = [
+        ('IMDb: %s rating' % ('Update' if has_rating else 'Set'), 'RunPlugin(plugin://plugin.video.a4kstreaming/?action=profile&type=rate&id=%s)' % title['id'])
+    ]
 
-    results = query(core, core.utils.DictAsObject({ 'type': 'status', 'ids': title_ids, 'class_types': class_types, 'silent': True }))
-    for result in results:
-        if result['listClass'] == 'WATCH_LIST':
-            status.watchlist = result
-
-def __set_titles_config_based_on_status(status, list_items):
-    items = []
-    for (title, item) in list_items:
-        (url, list_item, dir) = item
-
-        tvseries = title['titleType'] == 'tvSeries'
-        has_rating = title.get('userRating', None) is not None
-        context_menu_items = [
-            ('IMDb: %s rating' % ('Update' if has_rating else 'Set'), 'RunPlugin(plugin://plugin.video.a4kstreaming/?action=profile&type=rate&id=%s)' % title['id'])
-        ]
-
-        if not tvseries:
-            if has_rating:
-                list_item.setInfo('video', {
-                    'overlay': 5,
-                    'playcount': 1
-                })
-                context_menu_items.append(
-                    ('IMDb: Mark as unwatched', 'RunPlugin(plugin://plugin.video.a4kstreaming/?action=profile&type=mark_as_unwatched&id=%s)' % title['id'])
-                )
-            else:
-                context_menu_items.append(
-                    ('IMDb: Mark as watched', 'RunPlugin(plugin://plugin.video.a4kstreaming/?action=profile&type=mark_as_watched&id=%s)' % title['id'])
-                )
-
-        if status.watchlist.get(title['id'], False):
+    if not tvseries:
+        if has_rating:
+            list_item.setInfo('video', {
+                'overlay': 5,
+                'playcount': 1
+            })
             context_menu_items.append(
-                ('IMDb: Remove from watchlist', 'RunPlugin(plugin://plugin.video.a4kstreaming/?action=profile&type=watchlist_remove&id=%s)' % title['id'])
+                ('IMDb: Mark as unwatched', 'RunPlugin(plugin://plugin.video.a4kstreaming/?action=profile&type=mark_as_unwatched&id=%s)' % title['id'])
             )
         else:
             context_menu_items.append(
-                ('IMDb: Add to watchlist', 'RunPlugin(plugin://plugin.video.a4kstreaming/?action=profile&type=watchlist_add&id=%s)' % title['id'])
+                ('IMDb: Mark as watched', 'RunPlugin(plugin://plugin.video.a4kstreaming/?action=profile&type=mark_as_watched&id=%s)' % title['id'])
             )
-        context_menu_items.extend([
-            ('IMDb: Add to list', 'RunPlugin(plugin://plugin.video.a4kstreaming/?action=profile&type=list_add&id=%s)' % title['id']),
-            ('IMDb: Remove from list', 'RunPlugin(plugin://plugin.video.a4kstreaming/?action=profile&type=list_remove&id=%s)' % title['id'])
-        ])
-        list_item.addContextMenuItems(context_menu_items)
-        items.append(item)
-    return items
+
+    context_menu_items.extend([
+        ('IMDb: Add to watchlist', 'RunPlugin(plugin://plugin.video.a4kstreaming/?action=profile&type=watchlist_add&id=%s)' % title['id']),
+        ('IMDb: Remove from watchlist', 'RunPlugin(plugin://plugin.video.a4kstreaming/?action=profile&type=watchlist_remove&id=%s)' % title['id']),
+        ('IMDb: Add to list', 'RunPlugin(plugin://plugin.video.a4kstreaming/?action=profile&type=list_add&id=%s)' % title['id']),
+        ('IMDb: Remove from list', 'RunPlugin(plugin://plugin.video.a4kstreaming/?action=profile&type=list_remove&id=%s)' % title['id']),
+    ])
+    list_item.addContextMenuItems(context_menu_items)
 
 def __generate_mutation_query(action, ids, vars=''):
     vars = 'fn(%s) ' % vars if vars else 'fn'
@@ -309,29 +287,26 @@ def __add_title(core, title):
             'plot': ', '.join(person['characters']) if person.get('characters', None) else None
         })
 
-    skip_cast = False
+    if title.get('principalCredits', None):
+        for credits in title['principalCredits']:
+            if credits['category'] == 'Stars':
+                for credit in credits['credits']:
+                    add_person(credits['category'], credit)
+
     if title.get('credits', None):
-        skip_cast = True
         for credit in title['credits']:
             add_person('Cast', credit)
 
     if title.get('principalCredits', None):
         for credits in title['principalCredits']:
-            if credits['category'] == 'Stars' and skip_cast:
-                continue
-            for credit in credits['credits']:
-                add_person(credits['category'], credit)
+            if credits['category'] != 'Stars':
+                for credit in credits['credits']:
+                    add_person(credits['category'], credit)
 
     return __add_titles(core, items, False)
 
 def __add_titles(core, titles, browse):
     list_items = []
-
-    title_ids = [title['id'] for title in titles if title['titleType'] in ['movie', 'tvSeries', 'tvEpisode']]
-    status = lambda: None
-    status.watchlist = {}
-    status_thread = core.threading.Thread(target=__get_title_status, args=(core, status, title_ids))
-    status_thread.start()
 
     for title in titles:
         titleType = title['titleType']
@@ -450,12 +425,16 @@ def __add_titles(core, titles, browse):
         list_item.setInfo('video', video_meta)
 
         cast = []
-        if 'credits' in title and title['credits']:
-            cast = title['credits']
-
-        if len(cast) == 0 and 'principalCredits' in title:
+        if 'principalCredits' in title:
             cast = [item['credits'] if item['category'] == 'Stars' else None for item in title['principalCredits']]
             cast = next(iter(filter(lambda v: v, cast)), [])
+        cast_ids = [c.get('name', c)['id'] for c in cast]
+
+        if 'credits' in title and title['credits']:
+            for credit in title['credits']:
+                credit_id = credit.get('name', credit)['id']
+                if credit_id not in cast_ids:
+                    cast.append(credit)
 
         cast_meta = []
         for member in cast:
@@ -498,12 +477,10 @@ def __add_titles(core, titles, browse):
             url += '&id=%s' % title['id']
 
         list_item.setContentLookup(False)
-        list_items.append((title, (url, list_item, action != 'play')))
+        __set_titles_contextmenu(title, list_item)
+        list_items.append((url, list_item, action != 'play'))
 
-    status_thread.join()
-    items = __set_titles_config_based_on_status(status, list_items)
-
-    core.kodi.xbmcplugin.addDirectoryItems(core.handle, items, len(items))
+    core.kodi.xbmcplugin.addDirectoryItems(core.handle, list_items, len(list_items))
 
 def root(core):
     items = [
@@ -715,6 +692,7 @@ def query(core, params):
         releasedOnOrBefore['day'] = int(params.day_end)
 
     page_size = core.kodi.get_int_setting('general.page_size')
+    lists_page_size = core.kodi.get_int_setting('general.lists_page_size')
 
     requests = {
         'popular': lambda: core.utils.get_graphql_query({
@@ -860,7 +838,7 @@ def query(core, params):
             'query': '''
                 query fn($first: Int!, $paginationToken: ID, $EXTRA_PARAMS) {
                     predefinedList(classType: WATCH_LIST) {
-                        items(first: $first, after: $paginationToken) {
+                        items(first: $first, after: $paginationToken, sort: { by: CREATED_DATE, order: DESC }) {
                             titles: edges {
                                 node {
                                     item {
@@ -878,7 +856,7 @@ def query(core, params):
             ''',
             'operationName': 'fn',
             'variables': {
-                'first': page_size,
+                'first': lists_page_size,
                 'paginationToken': params.paginationToken,
             }
         }),
@@ -927,7 +905,7 @@ def query(core, params):
             'query': '''
                 query fn($id: ID!, $first: Int!, $paginationToken: ID, $EXTRA_PARAMS) {
                     list(id: $id) {
-                        items(first: $first, after: $paginationToken) {
+                        items(first: $first, after: $paginationToken, sort: { by: CREATED_DATE, order: DESC }) {
                             titles: edges {
                                 node {
                                     item {
@@ -946,7 +924,7 @@ def query(core, params):
             'operationName': 'fn',
             'variables': {
                 'id': params.id,
-                'first': page_size,
+                'first': lists_page_size,
                 'paginationToken': params.paginationToken,
             }
         }),

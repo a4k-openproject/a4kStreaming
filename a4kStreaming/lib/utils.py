@@ -58,7 +58,7 @@ def versiontuple(v):
     if not v: return (0, 0, 0)
     version_parts = v.split('.')
     while len(version_parts) < 3: version_parts.append('0')
-    version_parts = [(int(v) if v.isdigit() else 0) for v in version_parts]
+    version_parts = [(int(v_part) if v_part.isdigit() else 0) for v_part in version_parts]
     return tuple(map(int, version_parts))
 
 def chunk(it, size):
@@ -354,8 +354,8 @@ def generic_list_items(core, items):
 
     return list_items
 
-def get_image_params(image, desired_width, desired_height, with_crop=True):
-    if not image.get('width', None):
+def get_image_params(image, desired_width, desired_height):
+    if not image.get('width', None) or not image.get('height', None):
         return 'UX%s' % desired_width
 
     width = image['width']
@@ -367,20 +367,11 @@ def get_image_params(image, desired_width, desired_height, with_crop=True):
     target_height = desired_height if scaled_width >= desired_width else scaled_height
 
     if target_width < desired_width:
-        if with_crop:
-            params = 'UY%s' % target_height
-        else:
-            params = 'UX%s' % target_height
+        params = 'UY%s' % target_height
     else:
-        if with_crop:
-            params = 'UX%s' % target_width
-        else:
-            params = 'UY%s' % target_width
+        params = 'UX%s' % target_width
 
-    if with_crop:
-        return '_V1_%s_CR0,0,%s,%s_AL_.' % (params, desired_width, desired_height)
-    else:
-        return '_V1_%s.' % params
+    return '_V1_%s_CR0,0,%s,%s_AL_.' % (params, desired_width, desired_height)
 
 def fix_thumb_size(image):
     if image and image.get('url', None):
@@ -392,7 +383,14 @@ def fix_fanart_size(image):
 
 def fix_poster_size(image):
     if image and image.get('url', None):
-        return image['url'].replace('_V1_.', get_image_params(image, 400, 596, with_crop=False))
+        if not image.get('width', None) or not image.get('height', None):
+            params = get_image_params(image, 0, 0)
+        elif image['width'] < image['height']:
+            params = get_image_params(image, 528, 781)
+        else:
+            params = '_V1_UX528.'
+
+        return image['url'].replace('_V1_.', params)
 
 def apply_viewtype(core):
     kodi.xbmc.executebuiltin('Container.SetViewMode(%s)' % core.viewTypes[int(core.viewType)])
