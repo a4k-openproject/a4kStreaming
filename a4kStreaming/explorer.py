@@ -310,6 +310,8 @@ def __add_titles(core, titles, browse):
 
     for title in titles:
         titleType = title['titleType']
+        if titleType in ['tvMovie', 'video']:
+            titleType = 'movie'
         if titleType not in ['movie', 'tvSeries', 'tvEpisode', 'person']:
             continue
 
@@ -376,7 +378,7 @@ def __add_titles(core, titles, browse):
             episodes = title['episodes']
             if episodes.get('isOngoing', None) is not None:
                 video_meta.update({ 'status': 'Continuing' if episodes['isOngoing'] else 'Ended' })
-            if episodes.get('seasons', [None])[-1]:
+            if core.utils.safe_list_get(episodes.get('seasons', [None]), -1, None):
                 list_item.setProperty('TotalSeasons', str(episodes['seasons'][-1]))
                 if not video_meta.get('season', None):
                     video_meta.update({ 'season': episodes['seasons'][-1] })
@@ -645,7 +647,9 @@ def search(core, params):
         types = {
             'tv series': 'tvSeries',
             'tv mini-series': 'tvSeries',
-            'feature': 'movie'
+            'tv movie': 'movie',
+            'feature': 'movie',
+            'video': 'movie',
         }
 
         if types.get(titleType, None):
@@ -1100,7 +1104,7 @@ def query(core, params):
     elif params.type == 'browse':
         if data['titleType'] in ['tvEpisode']:
             core.viewType = core.kodi.get_setting('views.episode')
-        if data['titleType'] in ['movie', 'tvEpisode']:
+        if data['titleType'] in ['movie', 'tvMovie', 'tvEpisode', 'video']:
             core.kodi.xbmcplugin.setContent(core.handle, 'movies')
         __add_title(core, data)
     else:

@@ -1,3 +1,6 @@
+* [v0.3.0](https://github.com/newt-sc/a4kStreaming/releases/tag/plugin.video.a4kstreaming%2Fplugin.video.a4kstreaming-0.3.0):
+  * Fix browsing shows which do not have any episodes with release dates
+  * Fix some titles being filtered out
 * [v0.2.0](https://github.com/newt-sc/a4kStreaming/releases/tag/plugin.video.a4kstreaming%2Fplugin.video.a4kstreaming-0.2.0):
   * Speedup loading by removing query for watchlist status
   * Order lists by date added (desc)

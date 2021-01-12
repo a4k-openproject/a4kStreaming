@@ -54,6 +54,12 @@ class DictAsObject(dict):
     def __setattr__(self, name, value):
         self[name] = value
 
+def safe_list_get(list_items, index, default):
+    try:
+        return list_items[index]
+    except IndexError:
+        return default
+
 def versiontuple(v):
     if not v: return (0, 0, 0)
     version_parts = v.split('.')
