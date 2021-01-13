@@ -1,3 +1,6 @@
+* [v0.5.0](https://github.com/newt-sc/a4kStreaming/releases/tag/plugin.video.a4kstreaming%2Fplugin.video.a4kstreaming-0.5.0):
+  * New context menu:
+    * More like this - Showing similar titles
 * [v0.4.0](https://github.com/newt-sc/a4kStreaming/releases/tag/plugin.video.a4kstreaming%2Fplugin.video.a4kstreaming-0.4.0):
   * Update description
 * [v0.3.0](https://github.com/newt-sc/a4kStreaming/releases/tag/plugin.video.a4kstreaming%2Fplugin.video.a4kstreaming-0.3.0):

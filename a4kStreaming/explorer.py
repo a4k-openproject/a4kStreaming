@@ -22,12 +22,21 @@ def __set_wide_image_as_primary(title):
         if len(wide_images) > 0:
             title['primaryImage'] = wide_images[0]
 
-def __set_titles_contextmenu(title, list_item):
-    tvseries = title['titleType'] == 'tvSeries'
+def __set_title_contextmenu(core, title, list_item):
+    titleType = title['titleType']
+    if titleType == 'person':
+        return
+
+    tvseries = titleType == 'tvSeries'
     has_rating = title.get('userRating', None) is not None
     context_menu_items = [
-        ('IMDb: %s rating' % ('Update' if has_rating else 'Set'), 'RunPlugin(plugin://plugin.video.a4kstreaming/?action=profile&type=rate&id=%s)' % title['id'])
+        ('IMDb: %s rating' % ('Update' if has_rating else 'Set'), 'RunPlugin(plugin://plugin.video.a4kstreaming/?action=profile&type=rate&id=%s)' % title['id']),
     ]
+
+    if titleType != 'tvEpisode':
+        context_menu_items.append(
+            ('IMDb: More like this', 'XBMC.Container.Update(%s?action=query&type=more_like_this&id=%s)' % (core.url, title['id']))
+        )
 
     if not tvseries:
         if has_rating:
@@ -479,7 +488,7 @@ def __add_titles(core, titles, browse):
             url += '&id=%s' % title['id']
 
         list_item.setContentLookup(False)
-        __set_titles_contextmenu(title, list_item)
+        __set_title_contextmenu(core, title, list_item)
         list_items.append((url, list_item, action != 'play'))
 
     core.kodi.xbmcplugin.addDirectoryItems(core.handle, list_items, len(list_items))
@@ -754,6 +763,31 @@ def query(core, params):
             'operationName': 'fn',
             'variables': {
                 'first': 100,
+            }
+        }),
+        'more_like_this': lambda: core.utils.get_graphql_query({
+            'query': '''
+                query fn($id: ID!, $paginationToken: ID, $first: Int!, $EXTRA_PARAMS) {
+                    title(id: $id) {
+                        moreLikeThisTitles(first: $first, after: $paginationToken) {
+                            titles: edges {
+                                node {
+                                    ...Title
+                                }
+                            }
+                            pageInfo {
+                                hasNextPage
+                                endCursor
+                            }
+                        }
+                    }
+                }
+            ''',
+            'operationName': 'fn',
+            'variables': {
+                'id': params.id,
+                'paginationToken': params.paginationToken,
+                'first': page_size,
             }
         }),
         'seasons': lambda: core.utils.get_graphql_query({

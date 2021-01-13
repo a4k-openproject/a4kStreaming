@@ -116,6 +116,13 @@ def test_top_picks():
 
     assert len(fn.results) > 0
 
+def test_more_like_this():
+    a4kstreaming_api = api.A4kStreamingApi({'kodi': True})
+
+    fn = __invoke(a4kstreaming_api, 'query', { 'type': 'more_like_this', 'id': 'tt0383574' })
+
+    assert len(fn.results) > 0
+
 def test_watchlist():
     a4kstreaming_api = api.A4kStreamingApi({'kodi': True})
 
