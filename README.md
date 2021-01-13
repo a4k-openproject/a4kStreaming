@@ -35,6 +35,7 @@ Designed for low-end devices and Estuary skin.
     * Artwork for posters, thumbnails and fanart
     * Trailers
     * Rate/Unrate titles
+    * Seeing similar titles (i.e. More like this)
   * Provider support
     * Install
     * Manage
