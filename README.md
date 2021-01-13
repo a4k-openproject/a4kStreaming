@@ -5,7 +5,7 @@
 <br/>
 
 ## Status
-![status-api](https://github.com/newt-sc/a4kStreaming/workflows/API/badge.svg)![status-suite](https://github.com/newt-sc/a4kStreaming/workflows/Suite/badge.svg)
+![status-api](https://github.com/a4k-openproject/a4kStreaming/workflows/API/badge.svg)![status-suite](https://github.com/a4k-openproject/a4kStreaming/workflows/Suite/badge.svg)
 
 ## Description
 
@@ -52,7 +52,7 @@ Designed for low-end devices and Estuary skin.
 Steps to install a4kStreaming:
 1. Go to the KODI **File manager**.
 2. Click on **Add source**.
-3. The path for the source is https://newt-sc.github.io/a4kStreaming/packages/
+3. The path for the source is https://a4k-openproject.github.io/a4kStreaming/packages/
 4. (Optional) Name it **a4kStreaming-repo**.
 5. Head to **Addons**.
 6. Select **Install from zip file**.

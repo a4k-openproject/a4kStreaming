@@ -2,7 +2,7 @@
 
 token=$1
 ver=$(echo "$2" | sed "s/release: //")
-user="newt-sc"
+user="a4k-openproject"
 repo="a4kStreaming"
 tag_ver="${ver#?}"
 tag="plugin.video.a4kstreaming/plugin.video.a4kstreaming-$tag_ver"
