@@ -9,7 +9,11 @@
 
 ## Description
 
-IMDb-based media browser with streaming support via external providers.
+IMDb-based media browser addon for KODI with streaming support via external providers.
+Designed for low-end devices and Estuary skin.
+
+## Preview
+![usage](https://media.giphy.com/media/IdUqHVT9dxgZ5YEObr/source.gif)
 
 ## Features
   * IMDb:

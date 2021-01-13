@@ -4,7 +4,7 @@
 <addons>
 <addon id="plugin.video.a4kstreaming"
        name="a4kStreaming"
-       version="0.3.0"
+       version="0.4.0"
        provider-name="Unknown">
     <requires>
       <import addon="script.module.requests"/>
@@ -17,7 +17,8 @@
     <extension point="xbmc.addon.metadata">
         <summary lang="en">a4kStreaming - IMDb-based media browser</summary>
         <description>
-IMDb-based media browser with streaming support via external providers.
+IMDb-based media browser addon for KODI with streaming support via external providers.
+Designed for low-end devices and Estuary skin.
         </description>
         <platform>all</platform>
         <reuselanguageinvoker>true</reuselanguageinvoker>
@@ -26,8 +27,16 @@ IMDb-based media browser with streaming support via external providers.
         <source>https://github.com/newt-sc/a4kStreaming</source>
         <assets>
             <icon>icon.png</icon>
+            <screenshot>screenshot-01.jpg</screenshot>
+            <screenshot>screenshot-02.jpg</screenshot>
+            <screenshot>screenshot-03.jpg</screenshot>
+            <screenshot>screenshot-04.jpg</screenshot>
+            <screenshot>screenshot-05.jpg</screenshot>
+            <screenshot>screenshot-06.jpg</screenshot>
         </assets>
         <news>
+[v0.4.0]:
+  * Update description
 [v0.3.0]:
   * Fix browsing shows which do not have any episodes with release dates
   * Fix some titles being filtered out
