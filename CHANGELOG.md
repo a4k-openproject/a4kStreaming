@@ -1,3 +1,5 @@
+* [v0.6.0](https://github.com/newt-sc/a4kStreaming/releases/tag/plugin.video.a4kstreaming%2Fplugin.video.a4kstreaming-0.6.0):
+  * Improve auto episode selection from packs
 * [v0.5.0](https://github.com/newt-sc/a4kStreaming/releases/tag/plugin.video.a4kstreaming%2Fplugin.video.a4kstreaming-0.5.0):
   * New context menu:
     * More like this - Showing similar titles

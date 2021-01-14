@@ -1575,8 +1575,16 @@ def play(core, params):
 
         try:
             if len(files) > 1 and result['package'] in ['show', 'season'] and result['ref'].mediatype == 'episode':
-                episode_number = 'S%sE%s' % (str(result['ref'].season).zfill(2), str(result['ref'].episode).zfill(2))
-                episodes = list(filter(lambda v: episode_number in v['path'], files))
+                season = 'S%s' % str(result['ref'].season).zfill(2)
+                episode = 'E%s' % str(result['ref'].episode).zfill(2)
+                matches = [
+                    '%s%s' % (season, episode),
+                    '%s %s' % (season, episode),
+                    '%s.%s' % (season, episode),
+                    '%s_%s' % (season, episode),
+                    '%s-%s' % (season, episode),
+                ]
+                episodes = list(filter(lambda v: any(match in v['path'] for match in matches), files))
                 if len(episodes) == 1:
                     files = episodes
         except Exception as e:
