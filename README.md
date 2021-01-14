@@ -62,7 +62,9 @@ Steps to install a4kStreaming:
 
 ## Authentication
 
-The IMDb authentication token is the value of a cookie named `at-main`. It can be obtained by opening [imdb.com](https://www.imdb.com) in a browser, log in, then get it from:
+The IMDb authentication token is the value of a cookie named `at-main`.
+</br>
+It can be obtained by opening [imdb.com](https://www.imdb.com) in a browser, log in, then get it from:
 * (Chrome/Edge) DevTools > Application > Cookies
 * (Safari/Firefox) DevTools > Storage > Cookies
 
