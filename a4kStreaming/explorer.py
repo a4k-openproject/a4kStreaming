@@ -1563,7 +1563,7 @@ def play(core, params):
     link = None
     if response.status_code == 200:
         parsed_response = core.json.loads(response.text)
-        video_ext = map(lambda v: '.%s' % v.upper(), core.utils.video_containers())
+        video_ext = list(map(lambda v: '.%s' % v.upper(), core.utils.video_containers()))
         size = 1048576 * 200
 
         files = parsed_response.get('content', [])
