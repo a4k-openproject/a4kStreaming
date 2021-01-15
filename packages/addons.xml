@@ -4,7 +4,7 @@
 <addons>
 <addon id="plugin.video.a4kstreaming"
        name="a4kStreaming"
-       version="0.8.0"
+       version="0.9.0"
        provider-name="Unknown">
     <requires>
       <import addon="script.module.requests"/>
@@ -35,6 +35,9 @@ Designed for low-end devices and Estuary skin.
             <screenshot>screenshot-06.jpg</screenshot>
         </assets>
         <news>
+[v0.9.0]:
+  * Fix setting update needs addon reinitialization
+
 [v0.8.0]:
   * Fix auto video selection in KODI 19
 

@@ -1,3 +1,6 @@
+* [v0.9.0](https://github.com/newt-sc/a4kStreaming/releases/tag/plugin.video.a4kstreaming%2Fplugin.video.a4kstreaming-0.9.0):
+  * Fix setting update needs addon reinitialization
+
 * [v0.8.0](https://github.com/newt-sc/a4kStreaming/releases/tag/plugin.video.a4kstreaming%2Fplugin.video.a4kstreaming-0.8.0):
   * Fix auto video selection in KODI 19
 
