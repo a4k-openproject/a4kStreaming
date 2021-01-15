@@ -41,8 +41,12 @@ addon_id = addon.getAddonInfo('id')
 addon_name = addon.getAddonInfo('name')
 addon_version = addon.getAddonInfo('version')
 addon_icon = addon.getAddonInfo('icon')
-addon_path = xbmc.translatePath(addon.getAddonInfo('path'))
-addon_profile = xbmc.translatePath(addon.getAddonInfo('profile'))
+try:
+    addon_path = xbmcvfs.translatePath(addon.getAddonInfo('path'))
+    addon_profile = xbmcvfs.translatePath(addon.getAddonInfo('profile'))
+except:
+    addon_path = xbmc.translatePath(addon.getAddonInfo('path'))
+    addon_profile = xbmc.translatePath(addon.getAddonInfo('profile'))
 
 def json_rpc(method, params, log_error=True):
     try:
