@@ -26,7 +26,7 @@ def __new_version_check(core, params):
             core.kodi.notification('Something went wrong. Check logs')
             core.logger.notice(response.text)
         return
-    remote_meta = core.utils.DictAsObject(core.json.loads(response.text))
+    remote_meta = core.utils.DictAsObject(core.json.loads(response.content))
     if core.utils.versiontuple(remote_meta.version) <= core.utils.versiontuple(local_meta.version):
         if not params.silent:
             core.kodi.notification('Latest version already installed')
@@ -205,7 +205,7 @@ def __search(core, params):
 
                     response = core.request.execute(core, request)
                     if response.status_code == 200:
-                        parsed_response = core.json.loads(response.text)
+                        parsed_response = core.json.loads(response.content)
                         for i, status in enumerate(parsed_response['response']):
                             result = results[i]
                             search.results[result['hash']] = True
