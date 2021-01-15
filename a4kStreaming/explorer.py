@@ -644,7 +644,7 @@ def search(core, params):
         __handle_request_error(core, params, response)
         return []
 
-    results = core.json.loads(response.text)
+    results = core.json.loads(response.content)
     if len(results['d']) == 0:
         return []
 
@@ -1068,7 +1068,7 @@ def query(core, params):
             __handle_request_error(core, params, response)
             return []
 
-    parsed_response = core.json.loads(response.text)
+    parsed_response = core.json.loads(response.content)
     if parsed_response.get('errors', None) is not None and isinstance(parsed_response['errors'], list):
         errors = parsed_response['errors']
         try: invalid_creds = params.type in ['top_picks', 'watchlist'] and 'authenticat' in ' '.join(map(lambda v: v['message'].lower(), errors))
@@ -1109,7 +1109,7 @@ def query(core, params):
         if params.silent:
             return data['lists']
         core.viewType = core.kodi.get_setting('views.menu')
-        core.kodi.xbmcplugin.setContent(core.handle, 'videos')
+        core.contentType = 'videos'
         __add_lists(core, data)
     elif params.type == 'seasons':
         episodesData = data.get('episodes', data).get('episodes', data)
@@ -1132,19 +1132,19 @@ def query(core, params):
         if params.silent:
             return data['episodes']['episodes']
 
-        core.kodi.xbmcplugin.setContent(core.handle, 'seasons')
+        core.contentType = 'seasons'
         __add_seasons(core, data)
     elif params.type == 'episodes':
-        core.kodi.xbmcplugin.setContent(core.handle, 'episodes')
+        core.contentType = 'episodes'
         __add_episodes(core, data, int(params.season))
     elif params.type == 'browse':
         if data['titleType'] in ['tvEpisode']:
             core.viewType = core.kodi.get_setting('views.episode')
         if data['titleType'] in ['movie', 'tvMovie', 'tvEpisode', 'video']:
-            core.kodi.xbmcplugin.setContent(core.handle, 'movies')
+            core.contentType = 'movies'
         __add_title(core, data)
     else:
-        core.kodi.xbmcplugin.setContent(core.handle, 'movies')
+        core.contentType = 'movies'
         __add_titles(core, data if isinstance(data, list) else data.get('titles', []), browse=True)
 
     if isinstance(data, dict) and (data.get('paginationToken', None) or data.get('pageInfo', None) and data['pageInfo'].get('hasNextPage', False)):
@@ -1378,7 +1378,7 @@ def trailer(core, params):
         core.kodi.notification('Trailer not found')
         return
 
-    parsed_response = core.json.loads(response.text)
+    parsed_response = core.json.loads(response.content)
     try:
         all = parsed_response[0]['videoLegacyEncodings']
         filtered = filter(lambda v: v['definition'] != 'AUTO', all)
@@ -1562,7 +1562,7 @@ def play(core, params):
     response = core.request.execute(core, request)
     link = None
     if response.status_code == 200:
-        parsed_response = core.json.loads(response.text)
+        parsed_response = core.json.loads(response.content)
         video_ext = list(map(lambda v: '.%s' % v.upper(), core.utils.video_containers()))
         size = 1048576 * 200
 

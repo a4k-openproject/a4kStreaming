@@ -1,3 +1,7 @@
+* [v0.10.0](https://github.com/newt-sc/a4kStreaming/releases/tag/plugin.video.a4kstreaming%2Fplugin.video.a4kstreaming-0.10.0):
+  * Fix view mode switching on cancellation
+  * Use bytes format for json parsing (speeds up some results loading)
+
 * [v0.9.0](https://github.com/newt-sc/a4kStreaming/releases/tag/plugin.video.a4kstreaming%2Fplugin.video.a4kstreaming-0.9.0):
   * Fix setting update needs addon reinitialization
 

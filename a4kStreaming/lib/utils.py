@@ -405,8 +405,6 @@ def fix_poster_size(image):
 
 def apply_viewtype(core):
     kodi.xbmc.executebuiltin('Container.SetViewMode(%s)' % core.viewTypes[int(core.viewType)])
-    kodi.xbmc.sleep(200)
-    kodi.xbmc.executebuiltin('Container.SetViewMode(%s)' % core.viewTypes[int(core.viewType)])
 
 def get_graphql_query(body):
     fragments = {

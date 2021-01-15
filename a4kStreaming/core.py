@@ -35,6 +35,7 @@ viewTypes = [
     500,  # Wall
 ]
 viewType = None
+contentType = 'videos'
 
 from .explorer import root, query, profile, trailer, years, play, search
 from .provider import provider, provider_meta
@@ -51,23 +52,23 @@ def main(url, handle, paramstring):
     core.url = url
     core.handle = handle
 
+    listitem_path = kodi.xbmc.getInfoLabel('ListItem.FolderPath')
     params = utils.DictAsObject(utils.parse_qsl(paramstring))
-
     action = params.get('action', None)
 
     if action is None:
         core.viewType = kodi.get_setting('views.menu')
-        kodi.xbmcplugin.setContent(handle, 'videos')
+        core.contentType = 'videos'
         root(core)
 
     elif action == 'years':
         core.viewType = kodi.get_setting('views.menu')
-        kodi.xbmcplugin.setContent(handle, 'videos')
+        core.contentType = 'videos'
         years(core, params)
 
     elif action == 'search':
         core.viewType = kodi.get_setting('views.titles')
-        core.kodi.xbmcplugin.setContent(core.handle, 'movies')
+        core.contentType = 'movies'
         search(core, params)
 
     elif action == 'query':
@@ -104,5 +105,10 @@ def main(url, handle, paramstring):
     else:
         not_supported()
 
-    kodi.xbmcplugin.endOfDirectory(handle)
-    utils.apply_viewtype(core)
+    kodi.xbmcplugin.setContent(core.handle, core.contentType)
+    kodi.xbmcplugin.endOfDirectory(core.handle)
+
+    kodi.xbmc.sleep(100)
+    dir_switch = not listitem_path or listitem_path == kodi.xbmc.getInfoLabel('Container.FolderPath')
+    if dir_switch:
+        utils.apply_viewtype(core)

@@ -17,7 +17,7 @@ def __trakt_request(core, endpoint, type):
         core.logger.notice(response.text)
         return False
 
-    return core.json.loads(response.text)
+    return core.json.loads(response.content)
 
 def __migrate_status(core, params):
     if core.kodi.get_setting('imdb.at-main') == '':
