@@ -81,7 +81,7 @@ def busy_dialog():
 
 def get_setting(group, id=None):
     key = '%s.%s' % (group, id) if id else group
-    return addon.getSetting(key).strip()
+    return xbmcaddon.Addon(addon_id).getSetting(key).strip()
 
 def get_int_setting(group, id=None):
     return int(get_setting(group, id))
