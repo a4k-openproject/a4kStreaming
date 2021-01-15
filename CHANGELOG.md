@@ -1,22 +1,31 @@
+* [v0.8.0](https://github.com/newt-sc/a4kStreaming/releases/tag/plugin.video.a4kstreaming%2Fplugin.video.a4kstreaming-0.8.0):
+  * Fix auto video selection in KODI 19
+
 * [v0.7.0](https://github.com/newt-sc/a4kStreaming/releases/tag/plugin.video.a4kstreaming%2Fplugin.video.a4kstreaming-0.7.0):
   * Fix KODI 19 Matrix support
   * Speedup list items creation
+
 * [v0.6.0](https://github.com/newt-sc/a4kStreaming/releases/tag/plugin.video.a4kstreaming%2Fplugin.video.a4kstreaming-0.6.0):
   * Improve auto episode selection from packs
+
 * [v0.5.0](https://github.com/newt-sc/a4kStreaming/releases/tag/plugin.video.a4kstreaming%2Fplugin.video.a4kstreaming-0.5.0):
   * New context menu:
     * More like this - Showing similar titles
+
 * [v0.4.0](https://github.com/newt-sc/a4kStreaming/releases/tag/plugin.video.a4kstreaming%2Fplugin.video.a4kstreaming-0.4.0):
   * Update description
+
 * [v0.3.0](https://github.com/newt-sc/a4kStreaming/releases/tag/plugin.video.a4kstreaming%2Fplugin.video.a4kstreaming-0.3.0):
   * Fix browsing shows which do not have any episodes with release dates
   * Fix some titles being filtered out
+
 * [v0.2.0](https://github.com/newt-sc/a4kStreaming/releases/tag/plugin.video.a4kstreaming%2Fplugin.video.a4kstreaming-0.2.0):
   * Speedup loading by removing query for watchlist status
   * Order lists by date added (desc)
   * Add separate setting for lists page size
   * Improve posters quality
   * Improve cast for movies
+
 * [v0.1.0](https://github.com/newt-sc/a4kStreaming/releases/tag/plugin.video.a4kstreaming%2Fplugin.video.a4kstreaming-0.1.0):
   * IMDb:
     * Authentication via cookie

@@ -71,6 +71,11 @@ def chunk(it, size):
     it = iter(it)
     return iter(lambda: tuple(islice(it, size)), ())
 
+def open_file_wrapper(file, mode='r', encoding='utf-8'):
+    if py2:
+        return lambda: open(file, mode)
+    return lambda: open(file, mode, encoding=encoding)
+
 def get_json(path, filename):
     path = path if os.path.isdir(path) else os.path.dirname(path)
     if not filename.endswith('.json'):
@@ -80,7 +85,7 @@ def get_json(path, filename):
     if not os.path.exists(json_path):
         return {}
 
-    with open(json_path) as json_result:
+    with open_file_wrapper(json_path)() as json_result:
         return json.load(json_result)
 
 def imdb_auth_request_props():
