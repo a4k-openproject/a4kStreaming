@@ -15,7 +15,6 @@ except ImportError:
 
 # xbmc
 xbmc = lambda: None
-xbmc.translatePath = lambda p: p
 xbmc.getInfoLabel = lambda t: ''
 xbmc.executeJSONRPC = lambda _: '{ "result": { "value": [] } }'
 xbmc.executebuiltin = lambda _: None
@@ -122,6 +121,7 @@ def __mkdirs(f):
     try: os.makedirs(f)
     except Exception: pass
 xbmcvfs.mkdirs = __mkdirs
+xbmcvfs.translatePath = lambda p: p
 
 __archive_proto = 'archive://'
 def __listdir(archive_uri):

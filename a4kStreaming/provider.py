@@ -37,7 +37,7 @@ def __new_version_check(core, params):
 
 def __sources_module_name(core):
     sources_root = core.os.listdir(core.os.path.join(core.utils.provider_sources_dir, '%s/en' % __meta(core).name))
-    sources_root = list(filter(lambda v: core.os.path.splitext(v)[1] == '', sources_root))
+    sources_root = list(filter(lambda v: core.os.path.splitext(v)[1] == '' and '__pycache__' not in v, sources_root))
     return 'providers.%s.en.%s' % (__meta(core).name, sources_root[-1])
 
 def __update_config(core):
@@ -174,8 +174,12 @@ def __search(core, params):
                 if params.title.mediatype == 'movie':
                     try:
                         results += source.movie(params.title.title, params.title.year, params.title.imdbnumber)
-                    except:
-                        results += source.movie(params.title.title, params.title.year)
+                    except Exception as e:
+                        if 'movie() takes' in str(e):
+                            results += source.movie(params.title.title, params.title.year)
+                        else:
+                            import traceback
+                            core.logger.notice(traceback.format_exc())
                 else:
                     simple_info = {
                         'show_title': params.title.tvshowtitle,

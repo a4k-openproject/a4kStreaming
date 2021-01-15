@@ -147,7 +147,7 @@ def __add_seasons(core, title):
         season.key = key
         season.title = 'Season %s  (%s) - %s Episodes' % (key, season.year if season.year else 'N/A', season.episodes)
 
-        list_item = core.kodi.xbmcgui.ListItem(label=season.title)
+        list_item = core.kodi.xbmcgui.ListItem(label=season.title, offscreen=True)
         list_item.setArt({
             'poster': core.utils.fix_poster_size(title['primaryImage']),
         })
@@ -324,7 +324,7 @@ def __add_titles(core, titles, browse):
         if titleType not in ['movie', 'tvSeries', 'tvEpisode', 'person']:
             continue
 
-        list_item = core.kodi.xbmcgui.ListItem(label=title['titleTextStyled'] if title.get('titleTextStyled', None) else title['titleText'])
+        list_item = core.kodi.xbmcgui.ListItem(label=title['titleTextStyled'] if title.get('titleTextStyled', None) else title['titleText'], offscreen=True)
 
         primary_image = title.get('primaryImage', None)
         poster_image = title.get('poster', None)
@@ -471,6 +471,8 @@ def __add_titles(core, titles, browse):
                     'poster': thumb if thumb else poster,
                 })
                 type = core.base64.b64encode(core.json.dumps(title_meta).encode())
+                if core.utils.py3:
+                    type = type.decode('ascii')
         elif titleType in ['person']:
             action = 'query'
             type = 'person'
@@ -1146,7 +1148,7 @@ def query(core, params):
         __add_titles(core, data if isinstance(data, list) else data.get('titles', []), browse=True)
 
     if isinstance(data, dict) and (data.get('paginationToken', None) or data.get('pageInfo', None) and data['pageInfo'].get('hasNextPage', False)):
-        next_list_item = core.kodi.xbmcgui.ListItem(label='Next')
+        next_list_item = core.kodi.xbmcgui.ListItem(label='Next', offscreen=True)
         next_list_item.setInfo('video', {'mediatype': 'video'})
 
         paginationToken = data.get('paginationToken', None)
@@ -1494,7 +1496,7 @@ def play(core, params):
         pack_results = None
 
         if len(last_results) >= 50:
-            oldest_key = last_results.keys()[0]
+            oldest_key = list(last_results.keys())[0]
             for key in last_results:
                 if last_results[key]['time'] < last_results[oldest_key]['time']:
                     oldest_key = key

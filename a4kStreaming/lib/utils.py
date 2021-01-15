@@ -178,7 +178,7 @@ def video_containers():
 def cleanup_result(result, no_meta=False):
     title = result['release_title'].upper()
 
-    containers = map(lambda v: re.escape(' %s ' % v), video_containers())
+    containers = list(map(lambda v: re.escape(' %s ' % v), video_containers()))
     videocodec = ''
     for container in containers:
         if container in title:
@@ -245,7 +245,7 @@ def cleanup_result(result, no_meta=False):
     result['audiocodec'] = audiocodec
 
     title = re.sub(r'\'|\’', '', title)
-    title = re.sub(r'HEVC|X265|X.265|H265|H.265|X264|X.264|H264|H.264|AVC|XVID|DIVX|WMV|MKV', ' ', title)
+    title = re.sub(r'HEVC|X265|X\.265|H265|H\.265|X264|X\.264|H264|H\.264|AVC|XVID|DIVX|WMV|MKV', ' ', title)
     title = re.sub(r'12BIT|10BIT|HDR|8BIT|SDR', ' ', title)
     title = re.sub(r'WEBRIP|WEB\-DL|WEB\.DL|WEBDL|WEB|DVD\-RIP|DVD\.RIP|DVDRIP|DVD|BLURAY|BD\-RIP|BD\.RIP|BDRIP', ' ', title)
     title = re.sub(r'AAC|DTS|HDMA|HD\-MA|HD\.MA|ATMOS|TRUEHD|TRUE\-HD|TRUE\.HD|DD\+|DDP|DD|EAC3|AC3|MP3|WMA', ' ', title)
@@ -341,7 +341,7 @@ def end_action(core, success, item=None):
 def generic_list_items(core, items):
     list_items = []
     for item in items:
-        list_item = core.kodi.xbmcgui.ListItem(label=item['label'])
+        list_item = core.kodi.xbmcgui.ListItem(label=item['label'], offscreen=True)
         list_item.setArt({
             'icon': core.kodi.addon_icon,
             'thumb': core.kodi.addon_icon,
@@ -494,7 +494,7 @@ def get_graphql_query(body):
                         plainText
                     }
                 }
-                taglines(first: 10) {
+                taglines(first: 1) {
                     edges {
                         node {
                             text
