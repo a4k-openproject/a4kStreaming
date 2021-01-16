@@ -1459,10 +1459,15 @@ def play(core, params):
     try:
         if provider_params.title.imdbnumber in last_results:
             results.update(last_results[provider_params.title.imdbnumber]['results'])
+            last_results[provider_params.title.imdbnumber]['time'] = core.time.time()
         if provider_params.title.tvshowseasonid in last_results:
             results.update(last_results[provider_params.title.tvshowseasonid]['results'])
+            last_results[provider_params.title.tvshowseasonid]['time'] = core.time.time()
         if provider_params.title.tvshowid in last_results:
             results.update(last_results[provider_params.title.tvshowid]['results'])
+            last_results[provider_params.title.tvshowid]['time'] = core.time.time()
+
+        core.cache.save_last_results(last_results)
     except:
         if provider_params.title.imdbnumber in last_results:
             last_results.pop(provider_params.title.imdbnumber)
@@ -1519,7 +1524,7 @@ def play(core, params):
         season_results = None
         pack_results = None
 
-        if len(last_results) >= 50:
+        if len(last_results) > 50:
             oldest_key = list(last_results.keys())[0]
             for key in last_results:
                 if last_results[key]['time'] < last_results[oldest_key]['time']:
