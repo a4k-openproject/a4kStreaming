@@ -125,10 +125,6 @@ msgctxt "#33502"
 msgid "Cookie[at-main]: "
 msgstr ""
 
-msgctxt "#33503"
-msgid "Verify"
-msgstr ""
-
 # Misc
 msgctxt "#33601"
 msgid "Migrate Trakt.tv's watched status to IMDb (via rating)"

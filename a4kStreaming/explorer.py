@@ -1071,7 +1071,7 @@ def query(core, params):
     parsed_response = core.json.loads(response.content)
     if parsed_response.get('errors', None) is not None and isinstance(parsed_response['errors'], list):
         errors = parsed_response['errors']
-        try: invalid_creds = params.type in ['top_picks', 'watchlist'] and 'authenticat' in ' '.join(map(lambda v: v['message'].lower(), errors))
+        try: invalid_creds = 'authenticat' in ' '.join(map(lambda v: v['message'].lower(), errors))
         except: invalid_creds = False
 
         if invalid_creds:
@@ -1098,8 +1098,12 @@ def query(core, params):
 
     data = parsed_response['data']
     typeKey = '%sTitles' % params.type
-    if typeKey in data:
-        data = data[typeKey]
+    try:
+        if typeKey in data:
+            data = data[typeKey]
+    except:
+        __handle_request_error(core, params, response)
+        return []
 
     data = core.utils.sanitize_response(data)
 
@@ -1169,7 +1173,27 @@ def profile(core, params):
     if not __check_imdb_auth_config(core, params):
         return
 
-    if params.type.startswith('watchlist_'):
+    if params.type == 'check_imdb_auth':
+        request = {
+            'method': 'GET',
+            'url': 'https://www.imdb.com/registration/is-user-recognized',
+        }
+        request.update(core.utils.imdb_auth_request_props())
+        response = core.request.execute(core, request)
+        if response.status_code != 200:
+            core.utils.end_action(core, False)
+            core.kodi.notification('Failed to authenticate')
+            return
+
+        parsed_response = core.json.loads(response.content)
+        if not parsed_response.get('isUserRecognized', False):
+            core.utils.end_action(core, False)
+            core.kodi.notification('Failed to authenticate')
+            return
+
+        core.kodi.notification('Successfully authenticated')
+
+    elif params.type.startswith('watchlist_'):
         params.ids = params.ids.split('__') if params.ids else None
         if params.type == 'watchlist_add':
             result = query(core, core.utils.DictAsObject({
