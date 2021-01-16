@@ -43,7 +43,8 @@ def __update_config(core):
     sources = core.importlib.import_module(__sources_module_name(core)).__all__
     sources = [source.upper() for source in sources]
 
-    for source in provider.keys():
+    provider_sources = list(provider.keys())
+    for source in provider_sources:
         if source not in sources:
             provider.pop(source)
 

@@ -1,3 +1,6 @@
+* [v0.14.0](https://github.com/newt-sc/a4kStreaming/releases/tag/plugin.video.a4kstreaming%2Fplugin.video.a4kstreaming-0.14.0):
+  * Fix provider having removed sources
+
 * [v0.13.0](https://github.com/newt-sc/a4kStreaming/releases/tag/plugin.video.a4kstreaming%2Fplugin.video.a4kstreaming-0.13.0):
   * Update cached results time each time they are used
 
