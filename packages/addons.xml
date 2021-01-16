@@ -4,7 +4,7 @@
 <addons>
 <addon id="plugin.video.a4kstreaming"
        name="a4kStreaming"
-       version="0.10.0"
+       version="0.11.0"
        provider-name="Unknown">
     <requires>
       <import addon="script.module.requests"/>
@@ -35,6 +35,9 @@ Designed for low-end devices and Estuary skin.
             <screenshot>screenshot-06.jpg</screenshot>
         </assets>
         <news>
+[v0.11.0]:
+  * Fix provider init
+
 [v0.10.0]:
   * Fix view mode switching on cancellation
   * Use bytes format for json parsing (speeds up some results loading)

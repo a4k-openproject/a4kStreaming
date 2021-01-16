@@ -36,9 +36,7 @@ def __new_version_check(core, params):
     __install(core, core.utils.DictAsObject({ 'install': 1, 'zip_url': '%s%s-%s.zip' % (remote_meta.update_directory, remote_meta.name, remote_meta.version) }))
 
 def __sources_module_name(core):
-    sources_root = core.os.listdir(core.os.path.join(core.utils.provider_sources_dir, '%s/en' % __meta(core).name))
-    sources_root = list(filter(lambda v: core.os.path.splitext(v)[1] == '' and '__pycache__' not in v, sources_root))
-    return 'providers.%s.en.%s' % (__meta(core).name, sources_root[-1])
+    return 'providers.%s.en.%s' % (__meta(core).name, 'torrent')
 
 def __update_config(core):
     provider = core.cache.get_provider()
@@ -60,6 +58,7 @@ def __install(core, params):
 
     if params.init:
         if core.os.path.exists(core.utils.provider_data_dir) and core.os.path.exists(core.utils.provider_sources_dir) and core.os.path.exists(core.utils.provider_modules_dir):
+            __update_config(core)
             return
 
     zip_name = 'provider.zip'
@@ -152,6 +151,8 @@ def __manage(core, params):
 
 def __search(core, params):
     provider = core.cache.get_provider()
+    if len(provider) == 0:
+        return {}
 
     sources = {}
     for key in provider:
