@@ -1071,7 +1071,7 @@ def query(core, params):
     parsed_response = core.json.loads(response.content)
     if parsed_response.get('errors', None) is not None and isinstance(parsed_response['errors'], list):
         errors = parsed_response['errors']
-        try: invalid_creds = 'authenticat' in ' '.join(map(lambda v: v['message'].lower(), errors))
+        try: invalid_creds = params.type not in no_auth_required_actions and 'authenticat' in ' '.join(map(lambda v: v['message'].lower(), errors))
         except: invalid_creds = False
 
         if invalid_creds:
