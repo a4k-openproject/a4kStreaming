@@ -1,3 +1,6 @@
+* [v0.13.0](https://github.com/newt-sc/a4kStreaming/releases/tag/plugin.video.a4kstreaming%2Fplugin.video.a4kstreaming-0.13.0):
+  * Update cached results time each time they are used
+
 * [v0.12.0](https://github.com/newt-sc/a4kStreaming/releases/tag/plugin.video.a4kstreaming%2Fplugin.video.a4kstreaming-0.12.0):
   * Show proper error notification when invalid IMDb token is set
 

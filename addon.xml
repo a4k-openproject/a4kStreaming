@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <addon id="plugin.video.a4kstreaming"
        name="a4kStreaming"
-       version="0.12.0"
+       version="0.13.0"
        provider-name="Unknown">
     <requires>
       <import addon="script.module.requests"/>
@@ -32,6 +32,9 @@ Designed for low-end devices and Estuary skin.
             <screenshot>screenshot-06.jpg</screenshot>
         </assets>
         <news>
+[v0.13.0]:
+  * Update cached results time each time they are used
+
 [v0.12.0]:
   * Show proper error notification when invalid IMDb token is set
 
