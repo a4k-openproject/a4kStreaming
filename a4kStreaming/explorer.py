@@ -273,6 +273,7 @@ def __add_title(core, title):
 
     if not title.get('poster', None) and title.get('seriesPoster', None):
         title['poster'] = title['seriesPoster']
+        __set_wide_image_as_primary(title)
 
     items.append(title)
     ids = {}
@@ -1614,6 +1615,7 @@ def play(core, params):
                     '%s.%s' % (season, episode),
                     '%s_%s' % (season, episode),
                     '%s-%s' % (season, episode),
+                    '%s%s' % (result['ref'].season, episode),
                 ]
                 episodes = list(filter(lambda v: any(match in v['path'] for match in matches), files))
                 if len(episodes) == 1:
