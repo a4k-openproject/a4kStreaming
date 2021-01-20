@@ -1,3 +1,6 @@
+* [v0.18.0](https://github.com/newt-sc/a4kStreaming/releases/tag/plugin.video.a4kstreaming%2Fplugin.video.a4kstreaming-0.18.0):
+  * Fix poster transform twice
+
 * [v0.17.0](https://github.com/newt-sc/a4kStreaming/releases/tag/plugin.video.a4kstreaming%2Fplugin.video.a4kstreaming-0.17.0):
   * Support play action with an id only
   * Add player meta json for tmdb helper

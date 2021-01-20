@@ -337,7 +337,7 @@ def __add_titles(core, titles, browse, silent=False):
         poster_image = title.get('poster', None)
         if poster_image:
             poster_image = core.utils.fix_poster_size(poster_image)
-            thumb_image = core.utils.fix_thumb_size(primary_image) if primary_image else core.utils.fix_poster_size(poster_image)
+            thumb_image = core.utils.fix_thumb_size(primary_image) if primary_image else poster_image
         else:
             poster_image = core.utils.fix_poster_size(primary_image)
 
