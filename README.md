@@ -10,6 +10,7 @@
 ## Description
 
 IMDb-based media browser addon for KODI with streaming support via external providers.
+<br/>
 Designed for low-end devices and Estuary skin.
 
 ## Preview
@@ -60,7 +61,19 @@ Steps to install a4kStreaming:
 8. Go back to **Addons** and select **Install from repository**
 9. Select the **a4kStreaming** menu item
 
-## Authentication
+## Rich meta browsing (more artwork, fanart, etc)
+
+For rich meta browsing the recommended approach is to use [TheMovieDb Helper](https://kodi.tv/addon/plugins-video-add-ons/themoviedb-helper).
+<br/>
+Then install [http://bit.ly/a4kStreaming-tmdb](http://bit.ly/a4kStreaming-tmdb) in order to use **a4kStreaming** as a player.
+
+## Trakt Scrobbling
+
+For Trakt scrobbling support it is recommended to use [Trakt](https://kodi.tv/addon/program-add-ons-scripts/trakt).
+<br/>
+The addon will detect when a video is being played by **a4kStreaming** and update it in [Trakt.tv](https://trakt.tv)
+
+## IMDb Authentication
 
 The IMDb authentication token is the value of a cookie named `at-main`.
 </br>
