@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <addon id="plugin.video.a4kstreaming"
        name="a4kStreaming"
-       version="0.17.0"
+       version="0.18.0"
        provider-name="Unknown">
     <requires>
       <import addon="script.module.requests"/>
@@ -32,6 +32,9 @@ Designed for low-end devices and Estuary skin.
             <screenshot>screenshot-06.jpg</screenshot>
         </assets>
         <news>
+[v0.18.0]:
+  * Fix poster transform twice
+
 [v0.17.0]:
   * Support play action with an id only
   * Add player meta json for tmdb helper
