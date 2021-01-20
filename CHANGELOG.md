@@ -1,3 +1,7 @@
+* [v0.16.0](https://github.com/newt-sc/a4kStreaming/releases/tag/plugin.video.a4kstreaming%2Fplugin.video.a4kstreaming-0.16.0):
+  * Fix more like this context menu for KODI 19
+  * More patterns for episode auto selection
+
 * [v0.15.0](https://github.com/newt-sc/a4kStreaming/releases/tag/plugin.video.a4kstreaming%2Fplugin.video.a4kstreaming-0.15.0):
   * Select proper image for episode thumbnail
   * Add one more pattern for episode auto selection
