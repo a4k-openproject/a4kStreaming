@@ -35,7 +35,7 @@ def __set_title_contextmenu(core, title, list_item):
 
     if titleType != 'tvEpisode':
         context_menu_items.append(
-            ('IMDb: More like this', 'XBMC.Container.Update(%s?action=query&type=more_like_this&id=%s)' % (core.url, title['id']))
+            ('IMDb: More like this', 'ActivateWindow(Videos,%s?action=query&type=more_like_this&id=%s,return)' % (core.url, title['id']))
         )
 
     if not tvseries:
@@ -1607,15 +1607,18 @@ def play(core, params):
 
         try:
             if len(files) > 1 and result['package'] in ['show', 'season'] and result['ref'].mediatype == 'episode':
-                season = 'S%s' % str(result['ref'].season).zfill(2)
-                episode = 'E%s' % str(result['ref'].episode).zfill(2)
+                season_zfill = str(result['ref'].season).zfill(2)
+                episode_zfill = str(result['ref'].episode).zfill(2)
+                season = 'S%s' % season_zfill
+                episode = 'E%s' % episode_zfill
                 matches = [
                     '%s%s' % (season, episode),
                     '%s %s' % (season, episode),
                     '%s.%s' % (season, episode),
                     '%s_%s' % (season, episode),
                     '%s-%s' % (season, episode),
-                    '%s%s' % (result['ref'].season, episode),
+                    '%s%s' % (result['ref'].season, episode_zfill),
+                    '%sx%s' % (season_zfill, episode_zfill),
                 ]
                 episodes = list(filter(lambda v: any(match in v['path'] for match in matches), files))
                 if len(episodes) == 1:
