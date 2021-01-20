@@ -1,0 +1,12 @@
+{
+  "name"              : "[COLOR deepskyblue]a4kStreaming[/COLOR]",
+  "plugin"            : "plugin.video.a4kstreaming",
+  "priority"          : 100,
+  "is_resolvable"     : "false",
+  "assert"            : {
+                          "play_movie":   ["imdb"],
+                          "play_episode": ["epimdb"]
+                        },
+  "play_movie"        : "plugin://plugin.video.a4kstreaming?action=play&id={imdb}",
+  "play_episode"      : "plugin://plugin.video.a4kstreaming?action=play&id={epimdb}"
+}

@@ -148,8 +148,10 @@ def __add_seasons(core, title):
         season.title = 'Season %s  (%s) - %s Episodes' % (key, season.year if season.year else 'N/A', season.episodes)
 
         list_item = core.kodi.xbmcgui.ListItem(label=season.title, offscreen=True)
+        poster = core.utils.fix_poster_size(title['primaryImage'])
         list_item.setArt({
-            'poster': core.utils.fix_poster_size(title['primaryImage']),
+            'thumb': poster,
+            'poster': poster,
         })
 
         video_meta = {
@@ -258,7 +260,7 @@ def __add_episodes(core, title, season):
 
     return __add_titles(core, episodes, True)
 
-def __add_title(core, title):
+def __add_title(core, title, silent=False):
     items = []
 
     if title.get('series', None):
@@ -274,6 +276,9 @@ def __add_title(core, title):
     if not title.get('poster', None) and title.get('seriesPoster', None):
         title['poster'] = title['seriesPoster']
         __set_wide_image_as_primary(title)
+
+    if silent:
+        return __add_titles(core, [title], False, silent)
 
     items.append(title)
     ids = {}
@@ -315,7 +320,7 @@ def __add_title(core, title):
 
     return __add_titles(core, items, False)
 
-def __add_titles(core, titles, browse):
+def __add_titles(core, titles, browse, silent=False):
     list_items = []
 
     for title in titles:
@@ -327,24 +332,26 @@ def __add_titles(core, titles, browse):
 
         list_item = core.kodi.xbmcgui.ListItem(label=title['titleTextStyled'] if title.get('titleTextStyled', None) else title['titleText'], offscreen=True)
 
+        thumb_image = None
         primary_image = title.get('primaryImage', None)
         poster_image = title.get('poster', None)
-        fanart_image = title.get('fanart', None)
         if poster_image:
-            thumb = core.utils.fix_thumb_size(primary_image) if primary_image else core.utils.fix_poster_size(poster_image)
-            poster = core.utils.fix_poster_size(poster_image)
-            list_item.setArt({
-                'thumb': thumb,
-                'poster': poster,
-                'fanart': core.utils.fix_fanart_size(primary_image) if primary_image else None,
-            })
+            poster_image = core.utils.fix_poster_size(poster_image)
+            thumb_image = core.utils.fix_thumb_size(primary_image) if primary_image else core.utils.fix_poster_size(poster_image)
         else:
-            thumb = None
-            poster = core.utils.fix_poster_size(primary_image)
-            list_item.setArt({
-                'poster': core.utils.fix_poster_size(primary_image),
-                'fanart': core.utils.fix_fanart_size(fanart_image) if fanart_image else None,
-            })
+            poster_image = core.utils.fix_poster_size(primary_image)
+
+        fanart_image = title.get('fanart', None)
+        if fanart_image:
+            fanart_image = core.utils.fix_fanart_size(fanart_image)
+        elif titleType in ['tvEpisode']:
+            fanart_image = core.utils.fix_fanart_size(primary_image)
+
+        list_item.setArt({
+            'thumb': thumb_image,
+            'poster': poster_image,
+            'fanart': fanart_image,
+        })
 
         releaseDate = title.get('releaseDate', {})
         mediatypes = {
@@ -469,11 +476,13 @@ def __add_titles(core, titles, browse):
                 title_meta.update({
                     'tvshowid': title.get('tvshowid', None),
                     'seasons': title.get('seasons', None),
-                    'poster': thumb if thumb else poster,
+                    'poster': thumb_image if thumb_image else poster_image,
                 })
                 type = core.base64.b64encode(core.json.dumps(title_meta).encode())
                 if core.utils.py3:
                     type = type.decode('ascii')
+                if silent:
+                    return type
         elif titleType in ['person']:
             action = 'query'
             type = 'person'
@@ -1147,7 +1156,9 @@ def query(core, params):
             core.viewType = core.kodi.get_setting('views.episode')
         if data['titleType'] in ['movie', 'tvMovie', 'tvEpisode', 'video']:
             core.contentType = 'movies'
-        __add_title(core, data)
+        result = __add_title(core, data, params.silent)
+        if params.silent:
+            return result
     else:
         core.contentType = 'movies'
         __add_titles(core, data if isinstance(data, list) else data.get('titles', []), browse=True)
@@ -1450,7 +1461,19 @@ def play(core, params):
 
     provider_params = core.utils.DictAsObject({})
     provider_params.type = 'search'
+    if not params.type:
+        if not params.id:
+            core.kodi.notification('Missing title id')
+            core.utils.end_action(core, True)
+            return
+        params.type = query(core, core.utils.DictAsObject({ 'type': 'browse', 'id': params.id, 'silent': True }))
+
     provider_params.title = core.utils.DictAsObject(core.json.loads(core.base64.b64decode(params.type)))
+    if not provider_params.title:
+        core.kodi.notification('Something went wrong. Check logs')
+        core.utils.end_action(core, True)
+        return
+
     if provider_params.title.tvshowid:
         provider_params.title.tvshowseasonid = '%s_%s' % (provider_params.title.tvshowid, provider_params.title.season)
     provider_params.start_time = core.utils.time_ms()
@@ -1618,7 +1641,7 @@ def play(core, params):
                     '%s_%s' % (season, episode),
                     '%s-%s' % (season, episode),
                     '%s%s' % (result['ref'].season, episode_zfill),
-                    '%sx%s' % (season_zfill, episode_zfill),
+                    '%sX%s' % (season_zfill, episode_zfill),
                 ]
                 episodes = list(filter(lambda v: any(match in v['path'] for match in matches), files))
                 if len(episodes) == 1:

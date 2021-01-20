@@ -437,8 +437,21 @@ def get_graphql_query(body):
                     aggregateRating
                     voteCount
                 }
+                certificate {
+                    rating
+                }
                 runtime {
                     seconds
+                }
+                plot {
+                    plotText {
+                        plainText
+                    }
+                }
+                genres {
+                    genres(limit: $genresLimit) {
+                        text
+                    }
                 }
                 isAdult
                 %s
@@ -449,21 +462,13 @@ def get_graphql_query(body):
                 ...Title
                 ...TitleCredits
                 ...TVShow
-                certificate {
-                    rating
-                }
-                images(first: 5) {
+                images(first: 10) {
                     edges {
                         node {
                             url
                             width
                             height
                         }
-                    }
-                }
-                genres {
-                    genres(limit: $genresLimit) {
-                        text
                     }
                 }
                 countriesOfOrigin {
@@ -490,11 +495,6 @@ def get_graphql_query(body):
                         node {
                             id
                         }
-                    }
-                }
-                plot {
-                    plotText {
-                        plainText
                     }
                 }
                 taglines(first: 1) {
@@ -566,6 +566,13 @@ def get_graphql_query(body):
                     plotText {
                         plainText
                     }
+                }
+                certificate {
+                    rating
+                }
+                ratingsSummary {
+                    aggregateRating
+                    voteCount
                 }
                 %s
             }
