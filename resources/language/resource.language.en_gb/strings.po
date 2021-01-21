@@ -44,6 +44,48 @@ msgctxt "#33103"
 msgid "Mark as watched effective title rating"
 msgstr ""
 
+msgctxt "#33104"
+msgid "Season title template"
+msgstr ""
+
+msgctxt "#33105"
+msgid "Episode title template"
+msgstr ""
+
+# Season Title Templates
+msgctxt "#33111"
+msgid "Season 1 (2020) - 10 Episodes"
+msgstr ""
+
+msgctxt "#33112"
+msgid "Season 1 (2020)"
+msgstr ""
+
+msgctxt "#33113"
+msgid "Season 1"
+msgstr ""
+
+msgctxt "#33114"
+msgid "Season 1 - 10 Episodes"
+msgstr ""
+
+# Episode Title Templates
+msgctxt "#33116"
+msgid "1. Title"
+msgstr ""
+
+msgctxt "#33117"
+msgid "E01. Title"
+msgstr ""
+
+msgctxt "#33118"
+msgid "01x01. Title"
+msgstr ""
+
+msgctxt "#33119"
+msgid "S01E01. Title"
+msgstr ""
+
 # Views
 msgctxt "#33200"
 msgid "Menu views"

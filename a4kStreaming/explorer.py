@@ -1,5 +1,27 @@
 __action_menu_style = '[COLOR white][B]%s[/B][/COLOR]'
 
+def __get_season_title(core, season, year, episodes):
+    season_template = core.kodi.get_setting('general.season_title_template')
+    if season_template == '1':
+        return 'Season %s (%s)' % (season, year)
+    if season_template == '2':
+        return 'Season %s' % season
+    if season_template == '3':
+        return 'Season %s - %s Episodes' % (season, episodes)
+    return 'Season %s (%s) - %s Episodes' % (season, year, episodes)
+
+def __get_episode_title(core, season, episode, title):
+    season_template = core.kodi.get_setting('general.episode_title_template')
+    season_zfill = str(season).zfill(2)
+    episode_zfill = str(episode).zfill(2)
+    if season_template == '1':
+        return 'E%s. %s' % (episode_zfill, title)
+    if season_template == '2':
+        return '%sx%s. %s' % (season_zfill, episode_zfill, title)
+    if season_template == '3':
+        return 'S%sE%s. %s' % (season_zfill, episode_zfill, title)
+    return '%s. %s' % (episode, title)
+
 def __handle_request_error(core, params, response):
     if not params.silent:
         core.kodi.notification('Something went wrong. Check logs')
@@ -32,6 +54,11 @@ def __set_title_contextmenu(core, title, list_item):
     context_menu_items = [
         ('IMDb: %s rating' % ('Update' if has_rating else 'Set'), 'RunPlugin(plugin://plugin.video.a4kstreaming/?action=profile&type=rate&id=%s)' % title['id']),
     ]
+
+    if titleType != 'tvSeries':
+        context_menu_items.append(
+            ('IMDb: Cast & Crew', 'ActivateWindow(Videos,%s?action=query&type=browse&id=%s,return)' % (core.url, title['id'])),
+        )
 
     if titleType != 'tvEpisode':
         context_menu_items.append(
@@ -145,7 +172,7 @@ def __add_seasons(core, title):
     for key in seasons:
         season = seasons[key]
         season.key = key
-        season.title = 'Season %s  (%s) - %s Episodes' % (key, season.year if season.year else 'N/A', season.episodes)
+        season.title = __get_season_title(core, key, season.year if season.year else 'N/A', season.episodes)
 
         list_item = core.kodi.xbmcgui.ListItem(label=season.title, offscreen=True)
         poster = core.utils.fix_poster_size(title['primaryImage'])
@@ -198,7 +225,7 @@ def __add_seasons(core, title):
         list_item.setContentLookup(False)
         list_items.append((url, list_item, True))
 
-    __add_titles(core, [title], False)
+    __add_titles(core, [title], browse=False)
     core.kodi.xbmcplugin.addDirectoryItems(core.handle, list_items, len(list_items))
 
 def __add_episodes(core, title, season):
@@ -214,8 +241,10 @@ def __add_episodes(core, title, season):
 
     episodes = []
     for episode in raw_episodes:
-        if not episode or not episode.get('series', None) or episode['series'].get('seasonNumber', None) != season:
+        if not episode or not episode.get('series', None) or episode['series'].get('seasonNumber', None) != season or not episode['series'].get('episodeNumber', None):
             continue
+
+        episodeNumber = episode['series']['episodeNumber']
 
         if title.get('id', None):
             episode['tvshowid'] = title['id']
@@ -242,6 +271,8 @@ def __add_episodes(core, title, season):
         if len(seasons) > 0:
             episode['no_seasons'] = seasons[-1]
 
+        episode['titleText'] = __get_episode_title(core, season, episodeNumber, episode['titleText'])
+
         if episode.get('releaseDate', None):
             release_date = episode['releaseDate']
             now = core.datetime.now()
@@ -258,7 +289,7 @@ def __add_episodes(core, title, season):
         __set_wide_image_as_primary(episode)
         episodes.append(episode)
 
-    return __add_titles(core, episodes, True)
+    return __add_titles(core, episodes, browse=False)
 
 def __add_title(core, title, silent=False):
     items = []
@@ -487,7 +518,7 @@ def __add_titles(core, titles, browse, silent=False):
             action = 'query'
             type = 'person'
         else:  # tvSeries
-            if browse:
+            if browse or browse is None:
                 action = 'query'
                 type = 'seasons'
             else:
@@ -686,7 +717,7 @@ def search(core, params):
         except:
             pass
 
-    __add_titles(core, items, browse=True)
+    __add_titles(core, items, browse=False)
     return items
 
 def query(core, params):
@@ -1161,7 +1192,7 @@ def query(core, params):
             return result
     else:
         core.contentType = 'movies'
-        __add_titles(core, data if isinstance(data, list) else data.get('titles', []), browse=True)
+        __add_titles(core, data if isinstance(data, list) else data.get('titles', []), browse=None)
 
     if isinstance(data, dict) and (data.get('paginationToken', None) or data.get('pageInfo', None) and data['pageInfo'].get('hasNextPage', False)):
         next_list_item = core.kodi.xbmcgui.ListItem(label='Next', offscreen=True)
@@ -1466,7 +1497,14 @@ def play(core, params):
             core.kodi.notification('Missing title id')
             core.utils.end_action(core, True)
             return
-        params.type = query(core, core.utils.DictAsObject({ 'type': 'browse', 'id': params.id, 'silent': True }))
+        last_title = core.cache.get_last_title()
+        if params.id in last_title:
+            params.type = last_title[params.id]
+        else:
+            params.type = query(core, core.utils.DictAsObject({ 'type': 'browse', 'id': params.id, 'silent': True }))
+            last_title = {}
+            last_title[params.id] = params.type
+            core.cache.save_last_title(last_title)
 
     provider_params.title = core.utils.DictAsObject(core.json.loads(core.base64.b64decode(params.type)))
     if not provider_params.title:
