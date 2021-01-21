@@ -271,6 +271,7 @@ def __add_episodes(core, title, season):
         if len(seasons) > 0:
             episode['no_seasons'] = seasons[-1]
 
+        episode['seasons'] = seasons
         episode['titleText'] = __get_episode_title(core, season, episodeNumber, episode['titleText'])
 
         if episode.get('releaseDate', None):
