@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <addon id="plugin.video.a4kstreaming"
        name="a4kStreaming"
-       version="0.19.0"
+       version="0.20.0"
        provider-name="Unknown">
     <requires>
       <import addon="script.module.requests"/>
@@ -32,6 +32,9 @@ Designed for low-end devices and Estuary skin.
             <screenshot>screenshot-06.jpg</screenshot>
         </assets>
         <news>
+[v0.20.0]:
+  * Fix missing seasons meta breaking tvshow scraping
+
 [v0.19.0]:
   * Remove the extra info view on title click
   * New context menu:
@@ -39,7 +42,7 @@ Designed for low-end devices and Estuary skin.
   * New settings:
     * Season title template
     * Episode title template
-  * Cache last title for the play by id action, to speedup usage from TheMovieDb Helper
+  * Cache last title for the play by id action to speedup usage from TheMovieDb Helper
 
 [v0.18.0]:
   * Fix poster transform twice

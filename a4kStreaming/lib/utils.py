@@ -678,6 +678,9 @@ def get_graphql_query(body):
             fragment Episodes on Title {
                 ...Title
                 episodes {
+                    seasons {
+                        number
+                    }
                     ... on Episodes {
                         episodes(first: 100, filter: $episodesFilter) {
                             edges {

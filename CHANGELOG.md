@@ -1,3 +1,6 @@
+* [v0.20.0](https://github.com/newt-sc/a4kStreaming/releases/tag/plugin.video.a4kstreaming%2Fplugin.video.a4kstreaming-0.20.0):
+  * Fix missing seasons meta breaking tvshow scraping
+
 * [v0.19.0](https://github.com/newt-sc/a4kStreaming/releases/tag/plugin.video.a4kstreaming%2Fplugin.video.a4kstreaming-0.19.0):
   * Remove the extra info view on title click
   * New context menu:
@@ -5,7 +8,7 @@
   * New settings:
     * Season title template
     * Episode title template
-  * Cache last title for the play by id action, to speedup usage from TheMovieDb Helper
+  * Cache last title for the play by id action to speedup usage from TheMovieDb Helper
 
 * [v0.18.0](https://github.com/newt-sc/a4kStreaming/releases/tag/plugin.video.a4kstreaming%2Fplugin.video.a4kstreaming-0.18.0):
   * Fix poster transform twice
