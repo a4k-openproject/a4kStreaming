@@ -10,6 +10,9 @@ def __meta(core):
     return __meta_data
 
 def __new_version_check(core, params):
+    global __meta_data
+
+    __meta_data = None
     if not __meta(core).name:
         if not params.silent:
             core.kodi.notification('Provider not installed')

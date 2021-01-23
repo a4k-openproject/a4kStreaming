@@ -37,7 +37,7 @@ viewTypes = [
 viewType = None
 contentType = 'videos'
 
-from .explorer import root, query, profile, trailer, years, play, search
+from .explorer import root, query, profile, trailer, years, play, search, debrid
 from .provider import provider, provider_meta
 from .trakt import trakt
 
@@ -70,6 +70,11 @@ def main(url, handle, paramstring):
         core.viewType = kodi.get_setting('views.titles')
         core.contentType = 'movies'
         search(core, params)
+
+    elif action == 'debrid':
+        core.viewType = kodi.get_setting('views.menu')
+        core.contentType = 'videos'
+        debrid(core, params)
 
     elif action == 'query':
         if params.type == 'seasons':
