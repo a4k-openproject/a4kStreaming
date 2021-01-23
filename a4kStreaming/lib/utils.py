@@ -353,14 +353,19 @@ def generic_list_items(core, items):
             'poster': core.kodi.addon_icon,
             'landscape': core.kodi.addon_icon,
         })
-        list_item.setInfo('video', {'mediatype': 'video', 'plot': item['info']})
-        url = '%s?action=%s&type=%s' % (core.url, item['action'], item['type'])
 
-        params = item.get('params', {})
-        for param in params:
-            url += '&%s=%s' % (param, params[param])
+        if item.get('url', None) is not None:
+            url = item['url']
+        else:
+            list_item.setInfo('video', {'mediatype': 'video', 'plot': item['info']})
+            url = '%s?action=%s&type=%s' % (core.url, item['action'], item['type'])
+
+            params = item.get('params', {})
+            for param in params:
+                url += '&%s=%s' % (param, params[param])
 
         list_item.setContentLookup(False)
+        core.logger.notice(url)
         list_items.append((url, list_item, item['subitems']))
 
     return list_items

@@ -541,51 +541,58 @@ def root(core):
     items = [
         {
             'label': 'Trending',
+            'action': 'query',
             'type': 'popular',
             'info': 'IMDb\'s latest trending movie or TV series.',
-            'action': 'query',
             'subitems': True
         },
         {
             'label': 'Fan Favorites',
+            'action': 'query',
             'type': 'fan_picks',
             'info': 'IMDb\'s fan favorites for movie or TV series.',
-            'action': 'query',
             'subitems': True
         },
         {
             'label': 'Recommended',
+            'action': 'query',
             'type': 'top_picks',
             'info': 'IMDb\'s personalized recommendations for movie or TV series.\n(Requires authentication)',
-            'action': 'query',
             'subitems': True
         },
         {
             'label': 'Watchlist',
+            'action': 'query',
             'type': 'watchlist',
             'info': 'Your IMDb watchlist for movie or TV series.\n(Requires authentication)',
-            'action': 'query',
             'subitems': True
         },
         {
             'label': 'Lists',
+            'action': 'query',
             'type': 'lists',
             'info': 'Your IMDb lists for movie or TV series.\n(Requires authentication)',
-            'action': 'query',
             'subitems': True
         },
         {
             'label': 'Discover by Year',
+            'action': 'years',
             'type': 'root',
             'info': 'Find a movie or TV series from a specific year.',
-            'action': 'years',
             'subitems': True
         },
         {
             'label': 'Search...',
+            'action': 'search',
             'type': 'input',
             'info': 'Find movie or TV series by name.',
-            'action': 'search',
+            'subitems': True,
+        },
+        {
+            'label': 'Debrid',
+            'action': 'debrid',
+            'type': 'root',
+            'info': 'Browse debrid files.',
             'subitems': True,
         }
     ]
@@ -718,8 +725,73 @@ def search(core, params):
         except:
             pass
 
-    __add_titles(core, items, browse=False)
+    __add_titles(core, items, browse=None)
     return items
+
+def debrid(core, params):
+    items = []
+    video_ext = list(map(lambda v: '.%s' % v.upper(), core.utils.video_containers()))
+
+    if params.type == 'root':
+        items.extend([
+            {
+                'label': 'Premiumize',
+                'action': 'debrid',
+                'type': 'premiumize',
+                'info': 'Browse Premiumize files.',
+                'subitems': True
+            }
+        ])
+    elif params.type == 'premiumize':
+        apikey = core.utils.get_debrid_apikey(core)
+        if not apikey or apikey == '':
+            core.kodi.notification('Missing debrid service API key')
+            core.utils.end_action(core, True)
+            return
+
+        id = params.id if params.id else ''
+        request = {
+            'method': 'GET',
+            'url': 'https://www.premiumize.me/api/folder/list?id=%s&includebreadcrumbs=false&apikey=%s' % (id, apikey),
+        }
+
+        response = core.request.execute(core, request)
+        if response.status_code != 200:
+            __handle_request_error(core, params, response)
+            return
+
+        parsed_response = core.json.loads(response.content)
+
+        files = parsed_response.get('content', [])
+        for file in files:
+            if not file.get('type', None):
+                continue
+
+            if file['type'] == 'file':
+                isvideo = core.os.path.splitext(file['name'])[1].upper() in video_ext
+                items.append({
+                    'label': file['name'],
+                    'subitems': False,
+                    'url': file.get('link', file.get('stream_link', None)) if isvideo else ''
+                })
+            elif file['type'] == 'folder':
+                items.append({
+                    'label': file['name'],
+                    'action': 'debrid',
+                    'type': 'premiumize',
+                    'info': '',
+                    'subitems': True,
+                    'params': {
+                        'id': file['id'],
+                    }
+                })
+
+    else:
+        core.not_supported()
+        return
+
+    list_items = core.utils.generic_list_items(core, items)
+    core.kodi.xbmcplugin.addDirectoryItems(core.handle, list_items, len(list_items))
 
 def query(core, params):
     no_auth_required_actions = ['popular', 'year', 'fan_picks', 'seasons', 'episodes', 'browse']
@@ -1681,6 +1753,7 @@ def play(core, params):
                     '%s-%s' % (season, episode),
                     '%s%s' % (result['ref'].season, episode_zfill),
                     '%sX%s' % (season_zfill, episode_zfill),
+                    '%sX%s' % (season, episode_zfill),
                 ]
                 episodes = list(filter(lambda v: any(match in v['path'] for match in matches), files))
                 if len(episodes) == 1:

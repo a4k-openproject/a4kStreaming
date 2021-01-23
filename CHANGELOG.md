@@ -1,3 +1,6 @@
+* [v0.21.0](https://github.com/newt-sc/a4kStreaming/releases/tag/plugin.video.a4kstreaming%2Fplugin.video.a4kstreaming-0.21.0):
+  * Add debrid files browsing and streaming
+
 * [v0.20.0](https://github.com/newt-sc/a4kStreaming/releases/tag/plugin.video.a4kstreaming%2Fplugin.video.a4kstreaming-0.20.0):
   * Fix missing seasons meta breaking tvshow scraping
 
