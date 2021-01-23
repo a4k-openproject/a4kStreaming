@@ -213,10 +213,6 @@ def __search(core, params):
                         parsed_response = core.json.loads(response.content)
                         for i, status in enumerate(parsed_response['response']):
                             result = results[i]
-                            search.results[result['hash']] = True
-                            if not status:
-                                continue
-
                             result['ref'] = params.title
 
                             size = float(parsed_response['filesize'][i]) / 1024 / 1024 / 1024
@@ -225,7 +221,10 @@ def __search(core, params):
                             result['size'] = round(size, 1)
 
                             core.utils.cleanup_result(result)
-                            search.cached[result['hash']] = result
+                            search.results[result['hash']] = result
+
+                            if status:
+                                search.cached[result['hash']] = result
 
             except Exception as e:
                 core.logger.notice(e)
@@ -312,7 +311,7 @@ def __search(core, params):
         pass
 
     close_progress()
-    return search.cached
+    return core.utils.DictAsObject({ 'results': search.results, 'cached': search.cached })
 
 def provider_meta(core):
     return __meta(core)

@@ -37,7 +37,7 @@ viewTypes = [
 viewType = None
 contentType = 'videos'
 
-from .explorer import root, query, profile, trailer, years, play, search, debrid
+from .explorer import root, query, profile, trailer, years, play, search, debrid, cache_sources
 from .provider import provider, provider_meta
 from .trakt import trakt
 
@@ -105,6 +105,11 @@ def main(url, handle, paramstring):
 
     elif action == 'trakt':
         trakt(core, params)
+        return
+
+    elif action == 'cache_sources':
+        cache_sources(core, params)
+        kodi.xbmcplugin.endOfDirectory(core.handle)
         return
 
     else:

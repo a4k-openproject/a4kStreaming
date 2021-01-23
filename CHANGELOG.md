@@ -1,3 +1,11 @@
+* [v0.22.0](https://github.com/newt-sc/a4kStreaming/releases/tag/plugin.video.a4kstreaming%2Fplugin.video.a4kstreaming-0.22.0):
+  * New context menu:
+    * Trailer
+    * Add sources - Used to cache new sources to debrid
+  * Option to cache sources if none are found
+  * Add debrid transfers browsing
+  * Fix issue of not finding enough sources for movie titles from the Search menu
+
 * [v0.21.0](https://github.com/newt-sc/a4kStreaming/releases/tag/plugin.video.a4kstreaming%2Fplugin.video.a4kstreaming-0.21.0):
   * Add debrid files browsing and streaming
 
