@@ -30,13 +30,16 @@ Designed for low-end devices and Estuary skin.
     * Lists
     * Watchlist
     * Search for titles or people
-    * Mark as watched/unwatched (by rating/unrating a title)
-      * Auto mark as watched when played more than 90 percents
-    * Add/Remove to/from list
-    * Artwork for posters, thumbnails and fanart
-    * Trailers
-    * Rate/Unrate titles
-    * Seeing similar titles (i.e. More like this)
+    * Debrid files/transfers browsing
+    * Auto mark as watched when played more than 90 percents
+    * Contextmenu
+      * Cast and Crew browsing
+      * Trailers
+      * Mark as watched/unwatched (by rating/unrating a title)
+      * Add/Remove to/from list
+      * Rate/Unrate titles
+      * Seeing similar titles (i.e. More like this)
+      * Add new sources to debrid cache
   * Provider support
     * Install
     * Manage

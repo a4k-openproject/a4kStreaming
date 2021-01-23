@@ -49,10 +49,15 @@ def __set_title_contextmenu(core, title, list_item):
     if titleType == 'person':
         return
 
+    trailer = ''
+    if title.get('primaryVideos', None) and len(title['primaryVideos']) > 0:
+        trailer = title['primaryVideos'][0]
+
     tvseries = titleType == 'tvSeries'
     has_rating = title.get('userRating', None) is not None
     context_menu_items = [
         ('IMDb: %s rating' % ('Update' if has_rating else 'Set'), 'RunPlugin(plugin://plugin.video.a4kstreaming/?action=profile&type=rate&id=%s)' % title['id']),
+        ('IMDb: Trailer', 'RunPlugin(plugin://plugin.video.a4kstreaming/?action=trailer&id=%s&play=true)' % trailer),
     ]
 
     if titleType != 'tvSeries':
@@ -85,6 +90,11 @@ def __set_title_contextmenu(core, title, list_item):
         ('IMDb: Add to list', 'RunPlugin(plugin://plugin.video.a4kstreaming/?action=profile&type=list_add&id=%s)' % title['id']),
         ('IMDb: Remove from list', 'RunPlugin(plugin://plugin.video.a4kstreaming/?action=profile&type=list_remove&id=%s)' % title['id']),
     ])
+
+    if not tvseries:
+        context_menu_items.extend([
+            ('Debrid: Add sources', 'RunPlugin(plugin://plugin.video.a4kstreaming/?action=cache_sources&id=%s)' % title['id'])
+        ])
     list_item.addContextMenuItems(context_menu_items)
 
 def __generate_mutation_query(action, ids, vars=''):
@@ -504,17 +514,20 @@ def __add_titles(core, titles, browse, silent=False):
             else:
                 list_item.setProperty('IsPlayable', 'true')
                 action = 'play'
-                title_meta = video_meta.copy()
-                title_meta.update({
-                    'tvshowid': title.get('tvshowid', None),
-                    'seasons': title.get('seasons', None),
-                    'poster': thumb_image if thumb_image else poster_image,
-                })
-                type = core.base64.b64encode(core.json.dumps(title_meta).encode())
-                if core.utils.py3:
-                    type = type.decode('ascii')
-                if silent:
-                    return type
+                if title.get('releaseYear', None) is None:
+                    type = ''
+                else:
+                    title_meta = video_meta.copy()
+                    title_meta.update({
+                        'tvshowid': title.get('tvshowid', None),
+                        'seasons': title.get('seasons', None),
+                        'poster': thumb_image if thumb_image else poster_image,
+                    })
+                    type = core.base64.b64encode(core.json.dumps(title_meta).encode())
+                    if core.utils.py3:
+                        type = type.decode('ascii')
+                    if silent:
+                        return type
         elif titleType in ['person']:
             action = 'query'
             type = 'person'
@@ -528,7 +541,7 @@ def __add_titles(core, titles, browse, silent=False):
                 list_item.setProperty('IsPlayable', 'false')
 
         url = '%s?action=%s&type=%s' % (core.url, action, type)
-        if action != 'play':
+        if action != 'play' or type == '':
             url += '&id=%s' % title['id']
 
         list_item.setContentLookup(False)
@@ -582,19 +595,19 @@ def root(core):
             'subitems': True
         },
         {
+            'label': 'Debrid',
+            'action': 'debrid',
+            'type': 'root',
+            'info': 'Browse debrid files.',
+            'subitems': True,
+        },
+        {
             'label': 'Search...',
             'action': 'search',
             'type': 'input',
             'info': 'Find movie or TV series by name.',
             'subitems': True,
         },
-        {
-            'label': 'Debrid',
-            'action': 'debrid',
-            'type': 'root',
-            'info': 'Browse debrid files.',
-            'subitems': True,
-        }
     ]
 
     list_items = core.utils.generic_list_items(core, items)
@@ -735,24 +748,34 @@ def debrid(core, params):
     if params.type == 'root':
         items.extend([
             {
-                'label': 'Premiumize',
+                'label': 'Premiumize - Files',
                 'action': 'debrid',
-                'type': 'premiumize',
+                'type': 'premiumize_files',
                 'info': 'Browse Premiumize files.',
+                'subitems': True
+            },
+            {
+                'label': 'Premiumize - Transfers',
+                'action': 'debrid',
+                'type': 'premiumize_transfers',
+                'info': 'See Premiumize transfers.',
                 'subitems': True
             }
         ])
-    elif params.type == 'premiumize':
+
+    elif params.type == 'premiumize_files':
         apikey = core.utils.get_debrid_apikey(core)
         if not apikey or apikey == '':
             core.kodi.notification('Missing debrid service API key')
-            core.utils.end_action(core, True)
             return
 
         id = params.id if params.id else ''
         request = {
             'method': 'GET',
             'url': 'https://www.premiumize.me/api/folder/list?id=%s&includebreadcrumbs=false&apikey=%s' % (id, apikey),
+            'headers': {
+                'content-type': 'application/json',
+            },
         }
 
         response = core.request.execute(core, request)
@@ -778,13 +801,52 @@ def debrid(core, params):
                 items.append({
                     'label': file['name'],
                     'action': 'debrid',
-                    'type': 'premiumize',
+                    'type': 'premiumize_files',
                     'info': '',
                     'subitems': True,
                     'params': {
                         'id': file['id'],
                     }
                 })
+
+    elif params.type == 'premiumize_transfers':
+        apikey = core.utils.get_debrid_apikey(core)
+        if not apikey or apikey == '':
+            core.kodi.notification('Missing debrid service API key')
+            return
+
+        id = params.id if params.id else ''
+        request = {
+            'method': 'GET',
+            'url': 'https://www.premiumize.me/api/transfer/list?apikey=%s' % apikey,
+            'headers': {
+                'content-type': 'application/json',
+            },
+        }
+
+        response = core.request.execute(core, request)
+        if response.status_code != 200:
+            __handle_request_error(core, params, response)
+            return
+
+        parsed_response = core.json.loads(response.content)
+
+        transfers = parsed_response.get('transfers', [])
+        for transfer in transfers:
+            isfinished = transfer['status'] == 'finished'
+            label = '[%s] %s' % (('Completed' if isfinished else transfer.get('message', ('%s%%' % transfer['progress']))), transfer['name'])
+
+            items.append({
+                'label': label,
+                'action': 'debrid',
+                'type': 'premiumize_files',
+                'info': '',
+                'subitems': isfinished if transfer['file_id'] is None else False,
+                'url': transfer['file_id'] if isfinished else '',
+                'params': {
+                    'id': transfer['folder_id'],
+                }
+            })
 
     else:
         core.not_supported()
@@ -1500,6 +1562,9 @@ def trailer(core, params):
         core.utils.end_action(core, False)
         return
 
+    if params.play == 'true':
+        core.kodi.open_busy_dialog()
+
     request = {
         'method': 'GET',
         'url': 'https://www.imdb.com/ve/data/VIDEO_PLAYBACK_DATA',
@@ -1513,6 +1578,7 @@ def trailer(core, params):
 
     response = core.request.execute(core, request)
     if response.status_code != 200:
+        core.kodi.close_busy_dialog()
         core.utils.end_action(core, False)
         core.logger.notice(response.text)
         core.kodi.notification('Trailer not found')
@@ -1524,20 +1590,95 @@ def trailer(core, params):
         filtered = filter(lambda v: v['definition'] != 'AUTO', all)
         trailerUrl = next(iter(filtered), iter(all))['url']
     except:
+        core.kodi.close_busy_dialog()
         core.utils.end_action(core, False)
         core.kodi.notification('Trailer not found')
         return []
 
     item = core.kodi.xbmcgui.ListItem(path=trailerUrl, offscreen=True)
     item.setInfo('video', {'mediatype': 'video'})
-    core.utils.end_action(core, True, item)
+    if params.play == 'true':
+        core.kodi.close_busy_dialog()
+        core.kodi.xbmc.Player().play(item=trailerUrl, listitem=item)
+    else:
+        core.utils.end_action(core, True, item)
 
     return [trailerUrl]
+
+def cache_sources(core, params, results=None):
+    apikey = core.utils.get_debrid_apikey(core)
+    if not apikey or apikey == '':
+        core.kodi.notification('Missing debrid service API key')
+        return
+
+    if not results:
+        results = play(core, core.utils.DictAsObject({ 'id': params.id, 'cache_sources': True }))
+        core.logger.notice('results: %s' % len(results))
+
+    if not results:
+        core.kodi.notification('Something went wrong. Check logs')
+        return
+
+    selection = None
+
+    while(selection != -1):
+        results_keys = list(results.keys())
+        def sorter():
+            return lambda x: (
+                -int(results[x].get('seeds', 0)),
+                not results[x]['quality'] == '4K',
+                not results[x]['quality'] == '1080P',
+                not results[x]['quality'] == '720P',
+                not results[x]['quality'] == 'SD',
+                not results[x]['quality'] == 'CAM',
+                -results[x]['size'],
+                not results[x]['hdr'] == 'HDR',
+                not results[x]['videocodec'] == 'H265',
+                'TRUEHD' not in results[x]['audiocodec'],
+                'DTS' not in results[x]['audiocodec'],
+                'ATMOS' not in results[x]['audiocodec'],
+                'HD-MA' not in results[x]['audiocodec'],
+                results[x]['release_title'],
+            )
+        results_keys = sorted(results_keys, key=sorter())
+
+        selection = core.kodi.xbmcgui.Dialog().select(
+            'Choose source to cache',
+            ['Seeds: %s  |  %s' % (results[key]['seeds'], results[key]['title']) for key in results_keys],
+        )
+
+        if selection > -1:
+            result = results[results_keys[selection]]
+            request = {
+                'method': 'POST',
+                'url': 'https://www.premiumize.me/api/transfer/create?apikey=%s' % apikey,
+                'data': {
+                    'src': result['magnet']
+                }
+            }
+
+            response = core.request.execute(core, request)
+            if response.status_code != 200:
+                __handle_request_error(core, params, response)
+                continue
+
+            parsed_response = core.json.loads(response.content)
+            status = parsed_response.get('status', None)
+            error = parsed_response.get('error', None)
+            if status != 'success' and (status != 'error' or error != 'duplicate'):
+                __handle_request_error(core, params, response)
+                continue
+
+            if error == 'duplicate':
+                core.kodi.notification('Debrid transfer is already added')
+            else:
+                core.kodi.notification('Debrid transfer created: %s' % result['hash'])
+            results.pop(results_keys[selection])
 
 def play(core, params):
     general = core.cache.get_general()
 
-    if general.last_action_time and (core.utils.time_ms() - general.last_action_time) < 2000:
+    if not params.cache_sources and (general.last_action_time and (core.utils.time_ms() - general.last_action_time) < 2000):
         general.last_action_time = core.utils.time_ms()
         core.cache.save_general(general)
         core.utils.end_action(core, True)
@@ -1591,39 +1732,57 @@ def play(core, params):
 
     last_results = core.cache.get_last_results()
     results = {}
-    try:
-        if provider_params.title.imdbnumber in last_results:
-            results.update(last_results[provider_params.title.imdbnumber]['results'])
-            last_results[provider_params.title.imdbnumber]['time'] = core.time.time()
-        if provider_params.title.tvshowseasonid in last_results:
-            results.update(last_results[provider_params.title.tvshowseasonid]['results'])
-            last_results[provider_params.title.tvshowseasonid]['time'] = core.time.time()
-        if provider_params.title.tvshowid in last_results:
-            results.update(last_results[provider_params.title.tvshowid]['results'])
-            last_results[provider_params.title.tvshowid]['time'] = core.time.time()
 
-        core.cache.save_last_results(last_results)
-    except:
-        if provider_params.title.imdbnumber in last_results:
-            last_results.pop(provider_params.title.imdbnumber)
-        if provider_params.title.tvshowseasonid in last_results:
-            last_results.pop(provider_params.title.tvshowseasonid)
-        if provider_params.title.tvshowid in last_results:
-            last_results.pop(provider_params.title.tvshowid)
+    if not params.cache_sources:
+        try:
+            if provider_params.title.imdbnumber in last_results:
+                results.update(last_results[provider_params.title.imdbnumber]['results'])
+                last_results[provider_params.title.imdbnumber]['time'] = core.time.time()
+            if provider_params.title.tvshowseasonid in last_results:
+                results.update(last_results[provider_params.title.tvshowseasonid]['results'])
+                last_results[provider_params.title.tvshowseasonid]['time'] = core.time.time()
+            if provider_params.title.tvshowid in last_results:
+                results.update(last_results[provider_params.title.tvshowid]['results'])
+                last_results[provider_params.title.tvshowid]['time'] = core.time.time()
+
+            core.cache.save_last_results(last_results)
+        except:
+            if provider_params.title.imdbnumber in last_results:
+                last_results.pop(provider_params.title.imdbnumber)
+            if provider_params.title.tvshowseasonid in last_results:
+                last_results.pop(provider_params.title.tvshowseasonid)
+            if provider_params.title.tvshowid in last_results:
+                last_results.pop(provider_params.title.tvshowid)
 
     if len(results) > 0:
         for key in results:
             results[key]['ref'] = provider_params.title
     else:
-        results = core.provider(core, provider_params)
+        provider = core.provider(core, provider_params)
 
-        if len(results) == 0:
+        if params.cache_sources:
+            return provider.results
+
+        if len(provider.cached) == 0:
             core.kodi.notification('No sources found')
+
+            if len(provider.results) > 0:
+                confirmed = core.kodi.xbmcgui.Dialog().yesno(
+                    'Uncached sources found',
+                    'Found %s uncached sources. Do you want to some of them to debrid?' % len(provider.results),
+                    nolabel='No',
+                    yeslabel='Yes'
+                )
+
+                if confirmed:
+                    cache_sources(core, params, provider.results)
+
             general.last_action_time = core.utils.time_ms()
             core.cache.save_general(general)
             core.utils.end_action(core, True)
             return
 
+        results = provider.cached
         all_results = {}
         season_results = {}
         pack_results = {}

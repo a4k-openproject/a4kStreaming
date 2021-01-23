@@ -365,7 +365,6 @@ def generic_list_items(core, items):
                 url += '&%s=%s' % (param, params[param])
 
         list_item.setContentLookup(False)
-        core.logger.notice(url)
         list_items.append((url, list_item, item['subitems']))
 
     return list_items
@@ -458,6 +457,13 @@ def get_graphql_query(body):
                         text
                     }
                 }
+                primaryVideos(first: 1) {
+                    edges {
+                        node {
+                            id
+                        }
+                    }
+                }
                 isAdult
                 %s
             }
@@ -492,13 +498,6 @@ def get_graphql_query(body):
                             category {
                                 text
                             }
-                        }
-                    }
-                }
-                primaryVideos(first: 1) {
-                    edges {
-                        node {
-                            id
                         }
                     }
                 }

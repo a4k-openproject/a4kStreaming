@@ -71,13 +71,19 @@ def get_kodi_setting(setting, log_error=True):
 def notification(text, time=3000):
     xbmc.executebuiltin('Notification(%s, %s, %d, %s)' % (addon_name, text, time, addon_icon))
 
+def open_busy_dialog():
+    xbmc.executebuiltin('ActivateWindow(busydialognocancel)')
+
+def close_busy_dialog():
+    xbmc.executebuiltin('Dialog.Close(busydialognocancel)')
+
 @contextmanager
 def busy_dialog():
-    xbmc.executebuiltin('ActivateWindow(busydialognocancel)')
+    open_busy_dialog()
     try:
         yield
     finally:
-        xbmc.executebuiltin('Dialog.Close(busydialognocancel)')
+        close_busy_dialog()
 
 def get_setting(group, id=None):
     key = '%s.%s' % (group, id) if id else group
