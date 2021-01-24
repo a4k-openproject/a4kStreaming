@@ -67,7 +67,7 @@ def __get_addon_info(name):
     elif name == 'path':
         return os.path.join(os.path.dirname(__file__), '../..')
 __addon.getAddonInfo = __get_addon_info
-__addon.getSetting = lambda _: '29'
+__addon.getSetting = lambda _: None
 xbmcaddon.Addon = lambda _: __addon
 
 # xbmcplugin

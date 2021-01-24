@@ -158,6 +158,14 @@ msgctxt "#33402"
 msgid "API key: "
 msgstr ""
 
+msgctxt "#33403"
+msgid "RealDebrid"
+msgstr ""
+
+msgctxt "#33404"
+msgid "API token (real-debrid.com/apitoken): "
+msgstr ""
+
 # IMDb
 msgctxt "#33501"
 msgid "Authentication"

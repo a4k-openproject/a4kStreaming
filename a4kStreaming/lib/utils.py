@@ -103,6 +103,10 @@ def imdb_auth_request_props():
         }
     }
 
+def rd_auth_query_params(core, rd_api_key=None):
+    rd_apikey = rd_api_key if rd_api_key else get_realdebrid_apikey(core)
+    return '?client_id=X245A4XAIBGVM&auth_token=%s' % rd_apikey
+
 def time_ms():
     return int(round(time.time() * 1000))
 
@@ -171,8 +175,11 @@ def extract_zip(src, dest):
 def random_digit_str(length):
     return ''.join(random.choice(string.digits) for _ in range(length))
 
-def get_debrid_apikey(core):
+def get_premiumize_apikey(core):
     return core.kodi.get_setting('premiumize.apikey')
+
+def get_realdebrid_apikey(core):
+    return core.kodi.get_setting('realdebrid.apikey')
 
 def get_color_string(string, color):
     return '[B][COLOR %s]%s[/COLOR][/B]' % (color, string)

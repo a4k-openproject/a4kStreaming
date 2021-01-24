@@ -12,6 +12,7 @@ from .common import (
 
 provider_url = os.environ.get('A4KSTREAMING_PROVIDER_URL')
 premiumize_apikey = os.environ.get('A4KSTREAMING_PREMIUMIZE_APIKEY')
+realdebrid_apikey = os.environ.get('A4KSTREAMING_REALDEBRID_APIKEY')
 imdb_token = os.environ.get('A4KSTREAMING_IMDB_TOKEN')
 trakt_apikey = os.environ.get('A4KSTREAMING_TRAKT_APIKEY')
 trakt_username = os.environ.get('A4KSTREAMING_TRAKT_USERNAME')
@@ -27,13 +28,13 @@ def __remove_cache(a4kstreaming_api):
         os.remove(a4kstreaming_api.core.cache.__last_results_filepath)
     except: pass
 
-def __setup_provider(a4kstreaming_api):
+def __setup_provider(a4kstreaming_api, settings={}):
     def select(*args, **kwargs): return 1
     a4kstreaming_api.core.kodi.xbmcgui.Dialog().select = select
     keyboard = a4kstreaming_api.core.kodi.xbmc.Keyboard('', '')
     keyboard.getText = lambda: provider_url
     keyboard.isConfirmed = lambda: True
-    __invoke(a4kstreaming_api, 'provider', { 'type': 'install' })
+    __invoke(a4kstreaming_api, 'provider', { 'type': 'install' }, settings=settings)
 
     provider = a4kstreaming_api.core.cache.get_provider()
     selected = {}
@@ -43,6 +44,8 @@ def __setup_provider(a4kstreaming_api):
     a4kstreaming_api.core.cache.save_provider(selected)
 
 def __invoke(a4kstreaming_api, action, params={}, settings={}, prerun=None, remove_cache=True):
+    global premiumize_apikey, realdebrid_apikey, imdb_token, trakt_apikey, trakt_username
+
     if remove_cache:
         __remove_cache(a4kstreaming_api)
 
@@ -50,7 +53,19 @@ def __invoke(a4kstreaming_api, action, params={}, settings={}, prerun=None, remo
     fn.params = a4kstreaming_api.core.utils.DictAsObject(params)
     fn.settings = {
         'general.timeout': '30',
+        'general.page_size': '29',
+        'general.lists_page_size': '29',
+        'general.mark_as_watched_rating': '7',
+        'general.season_title_template': '0',
+        'general.episode_title_template': '0',
+        'views.menu': '0',
+        'views.titles': '0',
+        'views.seasons': '0',
+        'views.episodes': '0',
+        'views.season': '0',
+        'views.episode': '0',
         'premiumize.apikey': premiumize_apikey,
+        'realdebrid.apikey': realdebrid_apikey,
         'imdb.at-main': imdb_token,
         'trakt.clientid': trakt_apikey,
         'trakt.username': trakt_username,
@@ -67,6 +82,46 @@ def __invoke(a4kstreaming_api, action, params={}, settings={}, prerun=None, remo
 
     return fn
 
+def test_provider_install():
+    a4kstreaming_api = api.A4kStreamingApi({'kodi': True})
+
+    def select(*args, **kwargs): return 1
+    a4kstreaming_api.core.kodi.xbmcgui.Dialog().select = select
+    keyboard = a4kstreaming_api.core.kodi.xbmc.Keyboard('', '')
+    keyboard.getText = lambda: provider_url
+    keyboard.isConfirmed = lambda: True
+
+    __invoke(a4kstreaming_api, 'provider', { 'type': 'install' })
+
+    assert len(a4kstreaming_api.core.cache.get_provider()) > 0
+
+def test_provider_manage():
+    a4kstreaming_api = api.A4kStreamingApi({'kodi': True})
+
+    sources = ['SRC1', 'SRC2', 'SRC3', 'SRC4']
+    expected_selection = [1, 3]
+
+    def prerun():
+        a4kstreaming_api.core.cache.save_provider({
+            'SRC1': True,
+            'SRC2': False,
+            'SRC3': True,
+            'SRC4': False,
+        })
+
+    def multiselect(*args, **kwargs): return expected_selection
+    a4kstreaming_api.core.kodi.xbmcgui.Dialog().multiselect = multiselect
+
+    __invoke(a4kstreaming_api, 'provider', { 'type': 'manage' }, prerun=prerun)
+
+    provider = a4kstreaming_api.core.cache.get_provider()
+
+    for index in [0, 1, 2, 3]:
+        if index in expected_selection:
+            assert provider[sources[index]] is True
+        else:
+            assert provider[sources[index]] is False
+
 def test_trailer():
     a4kstreaming_api = api.A4kStreamingApi({'kodi': True})
 
@@ -74,14 +129,27 @@ def test_trailer():
 
     assert len(trailer.results) > 0
 
-def test_play_movie():
+def test_play_movie_pm():
     a4kstreaming_api = api.A4kStreamingApi({'kodi': True})
 
+    settings = { 'realdebrid.apikey': '' }
     def prerun():
-        __setup_provider(a4kstreaming_api)
+        __setup_provider(a4kstreaming_api, settings)
 
     title = b'eyJtZWRpYXR5cGUiOiAibW92aWUiLCAiaW1kYm51bWJlciI6ICJ0dDAxMDgxNjAiLCAidGl0bGUiOiAiU2xlZXBsZXNzIGluIFNlYXR0bGUiLCAib3JpZ2luYWx0aXRsZSI6ICJTbGVlcGxlc3MgaW4gU2VhdHRsZSIsICJ0dnNob3dpZCI6IG51bGwsICJzZWFzb25zIjogbnVsbCwgInR2c2hvd3RpdGxlIjogIiIsICJ5ZWFyIjogMTk5MywgInByZW1pZXJlZCI6ICIxOTkzLTYtMjUiLCAiZHVyYXRpb24iOiA2MzAwLCAibXBhYSI6ICJQRyIsICJnZW5yZSI6IFsiQ29tZWR5IiwgIkRyYW1hIiwgIlJvbWFuY2UiXSwgImNvdW50cnkiOiBbIlVuaXRlZCBTdGF0ZXMiXSwgInRyYWlsZXIiOiAiP2FjdGlvbj10cmFpbGVyJmlkPXZpNzI3MzY3NDQ5IiwgInBsb3QiOiAiQSByZWNlbnRseSB3aWRvd2VkIG1hbidzIHNvbiBjYWxscyBhIHJhZGlvIHRhbGstc2hvdyBpbiBhbiBhdHRlbXB0IHRvIGZpbmQgaGlzIGZhdGhlciBhIHBhcnRuZXIuIiwgInRhZ2xpbmUiOiAiV2hhdCBpZiBzb21lb25lIHlvdSBuZXZlciBtZXQsIHNvbWVvbmUgeW91IG5ldmVyIHNhdywgc29tZW9uZSB5b3UgbmV2ZXIga25ldyB3YXMgdGhlIG9ubHkgc29tZW9uZSBmb3IgeW91PyIsICJvdmVybGF5IjogMCwgInN0dWRpbyI6IFsiVHJpU3RhciBQaWN0dXJlcyIsICJUcmlTdGFyIFBpY3R1cmVzIiwgIkNvbHVtYmlhIFRyaVN0YXIgRmlsbSJdLCAiZGlyZWN0b3IiOiBbIk5vcmEgRXBocm9uIl0sICJ3cml0ZXIiOiBbIkplZmYgQXJjaCIsICJOb3JhIEVwaHJvbiIsICJEYXZpZCBTLiBXYXJkIl19'
-    play = __invoke(a4kstreaming_api, 'play', { 'type': title }, prerun=prerun)
+    play = __invoke(a4kstreaming_api, 'play', { 'type': title }, settings=settings, prerun=prerun)
+
+    assert play.results is not None
+
+def test_play_movie_rd():
+    a4kstreaming_api = api.A4kStreamingApi({'kodi': True})
+
+    settings = { 'premiumize.apikey': '' }
+    def prerun():
+        __setup_provider(a4kstreaming_api, settings)
+
+    title = b'eyJtZWRpYXR5cGUiOiAibW92aWUiLCAiaW1kYm51bWJlciI6ICJ0dDAxMDgxNjAiLCAidGl0bGUiOiAiU2xlZXBsZXNzIGluIFNlYXR0bGUiLCAib3JpZ2luYWx0aXRsZSI6ICJTbGVlcGxlc3MgaW4gU2VhdHRsZSIsICJ0dnNob3dpZCI6IG51bGwsICJzZWFzb25zIjogbnVsbCwgInR2c2hvd3RpdGxlIjogIiIsICJ5ZWFyIjogMTk5MywgInByZW1pZXJlZCI6ICIxOTkzLTYtMjUiLCAiZHVyYXRpb24iOiA2MzAwLCAibXBhYSI6ICJQRyIsICJnZW5yZSI6IFsiQ29tZWR5IiwgIkRyYW1hIiwgIlJvbWFuY2UiXSwgImNvdW50cnkiOiBbIlVuaXRlZCBTdGF0ZXMiXSwgInRyYWlsZXIiOiAiP2FjdGlvbj10cmFpbGVyJmlkPXZpNzI3MzY3NDQ5IiwgInBsb3QiOiAiQSByZWNlbnRseSB3aWRvd2VkIG1hbidzIHNvbiBjYWxscyBhIHJhZGlvIHRhbGstc2hvdyBpbiBhbiBhdHRlbXB0IHRvIGZpbmQgaGlzIGZhdGhlciBhIHBhcnRuZXIuIiwgInRhZ2xpbmUiOiAiV2hhdCBpZiBzb21lb25lIHlvdSBuZXZlciBtZXQsIHNvbWVvbmUgeW91IG5ldmVyIHNhdywgc29tZW9uZSB5b3UgbmV2ZXIga25ldyB3YXMgdGhlIG9ubHkgc29tZW9uZSBmb3IgeW91PyIsICJvdmVybGF5IjogMCwgInN0dWRpbyI6IFsiVHJpU3RhciBQaWN0dXJlcyIsICJUcmlTdGFyIFBpY3R1cmVzIiwgIkNvbHVtYmlhIFRyaVN0YXIgRmlsbSJdLCAiZGlyZWN0b3IiOiBbIk5vcmEgRXBocm9uIl0sICJ3cml0ZXIiOiBbIkplZmYgQXJjaCIsICJOb3JhIEVwaHJvbiIsICJEYXZpZCBTLiBXYXJkIl19'
+    play = __invoke(a4kstreaming_api, 'play', { 'type': title }, settings=settings, prerun=prerun)
 
     assert play.results is not None
 
@@ -214,46 +282,6 @@ def test_search():
 
     assert len(fn.results) > 0
 
-def test_provider_install():
-    a4kstreaming_api = api.A4kStreamingApi({'kodi': True})
-
-    def select(*args, **kwargs): return 1
-    a4kstreaming_api.core.kodi.xbmcgui.Dialog().select = select
-    keyboard = a4kstreaming_api.core.kodi.xbmc.Keyboard('', '')
-    keyboard.getText = lambda: provider_url
-    keyboard.isConfirmed = lambda: True
-
-    __invoke(a4kstreaming_api, 'provider', { 'type': 'install' })
-
-    assert len(a4kstreaming_api.core.cache.get_provider()) > 0
-
-def test_provider_manage():
-    a4kstreaming_api = api.A4kStreamingApi({'kodi': True})
-
-    sources = ['SRC1', 'SRC2', 'SRC3', 'SRC4']
-    expected_selection = [1, 3]
-
-    def prerun():
-        a4kstreaming_api.core.cache.save_provider({
-            'SRC1': True,
-            'SRC2': False,
-            'SRC3': True,
-            'SRC4': False,
-        })
-
-    def multiselect(*args, **kwargs): return expected_selection
-    a4kstreaming_api.core.kodi.xbmcgui.Dialog().multiselect = multiselect
-
-    __invoke(a4kstreaming_api, 'provider', { 'type': 'manage' }, prerun=prerun)
-
-    provider = a4kstreaming_api.core.cache.get_provider()
-
-    for index in [0, 1, 2, 3]:
-        if index in expected_selection:
-            assert provider[sources[index]] is True
-        else:
-            assert provider[sources[index]] is False
-
 def test_watchlist_add():
     a4kstreaming_api = api.A4kStreamingApi({'kodi': True})
 
@@ -318,13 +346,26 @@ def test_season_mark_as_unwatched():
 
     assert fn.results is True
 
-def test_play_episode():
+def test_play_episode_pm():
     a4kstreaming_api = api.A4kStreamingApi({'kodi': True})
 
+    settings = { 'realdebrid.apikey': '' }
     def prerun():
-        __setup_provider(a4kstreaming_api)
+        __setup_provider(a4kstreaming_api, settings)
 
     title = b'eyJtZWRpYXR5cGUiOiAiZXBpc29kZSIsICJpbWRibnVtYmVyIjogInR0MDU4MzYzMiIsICJ0aXRsZSI6ICJUaGUgT25lIHdpdGggdGhlIE5hcCBQYXJ0bmVycyIsICJvcmlnaW5hbHRpdGxlIjogIlRoZSBPbmUgd2l0aCB0aGUgTmFwIFBhcnRuZXJzIiwgInR2c2hvd2lkIjogInR0MDEwODc3OCIsICJzZWFzb25zIjogWzEsIDIsIDMsIDQsIDUsIDYsIDcsIDgsIDksIDEwXSwgInR2c2hvd3RpdGxlIjogIkZyaWVuZHMiLCAieWVhciI6IDIwMDAsICJwcmVtaWVyZWQiOiAiMjAwMC0xMS05IiwgImR1cmF0aW9uIjogMTMyMCwgIm1wYWEiOiAiVFYtUEciLCAiZ2VucmUiOiBbIkNvbWVkeSIsICJSb21hbmNlIl0sICJjb3VudHJ5IjogWyJVbml0ZWQgU3RhdGVzIl0sICJ0cmFpbGVyIjogbnVsbCwgInBsb3QiOiAiSm9leSBhbmQgUm9zcyBhY2NpZGVudGFsbHkgdGFrZSBhIG5hcCB0b2dldGhlciAtIGFuZCBtdWNoIHRvIHRoZWlyIGRpc21heSwgZmluZCB0aGF0IHRoZXkgbGlrZSBpdC4gUGhvZWJlIGFuZCBSYWNoZWwgY29tcGV0ZSB0byBiZWNvbWUgTW9uaWNhJ3MgbWFpZCBvZiBob25vci4iLCAidGFnbGluZSI6IG51bGwsICJvdmVybGF5IjogMCwgImVwaXNvZGUiOiA2LCAic2Vhc29uIjogNywgInN0dWRpbyI6IFsiQnJpZ2h0L0thdWZmbWFuL0NyYW5lIFByb2R1Y3Rpb25zIiwgIldhcm5lciBCcm9zLiBUZWxldmlzaW9uIiwgIk5hdGlvbmFsIEJyb2FkY2FzdGluZyBDb21wYW55IChOQkMpIl0sICJkaXJlY3RvciI6IFsiR2FyeSBIYWx2b3Jzb24iXSwgIndyaXRlciI6IFsiRGF2aWQgQ3JhbmUiLCAiTWFydGEgS2F1ZmZtYW4iLCAiQnJpYW4gQnVja25lciIsICJTZWJhc3RpYW4gSm9uZXMiXX0='
-    play = __invoke(a4kstreaming_api, 'play', { 'type': title }, prerun=prerun)
+    play = __invoke(a4kstreaming_api, 'play', { 'type': title }, settings=settings, prerun=prerun)
+
+    assert play.results is not None
+
+def test_play_episode_rd():
+    a4kstreaming_api = api.A4kStreamingApi({'kodi': True})
+
+    settings = { 'premiumize.apikey': '' }
+    def prerun():
+        __setup_provider(a4kstreaming_api, settings)
+
+    title = b'eyJtZWRpYXR5cGUiOiAiZXBpc29kZSIsICJpbWRibnVtYmVyIjogInR0MDU4MzYzMiIsICJ0aXRsZSI6ICJUaGUgT25lIHdpdGggdGhlIE5hcCBQYXJ0bmVycyIsICJvcmlnaW5hbHRpdGxlIjogIlRoZSBPbmUgd2l0aCB0aGUgTmFwIFBhcnRuZXJzIiwgInR2c2hvd2lkIjogInR0MDEwODc3OCIsICJzZWFzb25zIjogWzEsIDIsIDMsIDQsIDUsIDYsIDcsIDgsIDksIDEwXSwgInR2c2hvd3RpdGxlIjogIkZyaWVuZHMiLCAieWVhciI6IDIwMDAsICJwcmVtaWVyZWQiOiAiMjAwMC0xMS05IiwgImR1cmF0aW9uIjogMTMyMCwgIm1wYWEiOiAiVFYtUEciLCAiZ2VucmUiOiBbIkNvbWVkeSIsICJSb21hbmNlIl0sICJjb3VudHJ5IjogWyJVbml0ZWQgU3RhdGVzIl0sICJ0cmFpbGVyIjogbnVsbCwgInBsb3QiOiAiSm9leSBhbmQgUm9zcyBhY2NpZGVudGFsbHkgdGFrZSBhIG5hcCB0b2dldGhlciAtIGFuZCBtdWNoIHRvIHRoZWlyIGRpc21heSwgZmluZCB0aGF0IHRoZXkgbGlrZSBpdC4gUGhvZWJlIGFuZCBSYWNoZWwgY29tcGV0ZSB0byBiZWNvbWUgTW9uaWNhJ3MgbWFpZCBvZiBob25vci4iLCAidGFnbGluZSI6IG51bGwsICJvdmVybGF5IjogMCwgImVwaXNvZGUiOiA2LCAic2Vhc29uIjogNywgInN0dWRpbyI6IFsiQnJpZ2h0L0thdWZmbWFuL0NyYW5lIFByb2R1Y3Rpb25zIiwgIldhcm5lciBCcm9zLiBUZWxldmlzaW9uIiwgIk5hdGlvbmFsIEJyb2FkY2FzdGluZyBDb21wYW55IChOQkMpIl0sICJkaXJlY3RvciI6IFsiR2FyeSBIYWx2b3Jzb24iXSwgIndyaXRlciI6IFsiRGF2aWQgQ3JhbmUiLCAiTWFydGEgS2F1ZmZtYW4iLCAiQnJpYW4gQnVja25lciIsICJTZWJhc3RpYW4gSm9uZXMiXX0='
+    play = __invoke(a4kstreaming_api, 'play', { 'type': title }, settings=settings, prerun=prerun)
 
     assert play.results is not None

@@ -43,7 +43,8 @@ def __sources_module_name(core):
 
 def __update_config(core):
     provider = core.cache.get_provider()
-    sources = core.importlib.import_module(__sources_module_name(core)).__all__
+    try: sources = core.importlib.import_module(__sources_module_name(core)).__all__
+    except: sources = []
     sources = [source.upper() for source in sources]
 
     provider_sources = list(provider.keys())
@@ -163,8 +164,10 @@ def __search(core, params):
         if not provider[key]:
             continue
 
-        source = core.importlib.import_module(__sources_module_name(core) + ('.%s' % key.lower()))
-        sources[key] = source.sources()
+        try:
+            source = core.importlib.import_module(__sources_module_name(core) + ('.%s' % key.lower()))
+            sources[key] = source.sources()
+        except: pass
 
     threads = []
     search = lambda: None
@@ -199,32 +202,105 @@ def __search(core, params):
                     all_info = { 'info': { 'tvshow.imdb_id': params.title.tvshowid } }
                     results += source.episode(simple_info, all_info)
 
-                if len(results) > 0:
-                    request = {
-                        'method': 'POST',
-                        'url': 'https://www.premiumize.me/api/cache/check?apikey=%s' % core.utils.get_debrid_apikey(core),
-                        'data': {
-                            'items[]': [item['hash'] for item in results]
-                        },
-                    }
+                if len(results) <= 0:
+                    return
 
-                    response = core.request.execute(core, request)
-                    if response.status_code == 200:
+                def check_pm():
+                    check_result = { 'status': [], 'filesize': [], 'files': None }
+                    try:
+                        apikey = core.utils.get_premiumize_apikey(core)
+                        if not apikey:
+                            return check_result
+
+                        request = {
+                            'method': 'POST',
+                            'url': 'https://www.premiumize.me/api/cache/check?apikey=%s' % apikey,
+                            'data': {
+                                'items[]': [item['hash'] for item in results]
+                            },
+                        }
+
+                        response = core.request.execute(core, request)
                         parsed_response = core.json.loads(response.content)
-                        for i, status in enumerate(parsed_response['response']):
-                            result = results[i]
-                            result['ref'] = params.title
+                        return { 'status': parsed_response['response'], 'filesize': parsed_response['filesize'], 'files': None }
+                    except:
+                        return check_result
 
-                            size = float(parsed_response['filesize'][i]) / 1024 / 1024 / 1024
-                            if size <= 0:
-                                size = float(result['size']) / 1024
-                            result['size'] = round(size, 1)
+                def check_rd():
+                    check_result = { 'status': [], 'filesize': [], 'files': [] }
+                    try:
+                        apikey = core.utils.get_realdebrid_apikey(core)
+                        if not apikey:
+                            return check_result
 
-                            core.utils.cleanup_result(result)
+                        keys = [item['hash'] for item in results]
+                        hashes = '/'.join(keys)
+                        request = {
+                            'method': 'GET',
+                            'url': 'https://api.real-debrid.com/rest/1.0/torrents/instantAvailability/%s?client_id=X245A4XAIBGVM&auth_token=%s' % (hashes, apikey)
+                        }
+
+                        response = core.request.execute(core, request)
+                        parsed_response = core.json.loads(response.content)
+
+                        for key in keys:
+                            parsed_result = parsed_response.get(key, {})
+                            if isinstance(parsed_result, list):
+                                parsed_result = {}
+                            status = len(parsed_result.get('rd', [])) > 0
+                            filesize = 0
+                            files = None
+                            if status:
+                                try:
+                                    files = {}
+                                    for file_result in parsed_result['rd']:
+                                        for file_id in file_result.keys():
+                                            files[file_id] = file_result[file_id]
+                                    filesize = sum(f.get('filesize', 0) for f in files.values())
+                                except:
+                                    status = False
+                            check_result['status'].append(status)
+                            check_result['filesize'].append(filesize)
+                            check_result['files'].append(files)
+
+                        return check_result
+                    except:
+                        return check_result
+
+                def sanitize_results(check, debrid):
+                    for i, status in enumerate(check['status']):
+                        result = results[i].copy()
+                        result['ref'] = params.title
+
+                        size = float(check['filesize'][i]) / 1024 / 1024 / 1024
+                        if size <= 0:
+                            size = float(result['size']) / 1024
+                        result['size'] = round(size, 1)
+
+                        core.utils.cleanup_result(result)
+                        if search.results.get(result['hash'], None) is None:
                             search.results[result['hash']] = result
 
-                            if status:
-                                search.cached[result['hash']] = result
+                        if status:
+                            result_copy = result
+                            result_copy['title'] = '%s  |  %s' % (debrid, result['title'])
+                            result_copy['debrid'] = debrid
+                            if check['files'] and len(check['files']) > i:
+                                result_copy['debrid_files'] = check['files'][i]
+                            search.cached['%s%s' % (debrid, result['hash'])] = result_copy
+
+                def pm():
+                    sanitize_results(check_pm(), 'PM')
+                def rd():
+                    sanitize_results(check_rd(), 'RD')
+
+                threads = []
+                threads.append(core.threading.Thread(target=pm))
+                threads.append(core.threading.Thread(target=rd))
+                for thread in threads:
+                    thread.start()
+                for thread in threads:
+                    thread.join()
 
             except Exception as e:
                 core.logger.notice(e)
