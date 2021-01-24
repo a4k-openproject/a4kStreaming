@@ -764,7 +764,7 @@ def debrid(core, params):
         ])
 
     elif params.type == 'premiumize_files':
-        apikey = core.utils.get_debrid_apikey(core)
+        apikey = core.utils.get_premiumize_apikey(core)
         if not apikey or apikey == '':
             core.kodi.notification('Missing debrid service API key')
             return
@@ -810,7 +810,7 @@ def debrid(core, params):
                 })
 
     elif params.type == 'premiumize_transfers':
-        apikey = core.utils.get_debrid_apikey(core)
+        apikey = core.utils.get_premiumize_apikey(core)
         if not apikey or apikey == '':
             core.kodi.notification('Missing debrid service API key')
             return
@@ -1606,7 +1606,7 @@ def trailer(core, params):
     return [trailerUrl]
 
 def cache_sources(core, params, results=None):
-    apikey = core.utils.get_debrid_apikey(core)
+    apikey = core.utils.get_premiumize_apikey(core)
     if not apikey or apikey == '':
         core.kodi.notification('Missing debrid service API key')
         return
@@ -1698,8 +1698,9 @@ def play(core, params):
         core.utils.end_action(core, True)
         return
 
-    apikey = core.utils.get_debrid_apikey(core)
-    if not apikey or apikey == '':
+    pm_apikey = core.utils.get_premiumize_apikey(core)
+    rd_apikey = core.utils.get_realdebrid_apikey(core)
+    if (not pm_apikey or pm_apikey == '') and (not rd_apikey or rd_apikey == ''):
         core.kodi.notification('Missing debrid service API key')
         core.utils.end_action(core, True)
         return
@@ -1766,7 +1767,7 @@ def play(core, params):
         if len(provider.cached) == 0:
             core.kodi.notification('No sources found')
 
-            if len(provider.results) > 0:
+            if len(provider.results) > 0 and pm_apikey:
                 confirmed = core.kodi.xbmcgui.Dialog().yesno(
                     'Uncached sources found',
                     'Found %s uncached sources. Do you want to some of them to debrid?' % len(provider.results),
@@ -1873,23 +1874,89 @@ def play(core, params):
         selection -= 1
 
     result = results[results_keys[selection]]
+    video_ext = list(map(lambda v: '.%s' % v.upper(), core.utils.video_containers()))
+    size = 1048576 * 200
 
-    request = {
-        'method': 'POST',
-        'url': 'https://www.premiumize.me/api/transfer/directdl?apikey=%s' % apikey,
-        'data': {
-            'src': result['magnet']
-        },
-    }
+    def resolve_pm():
+        request = {
+            'method': 'POST',
+            'url': 'https://www.premiumize.me/api/transfer/directdl?apikey=%s' % pm_apikey,
+            'data': {
+                'src': result['magnet']
+            },
+        }
 
-    response = core.request.execute(core, request)
-    link = None
-    if response.status_code == 200:
+        response = core.request.execute(core, request)
         parsed_response = core.json.loads(response.content)
-        video_ext = list(map(lambda v: '.%s' % v.upper(), core.utils.video_containers()))
-        size = 1048576 * 200
+        return parsed_response.get('content', [])
 
-        files = parsed_response.get('content', [])
+    def resolve_rd():
+        auth = core.utils.rd_auth_query_params(core, rd_apikey)
+        request = {
+            'method': 'POST',
+            'url': 'https://api.real-debrid.com/rest/1.0/torrents/addMagnet%s' % auth,
+            'data': {
+                'magnet': result['magnet']
+            },
+        }
+        response = core.request.execute(core, request)
+        parsed_response = core.json.loads(response.content)
+        id = parsed_response['id']
+        uri = parsed_response['uri']
+        files = []
+        try:
+            file_ids = []
+            for file_id in result['debrid_files'].keys():
+                file = result['debrid_files'][file_id]
+                if core.os.path.splitext(file['filename'])[1].upper() in video_ext and int(file['filesize']) > size:
+                    file_ids.append(file_id)
+
+            request = {
+                'method': 'POST',
+                'url': 'https://api.real-debrid.com/rest/1.0/torrents/selectFiles/%s%s' % (id, auth),
+                'data': {
+                    'files': ','.join(file_ids)
+                },
+            }
+            response = core.request.execute(core, request)
+
+            request = {
+                'method': 'GET',
+                'url': '%s%s' % (uri, auth)
+            }
+            response = core.request.execute(core, request)
+            parsed_response = core.json.loads(response.content)
+            selected_files = []
+            for file in parsed_response['files']:
+                if file.get('selected', None):
+                    selected_files.append(file)
+
+            for i, file in enumerate(selected_files):
+                files.append({
+                    'path': file['path'],
+                    'size': file['bytes'],
+                    'link': parsed_response['links'][i]
+                })
+
+        except:
+            request = {
+                'method': 'DELETE',
+                'url': 'https://api.real-debrid.com/rest/1.0/torrents/delete/%s%s' % (id, auth),
+            }
+            response = core.request.execute(core, request)
+        core.logger.notice(files)
+        return files
+
+    link = None
+    files = []
+    if result.get('debrid', 'PM') == 'PM':
+        try: files = resolve_pm()
+        except: pass
+    elif result['debrid'] == 'RD':
+        try: files = resolve_rd()
+        except: pass
+
+    if len(files) > 0:
         for file in files:
             if file.get('path', None):
                 file['path'] = core.os.path.basename(file['path']).upper()
@@ -1953,6 +2020,18 @@ def play(core, params):
         elif len(files) == 1:
             file = files[0]
             link = file.get('link', file.get('stream_link', None))
+
+    if result.get('debrid', 'PM') == 'RD':
+        request = {
+            'method': 'POST',
+            'url': 'https://api.real-debrid.com/rest/1.0/unrestrict/link%s' % core.utils.rd_auth_query_params(core, rd_apikey),
+            'data': {
+                'link': link
+            },
+        }
+        response = core.request.execute(core, request)
+        parsed_response = core.json.loads(response.content)
+        link = parsed_response['download']
 
     if not link:
         general.last_action_time = core.utils.time_ms()

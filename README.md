@@ -47,6 +47,7 @@ Designed for low-end devices and Estuary skin.
     * Caching of results
   * Debrid support
     * Premiumize
+    * RealDebrid
   * Misc
     * Migrate watched titles from Trakt.tv to IMDb (via rating)
     * Migrate movies and shows collection from Trakt.tv to IMDb custom lists

@@ -28,6 +28,9 @@
         <setting type="lsep" label="33401"/>
         <setting type="sep"/>
         <setting id="premiumize.apikey" type="text" label="33402" default=""/>
+        <setting type="lsep" label="33403"/>
+        <setting type="sep"/>
+        <setting id="realdebrid.apikey" type="text" label="33404" default=""/>
     </category>
     <!-- IMDb -->
     <category label="33005">

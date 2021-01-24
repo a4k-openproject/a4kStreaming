@@ -1,3 +1,6 @@
+* [v0.23.0](https://github.com/newt-sc/a4kStreaming/releases/tag/plugin.video.a4kstreaming%2Fplugin.video.a4kstreaming-0.23.0):
+  * RealDebrid support
+
 * [v0.22.0](https://github.com/newt-sc/a4kStreaming/releases/tag/plugin.video.a4kstreaming%2Fplugin.video.a4kstreaming-0.22.0):
   * New context menu:
     * Trailer
