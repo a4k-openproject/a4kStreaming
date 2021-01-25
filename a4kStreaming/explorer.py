@@ -1613,10 +1613,13 @@ def cache_sources(core, params, results=None):
 
     if not results:
         results = play(core, core.utils.DictAsObject({ 'id': params.id, 'cache_sources': True }))
-        core.logger.notice('results: %s' % len(results))
 
     if not results:
         core.kodi.notification('Something went wrong. Check logs')
+        return
+
+    if len(results) == 0:
+        core.kodi.notification('No sources found')
         return
 
     selection = None
@@ -1875,7 +1878,7 @@ def play(core, params):
 
     result = results[results_keys[selection]]
     video_ext = list(map(lambda v: '.%s' % v.upper(), core.utils.video_containers()))
-    size = 1048576 * 200
+    size = 1048576 * 100
 
     def resolve_pm():
         request = {
@@ -1944,7 +1947,6 @@ def play(core, params):
                 'url': 'https://api.real-debrid.com/rest/1.0/torrents/delete/%s%s' % (id, auth),
             }
             response = core.request.execute(core, request)
-        core.logger.notice(files)
         return files
 
     link = None
