@@ -166,6 +166,14 @@ msgctxt "#33404"
 msgid "API token (real-debrid.com/apitoken): "
 msgstr ""
 
+msgctxt "#33405"
+msgid "AllDebrid"
+msgstr ""
+
+msgctxt "#33406"
+msgid "API key: "
+msgstr ""
+
 # IMDb
 msgctxt "#33501"
 msgid "Authentication"

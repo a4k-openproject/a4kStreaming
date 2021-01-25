@@ -7,12 +7,14 @@ from .common import (
     re,
     time,
     api,
-    utils
+    utils,
+    pytest
 )
 
 provider_url = os.environ.get('A4KSTREAMING_PROVIDER_URL')
 premiumize_apikey = os.environ.get('A4KSTREAMING_PREMIUMIZE_APIKEY')
 realdebrid_apikey = os.environ.get('A4KSTREAMING_REALDEBRID_APIKEY')
+alldebrid_apikey = os.environ.get('A4KSTREAMING_ALLDEBRID_APIKEY')
 imdb_token = os.environ.get('A4KSTREAMING_IMDB_TOKEN')
 trakt_apikey = os.environ.get('A4KSTREAMING_TRAKT_APIKEY')
 trakt_username = os.environ.get('A4KSTREAMING_TRAKT_USERNAME')
@@ -66,6 +68,7 @@ def __invoke(a4kstreaming_api, action, params={}, settings={}, prerun=None, remo
         'views.episode': '0',
         'premiumize.apikey': premiumize_apikey,
         'realdebrid.apikey': realdebrid_apikey,
+        'alldebrid.apikey': alldebrid_apikey,
         'imdb.at-main': imdb_token,
         'trakt.clientid': trakt_apikey,
         'trakt.username': trakt_username,
@@ -122,17 +125,10 @@ def test_provider_manage():
         else:
             assert provider[sources[index]] is False
 
-def test_trailer():
-    a4kstreaming_api = api.A4kStreamingApi({'kodi': True})
-
-    trailer = __invoke(a4kstreaming_api, 'trailer', { 'id': 'vi727367449' })
-
-    assert len(trailer.results) > 0
-
 def test_play_movie_pm():
     a4kstreaming_api = api.A4kStreamingApi({'kodi': True})
 
-    settings = { 'realdebrid.apikey': '' }
+    settings = { 'realdebrid.apikey': '', 'alldebrid.apikey': '' }
     def prerun():
         __setup_provider(a4kstreaming_api, settings)
 
@@ -140,6 +136,13 @@ def test_play_movie_pm():
     play = __invoke(a4kstreaming_api, 'play', { 'type': title }, settings=settings, prerun=prerun)
 
     assert play.results is not None
+
+def test_trailer():
+    a4kstreaming_api = api.A4kStreamingApi({'kodi': True})
+
+    trailer = __invoke(a4kstreaming_api, 'trailer', { 'id': 'vi727367449' })
+
+    assert len(trailer.results) > 0
 
 def test_popular():
     a4kstreaming_api = api.A4kStreamingApi({'kodi': True})
@@ -161,6 +164,18 @@ def test_top_picks():
     fn = __invoke(a4kstreaming_api, 'query', { 'type': 'top_picks' })
 
     assert len(fn.results) > 0
+
+def test_play_movie_rd():
+    a4kstreaming_api = api.A4kStreamingApi({'kodi': True})
+
+    settings = { 'premiumize.apikey': '', 'alldebrid.apikey': '' }
+    def prerun():
+        __setup_provider(a4kstreaming_api, settings)
+
+    title = b'eyJtZWRpYXR5cGUiOiAibW92aWUiLCAiaW1kYm51bWJlciI6ICJ0dDAxMDgxNjAiLCAidGl0bGUiOiAiU2xlZXBsZXNzIGluIFNlYXR0bGUiLCAib3JpZ2luYWx0aXRsZSI6ICJTbGVlcGxlc3MgaW4gU2VhdHRsZSIsICJ0dnNob3dpZCI6IG51bGwsICJzZWFzb25zIjogbnVsbCwgInR2c2hvd3RpdGxlIjogIiIsICJ5ZWFyIjogMTk5MywgInByZW1pZXJlZCI6ICIxOTkzLTYtMjUiLCAiZHVyYXRpb24iOiA2MzAwLCAibXBhYSI6ICJQRyIsICJnZW5yZSI6IFsiQ29tZWR5IiwgIkRyYW1hIiwgIlJvbWFuY2UiXSwgImNvdW50cnkiOiBbIlVuaXRlZCBTdGF0ZXMiXSwgInRyYWlsZXIiOiAiP2FjdGlvbj10cmFpbGVyJmlkPXZpNzI3MzY3NDQ5IiwgInBsb3QiOiAiQSByZWNlbnRseSB3aWRvd2VkIG1hbidzIHNvbiBjYWxscyBhIHJhZGlvIHRhbGstc2hvdyBpbiBhbiBhdHRlbXB0IHRvIGZpbmQgaGlzIGZhdGhlciBhIHBhcnRuZXIuIiwgInRhZ2xpbmUiOiAiV2hhdCBpZiBzb21lb25lIHlvdSBuZXZlciBtZXQsIHNvbWVvbmUgeW91IG5ldmVyIHNhdywgc29tZW9uZSB5b3UgbmV2ZXIga25ldyB3YXMgdGhlIG9ubHkgc29tZW9uZSBmb3IgeW91PyIsICJvdmVybGF5IjogMCwgInN0dWRpbyI6IFsiVHJpU3RhciBQaWN0dXJlcyIsICJUcmlTdGFyIFBpY3R1cmVzIiwgIkNvbHVtYmlhIFRyaVN0YXIgRmlsbSJdLCAiZGlyZWN0b3IiOiBbIk5vcmEgRXBocm9uIl0sICJ3cml0ZXIiOiBbIkplZmYgQXJjaCIsICJOb3JhIEVwaHJvbiIsICJEYXZpZCBTLiBXYXJkIl19'
+    play = __invoke(a4kstreaming_api, 'play', { 'type': title }, settings=settings, prerun=prerun)
+
+    assert play.results is not None
 
 def test_more_like_this():
     a4kstreaming_api = api.A4kStreamingApi({'kodi': True})
@@ -190,10 +205,13 @@ def test_list():
 
     assert len(fn.results) > 0
 
-def test_play_movie_rd():
+def test_play_movie_ad():
+    if not os.environ.get('A4KSTREAMING_LOCAL'):
+        pytest.skip("Fails on CI - NO SERVER error")
+
     a4kstreaming_api = api.A4kStreamingApi({'kodi': True})
 
-    settings = { 'premiumize.apikey': '' }
+    settings = { 'premiumize.apikey': '', 'realdebrid.apikey': '' }
     def prerun():
         __setup_provider(a4kstreaming_api, settings)
 
@@ -240,6 +258,18 @@ def test_year():
 
     assert len(fn.results) > 0
 
+def test_play_episode_pm():
+    a4kstreaming_api = api.A4kStreamingApi({'kodi': True})
+
+    settings = { 'realdebrid.apikey': '', 'alldebrid.apikey': '' }
+    def prerun():
+        __setup_provider(a4kstreaming_api, settings)
+
+    title = b'eyJtZWRpYXR5cGUiOiAiZXBpc29kZSIsICJpbWRibnVtYmVyIjogInR0MDU4MzYzMiIsICJ0aXRsZSI6ICJUaGUgT25lIHdpdGggdGhlIE5hcCBQYXJ0bmVycyIsICJvcmlnaW5hbHRpdGxlIjogIlRoZSBPbmUgd2l0aCB0aGUgTmFwIFBhcnRuZXJzIiwgInR2c2hvd2lkIjogInR0MDEwODc3OCIsICJzZWFzb25zIjogWzEsIDIsIDMsIDQsIDUsIDYsIDcsIDgsIDksIDEwXSwgInR2c2hvd3RpdGxlIjogIkZyaWVuZHMiLCAieWVhciI6IDIwMDAsICJwcmVtaWVyZWQiOiAiMjAwMC0xMS05IiwgImR1cmF0aW9uIjogMTMyMCwgIm1wYWEiOiAiVFYtUEciLCAiZ2VucmUiOiBbIkNvbWVkeSIsICJSb21hbmNlIl0sICJjb3VudHJ5IjogWyJVbml0ZWQgU3RhdGVzIl0sICJ0cmFpbGVyIjogbnVsbCwgInBsb3QiOiAiSm9leSBhbmQgUm9zcyBhY2NpZGVudGFsbHkgdGFrZSBhIG5hcCB0b2dldGhlciAtIGFuZCBtdWNoIHRvIHRoZWlyIGRpc21heSwgZmluZCB0aGF0IHRoZXkgbGlrZSBpdC4gUGhvZWJlIGFuZCBSYWNoZWwgY29tcGV0ZSB0byBiZWNvbWUgTW9uaWNhJ3MgbWFpZCBvZiBob25vci4iLCAidGFnbGluZSI6IG51bGwsICJvdmVybGF5IjogMCwgImVwaXNvZGUiOiA2LCAic2Vhc29uIjogNywgInN0dWRpbyI6IFsiQnJpZ2h0L0thdWZmbWFuL0NyYW5lIFByb2R1Y3Rpb25zIiwgIldhcm5lciBCcm9zLiBUZWxldmlzaW9uIiwgIk5hdGlvbmFsIEJyb2FkY2FzdGluZyBDb21wYW55IChOQkMpIl0sICJkaXJlY3RvciI6IFsiR2FyeSBIYWx2b3Jzb24iXSwgIndyaXRlciI6IFsiRGF2aWQgQ3JhbmUiLCAiTWFydGEgS2F1ZmZtYW4iLCAiQnJpYW4gQnVja25lciIsICJTZWJhc3RpYW4gSm9uZXMiXX0='
+    play = __invoke(a4kstreaming_api, 'play', { 'type': title }, settings=settings, prerun=prerun)
+
+    assert play.results is not None
+
 def test_browse_movie():
     a4kstreaming_api = api.A4kStreamingApi({'kodi': True})
 
@@ -282,10 +312,13 @@ def test_search():
 
     assert len(fn.results) > 0
 
-def test_play_episode_pm():
+def test_play_episode_ad():
+    if not os.environ.get('A4KSTREAMING_LOCAL'):
+        pytest.skip("Fails on CI - NO SERVER error")
+
     a4kstreaming_api = api.A4kStreamingApi({'kodi': True})
 
-    settings = { 'realdebrid.apikey': '' }
+    settings = { 'premiumize.apikey': '', 'realdebrid.apikey': '' }
     def prerun():
         __setup_provider(a4kstreaming_api, settings)
 
@@ -361,7 +394,7 @@ def test_season_mark_as_unwatched():
 def test_play_episode_rd():
     a4kstreaming_api = api.A4kStreamingApi({'kodi': True})
 
-    settings = { 'premiumize.apikey': '' }
+    settings = { 'premiumize.apikey': '', 'alldebrid.apikey': '' }
     def prerun():
         __setup_provider(a4kstreaming_api, settings)
 
