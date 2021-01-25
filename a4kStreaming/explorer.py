@@ -766,7 +766,7 @@ def debrid(core, params):
     elif params.type == 'premiumize_files':
         apikey = core.utils.get_premiumize_apikey(core)
         if not apikey or apikey == '':
-            core.kodi.notification('Missing debrid service API key')
+            core.kodi.notification('Missing Premiumize service API key')
             return
 
         id = params.id if params.id else ''
@@ -812,7 +812,7 @@ def debrid(core, params):
     elif params.type == 'premiumize_transfers':
         apikey = core.utils.get_premiumize_apikey(core)
         if not apikey or apikey == '':
-            core.kodi.notification('Missing debrid service API key')
+            core.kodi.notification('Missing Premiumize service API key')
             return
 
         id = params.id if params.id else ''
@@ -1608,7 +1608,7 @@ def trailer(core, params):
 def cache_sources(core, params, results=None):
     apikey = core.utils.get_premiumize_apikey(core)
     if not apikey or apikey == '':
-        core.kodi.notification('Missing debrid service API key')
+        core.kodi.notification('Missing Premiumize service API key')
         return
 
     if not results:
@@ -1703,7 +1703,8 @@ def play(core, params):
 
     pm_apikey = core.utils.get_premiumize_apikey(core)
     rd_apikey = core.utils.get_realdebrid_apikey(core)
-    if (not pm_apikey or pm_apikey == '') and (not rd_apikey or rd_apikey == ''):
+    ad_apikey = core.utils.get_alldebrid_apikey(core)
+    if (not pm_apikey or pm_apikey == '') and (not rd_apikey or rd_apikey == '') and (not ad_apikey or ad_apikey == ''):
         core.kodi.notification('Missing debrid service API key')
         core.utils.end_action(core, True)
         return
@@ -1906,6 +1907,7 @@ def play(core, params):
         parsed_response = core.json.loads(response.content)
         id = parsed_response['id']
         uri = parsed_response['uri']
+
         files = []
         try:
             file_ids = []
@@ -1941,12 +1943,55 @@ def play(core, params):
                     'link': parsed_response['links'][i]
                 })
 
-        except:
+        finally:
+            def delete_magnet():
+                request = {
+                    'method': 'DELETE',
+                    'url': 'https://api.real-debrid.com/rest/1.0/torrents/delete/%s%s' % (id, auth),
+                }
+                core.request.execute(core, request)
+            core.threading.Thread(target=delete_magnet).start()
+        return files
+
+    def resolve_ad():
+        auth = core.utils.ad_auth_query_params(core, ad_apikey)
+        request = {
+            'method': 'GET',
+            'url': 'https://api.alldebrid.com/v4/magnet/upload?&magnets[]=%s%s' % (result['hash'], auth),
+        }
+        response = core.request.execute(core, request)
+        parsed_response = core.json.loads(response.content)
+        id = parsed_response.get('data', parsed_response)['magnets'][0]['id']
+        files = []
+        try:
             request = {
-                'method': 'DELETE',
-                'url': 'https://api.real-debrid.com/rest/1.0/torrents/delete/%s%s' % (id, auth),
+                'method': 'GET',
+                'url': 'https://api.alldebrid.com/v4/magnet/status?id=%s%s' % (id, auth),
             }
             response = core.request.execute(core, request)
+            parsed_response = core.json.loads(response.content)
+            magnet = parsed_response.get('data', parsed_response)['magnets']
+            if isinstance(magnet, list):
+                magnet = magnet[0]
+            links = magnet['links']
+            if not links:
+                links = []
+
+            for file in links:
+                files.append({
+                    'path': file['filename'],
+                    'size': file['size'],
+                    'link': file['link']
+                })
+
+        finally:
+            def delete_magnet():
+                request = {
+                    'method': 'GET',
+                    'url': 'https://api.alldebrid.com/v4/magnet/delete?id=%s%s' % (id, auth),
+                }
+                core.request.execute(core, request)
+            core.threading.Thread(target=delete_magnet).start()
         return files
 
     link = None
@@ -1956,6 +2001,9 @@ def play(core, params):
         except: pass
     elif result['debrid'] == 'RD':
         try: files = resolve_rd()
+        except: pass
+    elif result['debrid'] == 'AD':
+        try: files = resolve_ad()
         except: pass
 
     if len(files) > 0:
@@ -2023,24 +2071,37 @@ def play(core, params):
             file = files[0]
             link = file.get('link', file.get('stream_link', None))
 
-    if result.get('debrid', 'PM') == 'RD':
-        request = {
-            'method': 'POST',
-            'url': 'https://api.real-debrid.com/rest/1.0/unrestrict/link%s' % core.utils.rd_auth_query_params(core, rd_apikey),
-            'data': {
-                'link': link
-            },
-        }
-        response = core.request.execute(core, request)
-        parsed_response = core.json.loads(response.content)
-        link = parsed_response['download']
-
     if not link:
         general.last_action_time = core.utils.time_ms()
         core.cache.save_general(general)
         core.kodi.notification('Failed to resolve debrid')
         core.utils.end_action(core, True)
         return
+
+    if result.get('debrid', 'PM') == 'RD':
+        try:
+            request = {
+                'method': 'POST',
+                'url': 'https://api.real-debrid.com/rest/1.0/unrestrict/link%s' % core.utils.rd_auth_query_params(core, rd_apikey),
+                'data': {
+                    'link': link
+                },
+            }
+            response = core.request.execute(core, request)
+            parsed_response = core.json.loads(response.content)
+            link = parsed_response['download']
+        except: pass
+
+    elif result.get('debrid', 'PM') == 'AD':
+        try:
+            request = {
+                'method': 'GET',
+                'url': 'https://api.alldebrid.com/v4/link/unlock?link=%s%s' % (link, core.utils.ad_auth_query_params(core, ad_apikey)),
+            }
+            response = core.request.execute(core, request)
+            parsed_response = core.json.loads(response.content)
+            link = parsed_response['data']['link']
+        except: pass
 
     item = core.kodi.xbmcgui.ListItem(path=link, offscreen=True)
 

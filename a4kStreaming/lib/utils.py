@@ -107,6 +107,10 @@ def rd_auth_query_params(core, rd_api_key=None):
     rd_apikey = rd_api_key if rd_api_key else get_realdebrid_apikey(core)
     return '?client_id=X245A4XAIBGVM&auth_token=%s' % rd_apikey
 
+def ad_auth_query_params(core, ad_api_key=None):
+    ad_apikey = ad_api_key if ad_api_key else get_alldebrid_apikey(core)
+    return '&agent=%s&apikey=%s' % (core.kodi.addon_name, ad_apikey)
+
 def time_ms():
     return int(round(time.time() * 1000))
 
@@ -180,6 +184,9 @@ def get_premiumize_apikey(core):
 
 def get_realdebrid_apikey(core):
     return core.kodi.get_setting('realdebrid.apikey')
+
+def get_alldebrid_apikey(core):
+    return core.kodi.get_setting('alldebrid.apikey')
 
 def get_color_string(string, color):
     return '[B][COLOR %s]%s[/COLOR][/B]' % (color, string)

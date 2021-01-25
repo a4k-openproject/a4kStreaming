@@ -1,3 +1,6 @@
+* [v0.25.0](https://github.com/newt-sc/a4kStreaming/releases/tag/plugin.video.a4kstreaming%2Fplugin.video.a4kstreaming-0.25.0):
+  * AllDebrid support
+
 * [v0.24.0](https://github.com/newt-sc/a4kStreaming/releases/tag/plugin.video.a4kstreaming%2Fplugin.video.a4kstreaming-0.24.0):
   * Reduce file size filter
   * Remove debug logs

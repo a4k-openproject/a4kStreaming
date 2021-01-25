@@ -205,13 +205,8 @@ def __search(core, params):
                 if len(results) <= 0:
                     return
 
-                def check_pm():
-                    check_result = { 'status': [], 'filesize': [], 'files': None }
+                def check_pm(apikey):
                     try:
-                        apikey = core.utils.get_premiumize_apikey(core)
-                        if not apikey:
-                            return check_result
-
                         request = {
                             'method': 'POST',
                             'url': 'https://www.premiumize.me/api/cache/check?apikey=%s' % apikey,
@@ -224,15 +219,11 @@ def __search(core, params):
                         parsed_response = core.json.loads(response.content)
                         return { 'status': parsed_response['response'], 'filesize': parsed_response['filesize'], 'files': None }
                     except:
-                        return check_result
+                        return { 'status': [], 'filesize': [], 'files': None }
 
-                def check_rd():
+                def check_rd(apikey):
                     check_result = { 'status': [], 'filesize': [], 'files': [] }
                     try:
-                        apikey = core.utils.get_realdebrid_apikey(core)
-                        if not apikey:
-                            return check_result
-
                         keys = [item['hash'] for item in results]
                         hashes = '/'.join(keys)
                         request = {
@@ -241,6 +232,8 @@ def __search(core, params):
                         }
 
                         response = core.request.execute(core, request)
+                        if response.status_code == 500:
+                            response = core.request.execute(core, request)
                         parsed_response = core.json.loads(response.content)
 
                         for key in keys:
@@ -267,12 +260,35 @@ def __search(core, params):
                     except:
                         return check_result
 
+                def check_ad(apikey):
+                    try:
+                        hashes = [item['hash'] for item in results]
+                        request = {
+                            'method': 'POST',
+                            'url': 'https://api.alldebrid.com/v4/magnet/instant?%s' % core.utils.ad_auth_query_params(core, apikey),
+                            'data': {
+                                'magnets[]': hashes
+                            },
+                        }
+
+                        response = core.request.execute(core, request)
+                        parsed_response = core.json.loads(response.content)
+                        response_status = {}
+                        for magnet in parsed_response.get('data', parsed_response)['magnets']:
+                            response_status[magnet['hash']] = magnet['instant']
+
+                        return { 'status': [response_status[hash] for hash in hashes], 'filesize': None, 'files': None }
+                    except:
+                        return { 'status': [], 'filesize': None, 'files': None }
+
                 def sanitize_results(check, debrid):
                     for i, status in enumerate(check['status']):
                         result = results[i].copy()
                         result['ref'] = params.title
 
-                        size = float(check['filesize'][i]) / 1024 / 1024 / 1024
+                        size = 0
+                        if check['filesize']:
+                            size = float(check['filesize'][i]) / 1024 / 1024 / 1024
                         if size <= 0:
                             size = float(result['size']) / 1024
                         result['size'] = round(size, 1)
@@ -289,14 +305,27 @@ def __search(core, params):
                                 result_copy['debrid_files'] = check['files'][i]
                             search.cached['%s%s' % (debrid, result['hash'])] = result_copy
 
-                def pm():
-                    sanitize_results(check_pm(), 'PM')
-                def rd():
-                    sanitize_results(check_rd(), 'RD')
+                def pm(apikey):
+                    sanitize_results(check_pm(apikey), 'PM')
+                def rd(apikey):
+                    sanitize_results(check_rd(apikey), 'RD')
+                def ad(apikey):
+                    sanitize_results(check_ad(apikey), 'AD')
 
                 threads = []
-                threads.append(core.threading.Thread(target=pm))
-                threads.append(core.threading.Thread(target=rd))
+
+                premiumize_apikey = core.utils.get_premiumize_apikey(core)
+                if premiumize_apikey:
+                    threads.append(core.threading.Thread(target=pm, args=(premiumize_apikey,)))
+
+                realdebrid_apikey = core.utils.get_realdebrid_apikey(core)
+                if realdebrid_apikey:
+                    threads.append(core.threading.Thread(target=rd, args=(realdebrid_apikey,)))
+
+                alldebrid_apikey = core.utils.get_alldebrid_apikey(core)
+                if alldebrid_apikey:
+                    threads.append(core.threading.Thread(target=ad, args=(alldebrid_apikey,)))
+
                 for thread in threads:
                     thread.start()
                 for thread in threads:
