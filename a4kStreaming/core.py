@@ -17,6 +17,7 @@ from .lib import (
     request,
     utils,
     cache,
+    debrid,
 )
 
 core = sys.modules[__name__]
@@ -25,6 +26,7 @@ utils.core = core
 api_mode_enabled = True
 url = ''
 handle = None
+skip_end_of_dir = 'skip_end_of_dir'
 
 viewTypes = [
     51,   # Poster
@@ -37,7 +39,7 @@ viewTypes = [
 viewType = None
 contentType = 'videos'
 
-from .explorer import root, query, profile, trailer, years, play, search, debrid, cache_sources
+from .explorer import root, query, profile, trailer, years, play, search, cloud, cache_sources
 from .provider import provider, provider_meta
 from .trakt import trakt
 
@@ -71,10 +73,11 @@ def main(url, handle, paramstring):
         core.contentType = 'movies'
         search(core, params)
 
-    elif action == 'debrid':
+    elif action == 'cloud':
         core.viewType = kodi.get_setting('views.menu')
         core.contentType = 'videos'
-        debrid(core, params)
+        if cloud(core, params) == skip_end_of_dir:
+            return
 
     elif action == 'query':
         if params.type == 'seasons':

@@ -1,3 +1,6 @@
+* [v0.26.0](https://github.com/newt-sc/a4kStreaming/releases/tag/plugin.video.a4kstreaming%2Fplugin.video.a4kstreaming-0.26.0):
+  * AllDebrid and RealDebrid cloud browsing and support for caching additional sources
+
 * [v0.25.0](https://github.com/newt-sc/a4kStreaming/releases/tag/plugin.video.a4kstreaming%2Fplugin.video.a4kstreaming-0.25.0):
   * AllDebrid support
 

@@ -166,6 +166,9 @@ def test_top_picks():
     assert len(fn.results) > 0
 
 def test_play_movie_rd():
+    if not os.environ.get('A4KSTREAMING_LOCAL'):
+        pytest.skip("No Key")
+
     a4kstreaming_api = api.A4kStreamingApi({'kodi': True})
 
     settings = { 'premiumize.apikey': '', 'alldebrid.apikey': '' }
@@ -392,6 +395,9 @@ def test_season_mark_as_unwatched():
     assert fn.results is True
 
 def test_play_episode_rd():
+    if not os.environ.get('A4KSTREAMING_LOCAL'):
+        pytest.skip("NO Key")
+
     a4kstreaming_api = api.A4kStreamingApi({'kodi': True})
 
     settings = { 'premiumize.apikey': '', 'alldebrid.apikey': '' }
@@ -402,3 +408,17 @@ def test_play_episode_rd():
     play = __invoke(a4kstreaming_api, 'play', { 'type': title }, settings=settings, prerun=prerun)
 
     assert play.results is not None
+
+def test_premiumize_files():
+    a4kstreaming_api = api.A4kStreamingApi({'kodi': True})
+
+    fn = __invoke(a4kstreaming_api, 'cloud', { 'type': 'premiumize_files' })
+
+    assert len(fn.results) > 0
+
+def test_premiumize_transfers():
+    a4kstreaming_api = api.A4kStreamingApi({'kodi': True})
+
+    fn = __invoke(a4kstreaming_api, 'cloud', { 'type': 'premiumize_transfers' })
+
+    assert len(fn.results) > 0
