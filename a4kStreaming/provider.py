@@ -207,14 +207,8 @@ def __search(core, params):
 
                 def check_pm(apikey):
                     try:
-                        request = {
-                            'method': 'POST',
-                            'url': 'https://www.premiumize.me/api/cache/check?apikey=%s' % apikey,
-                            'data': {
-                                'items[]': [item['hash'] for item in results]
-                            },
-                        }
-
+                        hashes = [item['hash'] for item in results]
+                        request = core.debrid.premiumize_check(apikey, hashes)
                         response = core.request.execute(core, request)
                         parsed_response = core.json.loads(response.content)
                         return { 'status': parsed_response['response'], 'filesize': parsed_response['filesize'], 'files': None }
@@ -224,13 +218,10 @@ def __search(core, params):
                 def check_rd(apikey):
                     check_result = { 'status': [], 'filesize': [], 'files': [] }
                     try:
+                        auth = core.utils.rd_auth_query_params(core, apikey)
                         keys = [item['hash'] for item in results]
                         hashes = '/'.join(keys)
-                        request = {
-                            'method': 'GET',
-                            'url': 'https://api.real-debrid.com/rest/1.0/torrents/instantAvailability/%s?client_id=X245A4XAIBGVM&auth_token=%s' % (hashes, apikey)
-                        }
-
+                        request = core.debrid.realdebrid_check(auth, hashes)
                         response = core.request.execute(core, request)
                         if response.status_code == 500:
                             response = core.request.execute(core, request)
@@ -262,15 +253,9 @@ def __search(core, params):
 
                 def check_ad(apikey):
                     try:
+                        auth = core.utils.ad_auth_query_params(core, apikey)
                         hashes = [item['hash'] for item in results]
-                        request = {
-                            'method': 'POST',
-                            'url': 'https://api.alldebrid.com/v4/magnet/instant?%s' % core.utils.ad_auth_query_params(core, apikey),
-                            'data': {
-                                'magnets[]': hashes
-                            },
-                        }
-
+                        request = core.debrid.alldebrid_check(auth, hashes)
                         response = core.request.execute(core, request)
                         parsed_response = core.json.loads(response.content)
                         response_status = {}
@@ -299,7 +284,7 @@ def __search(core, params):
 
                         if status:
                             result_copy = result
-                            result_copy['title'] = '%s  |  %s' % (debrid, result['title'])
+                            result_copy['title_with_debrid'] = '%s  |  %s' % (debrid, result['title'])
                             result_copy['debrid'] = debrid
                             if check['files'] and len(check['files']) > i:
                                 result_copy['debrid_files'] = check['files'][i]

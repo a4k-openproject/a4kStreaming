@@ -379,6 +379,13 @@ def generic_list_items(core, items):
                 url += '&%s=%s' % (param, params[param])
 
         list_item.setContentLookup(False)
+
+        context_menu_items = []
+        contextmenu = item.get('contextmenu', {})
+        for key in contextmenu:
+            context_menu_items.append((key, contextmenu[key]))
+
+        list_item.addContextMenuItems(context_menu_items)
         list_items.append((url, list_item, item['subitems']))
 
     return list_items
