@@ -750,7 +750,7 @@ def get_graphql_query(body):
 
     body['variables'].update({
         'genresLimit': 3,
-        'castLimit': 10,
+        'castLimit': 20,
         'companiesLimit': 3,
         'countriesLimit': 1
     })

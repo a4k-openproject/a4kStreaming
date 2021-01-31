@@ -163,7 +163,7 @@ msgid "RealDebrid"
 msgstr ""
 
 msgctxt "#33404"
-msgid "API token (real-debrid.com/apitoken): "
+msgid "API key (real-debrid.com/apitoken): "
 msgstr ""
 
 msgctxt "#33405"

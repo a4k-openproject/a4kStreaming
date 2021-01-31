@@ -367,7 +367,7 @@ def __add_titles(core, titles, browse, silent=False):
 
     for title in titles:
         titleType = title['titleType']
-        if titleType in ['tvMovie', 'video']:
+        if titleType in ['tvMovie', 'tvSpecial', 'video']:
             titleType = 'movie'
         if titleType not in ['movie', 'tvSeries', 'tvEpisode', 'person']:
             continue
@@ -721,6 +721,7 @@ def search(core, params):
             'tv series': 'tvSeries',
             'tv mini-series': 'tvSeries',
             'tv movie': 'movie',
+            'tv special': 'movie',
             'feature': 'movie',
             'video': 'movie',
         }
@@ -777,282 +778,310 @@ def cloud(core, params):
             }
         ])
 
-    elif params.type == 'premiumize_files':
+    elif params.type.startswith('premiumize_'):
         apikey = core.utils.get_premiumize_apikey(core)
         if not apikey or apikey == '':
             core.kodi.notification('Missing Premiumize service API key')
             return
 
-        id = params.id if params.id else ''
-        request = core.debrid.premiumize_files(apikey, id)
-        response = core.request.execute(core, request)
-        if response.status_code != 200:
-            __handle_request_error(core, params, response)
-            return
+        if params.type == 'premiumize_files':
+            id = params.id if params.id else ''
+            request = core.debrid.premiumize_files(apikey, id)
+            response = core.request.execute(core, request)
+            if response.status_code != 200:
+                __handle_request_error(core, params, response)
+                return
 
-        parsed_response = core.json.loads(response.content)
+            parsed_response = core.json.loads(response.content)
 
-        files = parsed_response.get('content', [])
-        for file in files:
-            if not file.get('type', None):
-                continue
+            files = parsed_response.get('content', [])
+            for file in files:
+                if not file.get('type', None):
+                    continue
 
-            if file['type'] == 'file':
-                isvideo = core.os.path.splitext(file['name'])[1].upper() in video_ext
+                if file['type'] == 'file':
+                    isvideo = core.os.path.splitext(file['name'])[1].upper() in video_ext
+                    items.append({
+                        'label': file['name'],
+                        'subitems': False,
+                        'url': file.get('link', file.get('stream_link', None)) if isvideo else '',
+                        'contextmenu': {
+                            'Premiumize: Delete': 'RunPlugin(plugin://plugin.video.a4kstreaming/?action=cloud&type=premiumize_file_delete&id=%s)' % file['id']
+                        }
+                    })
+                elif file['type'] == 'folder':
+                    items.append({
+                        'label': file['name'],
+                        'action': 'cloud',
+                        'type': 'premiumize_files',
+                        'info': '',
+                        'subitems': True,
+                        'params': {
+                            'id': file['id'],
+                        },
+                        'contextmenu': {
+                            'Premiumize: Delete': 'RunPlugin(plugin://plugin.video.a4kstreaming/?action=cloud&type=premiumize_folder_delete&id=%s)' % file['id']
+                        }
+                    })
+
+        elif params.type == 'premiumize_transfers':
+            request = core.debrid.premiumize_transfers(apikey)
+            response = core.request.execute(core, request)
+            if response.status_code != 200:
+                __handle_request_error(core, params, response)
+                return
+
+            parsed_response = core.json.loads(response.content)
+
+            transfers = parsed_response.get('transfers', [])
+            for transfer in transfers:
+                isfinished = transfer['status'] == 'finished'
+                label = '[%s] %s' % (('Completed' if isfinished else transfer.get('message', ('%s%%' % transfer['progress']))), transfer['name'])
+
                 items.append({
-                    'label': file['name'],
-                    'subitems': False,
-                    'url': file.get('link', file.get('stream_link', None)) if isvideo else ''
-                })
-            elif file['type'] == 'folder':
-                items.append({
-                    'label': file['name'],
+                    'label': label,
                     'action': 'cloud',
                     'type': 'premiumize_files',
                     'info': '',
-                    'subitems': True,
+                    'subitems': isfinished if transfer['file_id'] is None else False,
+                    'url': None if isfinished and transfer['file_id'] is None else '',
                     'params': {
-                        'id': file['id'],
+                        'id': transfer['folder_id'],
+                    },
+                    'contextmenu': {
+                        'Premiumize: Delete': 'RunPlugin(plugin://plugin.video.a4kstreaming/?action=cloud&type=premiumize_transfer_delete&id=%s)' % transfer['id'],
+                        'Premiumize: Clear Finished': 'RunPlugin(plugin://plugin.video.a4kstreaming/?action=cloud&type=premiumize_transfer_clearfinished&id=%s)' % transfer['id']
                     }
                 })
 
-    elif params.type == 'premiumize_transfers':
-        apikey = core.utils.get_premiumize_apikey(core)
-        if not apikey or apikey == '':
-            core.kodi.notification('Missing Premiumize service API key')
-            return
+        elif params.type == 'premiumize_file_delete':
+            request = core.debrid.premiumize_file_delete(apikey, params.id)
+            response = core.request.execute(core, request)
+            if response.status_code != 200:
+                __handle_request_error(core, params, response)
+            else:
+                core.kodi.notification('PM file removed: %s' % params.id)
 
-        request = core.debrid.premiumize_transfers(apikey)
-        response = core.request.execute(core, request)
-        if response.status_code != 200:
-            __handle_request_error(core, params, response)
-            return
+            core.utils.end_action(core, True)
+            return core.skip_end_of_dir
 
-        parsed_response = core.json.loads(response.content)
+        elif params.type == 'premiumize_folder_delete':
+            request = core.debrid.premiumize_folder_delete(apikey, params.id)
+            response = core.request.execute(core, request)
+            if response.status_code != 200:
+                __handle_request_error(core, params, response)
+            else:
+                core.kodi.notification('PM folder removed: %s' % params.id)
 
-        transfers = parsed_response.get('transfers', [])
-        for transfer in transfers:
-            isfinished = transfer['status'] == 'finished'
-            label = '[%s] %s' % (('Completed' if isfinished else transfer.get('message', ('%s%%' % transfer['progress']))), transfer['name'])
+            core.utils.end_action(core, True)
+            return core.skip_end_of_dir
 
-            items.append({
-                'label': label,
-                'action': 'cloud',
-                'type': 'premiumize_files',
-                'info': '',
-                'subitems': isfinished if transfer['file_id'] is None else False,
-                'url': None if isfinished else '',
-                'params': {
-                    'id': transfer['folder_id'],
-                }
-            })
+        elif params.type == 'premiumize_transfer_delete':
+            request = core.debrid.premiumize_transfer_delete(apikey, params.id)
+            response = core.request.execute(core, request)
+            if response.status_code != 200:
+                __handle_request_error(core, params, response)
+            else:
+                core.kodi.notification('PM transfer removed: %s' % params.id)
 
-    elif params.type == 'realdebrid_transfers':
-        apikey = core.utils.get_realdebrid_apikey(core)
-        if not apikey or apikey == '':
-            core.kodi.notification('Missing RealDebrid service API key')
-            return
+            core.utils.end_action(core, True)
+            return core.skip_end_of_dir
 
-        auth = core.utils.rd_auth_query_params(core, apikey)
-        request = core.debrid.realdebrid_transfers(auth)
-        response = core.request.execute(core, request)
-        if response.status_code != 200:
-            __handle_request_error(core, params, response)
-            return
+        elif params.type == 'premiumize_transfer_clearfinished':
+            request = core.debrid.premiumize_transfer_clearfinished(apikey)
+            response = core.request.execute(core, request)
+            if response.status_code != 200:
+                __handle_request_error(core, params, response)
+            else:
+                core.kodi.notification('PM cleared finished transfers')
 
-        parsed_response = core.json.loads(response.content)
-        for transfer in parsed_response:
-            isfinished = transfer['status'] == 'downloaded'
-            label = '[%s] %s' % (('Completed' if isfinished else '%s%%' % transfer['progress']), transfer['filename'])
+            core.utils.end_action(core, True)
+            return core.skip_end_of_dir
 
-            items.append({
-                'label': label,
-                'action': 'cloud',
-                'type': 'realdebrid_files',
-                'info': '',
-                'subitems': isfinished,
-                'url': None if isfinished else '',
-                'params': {
-                    'id': transfer['id'],
-                },
-                'contextmenu': {
-                    'RealDebrid: Delete': 'RunPlugin(plugin://plugin.video.a4kstreaming/?action=cloud&type=realdebrid_delete&id=%s)' % transfer['id']
-                }
-            })
-
-    elif params.type == 'realdebrid_files':
-        apikey = core.utils.get_realdebrid_apikey(core)
-        if not apikey or apikey == '':
-            core.kodi.notification('Missing RealDebrid service API key')
-            return
-
-        auth = core.utils.rd_auth_query_params(core, apikey)
-        request = core.debrid.realdebrid_files(auth, params.id)
-        response = core.request.execute(core, request)
-        if response.status_code != 200:
-            __handle_request_error(core, params, response)
-            return
-
-        parsed_response = core.json.loads(response.content)
-        selected_files = []
-        for file in parsed_response['files']:
-            if file.get('selected', None):
-                selected_files.append(file)
-
-        for i, file in enumerate(selected_files):
-            items.append({
-                'label': file['path'].strip('/'),
-                'action': 'cloud',
-                'type': 'realdebrid_file',
-                'info': '',
-                'subitems': False,
-                'params': {
-                    'id': parsed_response['links'][i],
-                }
-            })
-
-    elif params.type == 'realdebrid_file':
-        apikey = core.utils.get_realdebrid_apikey(core)
-        if not apikey or apikey == '':
-            core.kodi.notification('Missing RealDebrid service API key')
-            return
-
-        auth = core.utils.rd_auth_query_params(core, apikey)
-        request = core.debrid.realdebrid_resolve(auth, params.id)
-        response = core.request.execute(core, request)
-        if response.status_code != 200:
-            __handle_request_error(core, params, response)
-            return
-
-        parsed_response = core.json.loads(response.content)
-        link = parsed_response['download']
-        item = core.kodi.xbmcgui.ListItem(path=link, offscreen=True)
-        item.setInfo('video', {'mediatype': 'video'})
-        core.utils.end_action(core, True, item)
-        return core.skip_end_of_dir
-
-    elif params.type == 'realdebrid_delete':
-        apikey = core.utils.get_realdebrid_apikey(core)
-        if not apikey or apikey == '':
-            core.kodi.notification('Missing RealDebrid service API key')
-            return
-
-        auth = core.utils.rd_auth_query_params(core, apikey)
-        request = core.debrid.realdebrid_delete(auth, params.id)
-        response = core.request.execute(core, request)
-        if response.status_code != 204:
-            __handle_request_error(core, params, response)
         else:
-            core.kodi.notification('RD transfer removed: %s' % params.id)
+            core.not_supported()
+            return
 
-        core.utils.end_action(core, True)
-        return core.skip_end_of_dir
-
-    elif params.type == 'alldebrid_transfers':
-        apikey = core.utils.get_alldebrid_apikey(core)
+    elif params.type.startswith('realdebrid_'):
+        apikey = core.utils.get_realdebrid_apikey(core)
         if not apikey or apikey == '':
-            core.kodi.notification('Missing AllDebrid service API key')
+            core.kodi.notification('Missing RealDebrid service API key')
             return
 
-        auth = core.utils.ad_auth_query_params(core, apikey)
-        request = core.debrid.alldebrid_transfers(auth)
-        response = core.request.execute(core, request)
-        if response.status_code != 200:
-            __handle_request_error(core, params, response)
-            return
+        auth = core.utils.rd_auth_query_params(core, apikey)
+        if params.type == 'realdebrid_transfers':
+            request = core.debrid.realdebrid_transfers(auth)
+            response = core.request.execute(core, request)
+            if response.status_code != 200:
+                __handle_request_error(core, params, response)
+                return
 
-        parsed_response = core.json.loads(response.content)
-        for transfer in parsed_response.get('data', parsed_response)['magnets']:
-            isfinished = transfer['status'] == 'Ready'
-            progress = transfer['downloaded'] / transfer['size'] * 100 if not isfinished else 100
-            label = '[%s] %s' % (('Completed' if isfinished else '%s%%' % progress), transfer['filename'])
+            parsed_response = core.json.loads(response.content)
+            for transfer in parsed_response:
+                isfinished = transfer['status'] == 'downloaded'
+                label = '[%s] %s' % (('Completed' if isfinished else '%s%%' % transfer['progress']), transfer['filename'])
 
-            items.append({
-                'label': label,
-                'action': 'cloud',
-                'type': 'alldebrid_files',
-                'info': '',
-                'subitems': isfinished,
-                'url': None if isfinished else '',
-                'params': {
-                    'id': transfer['id'],
-                },
-                'contextmenu': {
-                    'AllDebrid: Delete': 'RunPlugin(plugin://plugin.video.a4kstreaming/?action=cloud&type=alldebrid_delete&id=%s)' % transfer['id']
-                }
-            })
+                items.append({
+                    'label': label,
+                    'action': 'cloud',
+                    'type': 'realdebrid_files',
+                    'info': '',
+                    'subitems': isfinished,
+                    'url': None if isfinished else '',
+                    'params': {
+                        'id': transfer['id'],
+                    },
+                    'contextmenu': {
+                        'RealDebrid: Delete': 'RunPlugin(plugin://plugin.video.a4kstreaming/?action=cloud&type=realdebrid_delete&id=%s)' % transfer['id']
+                    }
+                })
 
-    elif params.type == 'alldebrid_files':
-        apikey = core.utils.get_alldebrid_apikey(core)
-        if not apikey or apikey == '':
-            core.kodi.notification('Missing AllDebrid service API key')
-            return
+        elif params.type == 'realdebrid_files':
+            request = core.debrid.realdebrid_files(auth, params.id)
+            response = core.request.execute(core, request)
+            if response.status_code != 200:
+                __handle_request_error(core, params, response)
+                return
 
-        auth = core.utils.ad_auth_query_params(core, apikey)
-        request = core.debrid.alldebrid_files(auth, params.id)
-        response = core.request.execute(core, request)
-        if response.status_code != 200:
-            __handle_request_error(core, params, response)
-            return
+            parsed_response = core.json.loads(response.content)
+            selected_files = []
+            for file in parsed_response['files']:
+                if file.get('selected', None):
+                    selected_files.append(file)
 
-        parsed_response = core.json.loads(response.content)
-        magnet = parsed_response.get('data', parsed_response)['magnets']
-        if isinstance(magnet, list):
-            magnet = magnet[0]
+            for i, file in enumerate(selected_files):
+                items.append({
+                    'label': file['path'].strip('/'),
+                    'action': 'cloud',
+                    'type': 'realdebrid_file',
+                    'info': '',
+                    'subitems': False,
+                    'params': {
+                        'id': parsed_response['links'][i],
+                    }
+                })
 
-        for file in magnet['links']:
-            items.append({
-                'label': file['filename'],
-                'action': 'cloud',
-                'type': 'alldebrid_file',
-                'info': '',
-                'subitems': False,
-                'params': {
-                    'id': file['link'],
-                }
-            })
+        elif params.type == 'realdebrid_file':
+            request = core.debrid.realdebrid_resolve(auth, params.id)
+            response = core.request.execute(core, request)
+            if response.status_code != 200:
+                __handle_request_error(core, params, response)
+                return
 
-    elif params.type == 'alldebrid_file':
-        apikey = core.utils.get_alldebrid_apikey(core)
-        if not apikey or apikey == '':
-            core.kodi.notification('Missing AllDebrid service API key')
-            return
+            parsed_response = core.json.loads(response.content)
+            link = parsed_response['download']
+            item = core.kodi.xbmcgui.ListItem(path=link, offscreen=True)
+            item.setInfo('video', {'mediatype': 'video'})
+            core.utils.end_action(core, True, item)
+            return core.skip_end_of_dir
 
-        auth = core.utils.ad_auth_query_params(core, apikey)
-        request = core.debrid.alldebrid_resolve(auth, params.id)
-        response = core.request.execute(core, request)
-        if response.status_code != 200:
-            __handle_request_error(core, params, response)
-            return
+        elif params.type == 'realdebrid_delete':
+            request = core.debrid.realdebrid_delete(auth, params.id)
+            response = core.request.execute(core, request)
+            if response.status_code != 204:
+                __handle_request_error(core, params, response)
+            else:
+                core.kodi.notification('RD transfer removed: %s' % params.id)
 
-        parsed_response = core.json.loads(response.content)
-        status = parsed_response.get('status', None)
-        if status != 'success':
-            __handle_request_error(core, params, response)
-            return
+            core.utils.end_action(core, True)
+            return core.skip_end_of_dir
 
-        link = parsed_response.get('data', parsed_response)['link']
-        item = core.kodi.xbmcgui.ListItem(path=link, offscreen=True)
-        item.setInfo('video', {'mediatype': 'video'})
-        core.utils.end_action(core, True, item)
-        return core.skip_end_of_dir
-
-    elif params.type == 'alldebrid_delete':
-        apikey = core.utils.get_alldebrid_apikey(core)
-        if not apikey or apikey == '':
-            core.kodi.notification('Missing AllDebrid service API key')
-            return
-
-        auth = core.utils.ad_auth_query_params(core, apikey)
-        request = core.debrid.alldebrid_delete(auth, params.id)
-        response = core.request.execute(core, request)
-        if response.status_code != 200:
-            __handle_request_error(core, params, response)
         else:
-            core.kodi.notification('AD transfer removed: %s' % params.id)
+            core.not_supported()
+            return
 
-        core.utils.end_action(core, True)
-        return core.skip_end_of_dir
+    elif params.type.startswith('alldebrid_'):
+        apikey = core.utils.get_alldebrid_apikey(core)
+        if not apikey or apikey == '':
+            core.kodi.notification('Missing AllDebrid service API key')
+            return
+
+        auth = core.utils.ad_auth_query_params(core, apikey)
+        if params.type == 'alldebrid_transfers':
+            request = core.debrid.alldebrid_transfers(auth)
+            response = core.request.execute(core, request)
+            if response.status_code != 200:
+                __handle_request_error(core, params, response)
+                return
+
+            parsed_response = core.json.loads(response.content)
+            for transfer in parsed_response.get('data', parsed_response)['magnets']:
+                isfinished = transfer['status'] == 'Ready'
+                progress = transfer['downloaded'] / transfer['size'] * 100 if not isfinished else 100
+                label = '[%s] %s' % (('Completed' if isfinished else '%s%%' % progress), transfer['filename'])
+
+                items.append({
+                    'label': label,
+                    'action': 'cloud',
+                    'type': 'alldebrid_files',
+                    'info': '',
+                    'subitems': isfinished,
+                    'url': None if isfinished else '',
+                    'params': {
+                        'id': transfer['id'],
+                    },
+                    'contextmenu': {
+                        'AllDebrid: Delete': 'RunPlugin(plugin://plugin.video.a4kstreaming/?action=cloud&type=alldebrid_delete&id=%s)' % transfer['id']
+                    }
+                })
+
+        elif params.type == 'alldebrid_files':
+            request = core.debrid.alldebrid_files(auth, params.id)
+            response = core.request.execute(core, request)
+            if response.status_code != 200:
+                __handle_request_error(core, params, response)
+                return
+
+            parsed_response = core.json.loads(response.content)
+            magnet = parsed_response.get('data', parsed_response)['magnets']
+            if isinstance(magnet, list):
+                magnet = magnet[0]
+
+            for file in magnet['links']:
+                items.append({
+                    'label': file['filename'],
+                    'action': 'cloud',
+                    'type': 'alldebrid_file',
+                    'info': '',
+                    'subitems': False,
+                    'params': {
+                        'id': file['link'],
+                    }
+                })
+
+        elif params.type == 'alldebrid_file':
+            request = core.debrid.alldebrid_resolve(auth, params.id)
+            response = core.request.execute(core, request)
+            if response.status_code != 200:
+                __handle_request_error(core, params, response)
+                return
+
+            parsed_response = core.json.loads(response.content)
+            status = parsed_response.get('status', None)
+            if status != 'success':
+                __handle_request_error(core, params, response)
+                return
+
+            link = parsed_response.get('data', parsed_response)['link']
+            item = core.kodi.xbmcgui.ListItem(path=link, offscreen=True)
+            item.setInfo('video', {'mediatype': 'video'})
+            core.utils.end_action(core, True, item)
+            return core.skip_end_of_dir
+
+        elif params.type == 'alldebrid_delete':
+            request = core.debrid.alldebrid_delete(auth, params.id)
+            response = core.request.execute(core, request)
+            if response.status_code != 200:
+                __handle_request_error(core, params, response)
+            else:
+                core.kodi.notification('AD transfer removed: %s' % params.id)
+
+            core.utils.end_action(core, True)
+            return core.skip_end_of_dir
+
+        else:
+            core.not_supported()
+            return
 
     else:
         core.not_supported()
