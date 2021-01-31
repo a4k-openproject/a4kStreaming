@@ -34,6 +34,39 @@ def premiumize_cache(apikey, magnet):
         }
     }
 
+def premiumize_file_delete(apikey, id):
+    return {
+        'method': 'POST',
+        'url': 'https://www.premiumize.me/api/item/delete?apikey=%s' % apikey,
+        'data': {
+            'id': id
+        }
+    }
+
+def premiumize_folder_delete(apikey, id):
+    return {
+        'method': 'POST',
+        'url': 'https://www.premiumize.me/api/folder/delete?apikey=%s' % apikey,
+        'data': {
+            'id': id
+        }
+    }
+
+def premiumize_transfer_delete(apikey, id):
+    return {
+        'method': 'POST',
+        'url': 'https://www.premiumize.me/api/transfer/delete?apikey=%s' % apikey,
+        'data': {
+            'id': id
+        }
+    }
+
+def premiumize_transfer_clearfinished(apikey):
+    return {
+        'method': 'POST',
+        'url': 'https://www.premiumize.me/api/transfer/clearfinished?apikey=%s' % apikey,
+    }
+
 def premiumize_resolve(apikey, magnet):
     return {
         'method': 'POST',

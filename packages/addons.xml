@@ -4,7 +4,7 @@
 <addons>
 <addon id="plugin.video.a4kstreaming"
        name="a4kStreaming"
-       version="0.26.0"
+       version="1.0.0"
        provider-name="Unknown">
     <requires>
       <import addon="script.module.requests"/>
@@ -35,8 +35,16 @@ Designed for low-end devices and Estuary skin.
             <screenshot>screenshot-06.jpg</screenshot>
         </assets>
         <news>
+[v1.0.0]:
+  * Fix TV Specials not being shown in search and other views
+  * Increase Cast And Crew view limit
+  * PM support for deleting files/folders/transfers and clearing finished transfers
+
 [v0.26.0]:
-  * AllDebrid and RealDebrid cloud browsing and support for caching additional sources
+  * AllDebrid and RealDebrid:
+    * Cloud browsing
+    * Deleting transfers
+    * Caching additional sources
 
 [v0.25.0]:
   * AllDebrid support
