@@ -55,9 +55,10 @@ def __invoke(a4kstreaming_api, action, params={}, settings={}, prerun=None, remo
     fn.params = a4kstreaming_api.core.utils.DictAsObject(params)
     fn.settings = {
         'general.timeout': '30',
+        'general.max_quality': '3',
+        'general.mark_as_watched_rating': '7',
         'general.page_size': '29',
         'general.lists_page_size': '29',
-        'general.mark_as_watched_rating': '7',
         'general.season_title_template': '0',
         'general.episode_title_template': '0',
         'views.menu': '0',

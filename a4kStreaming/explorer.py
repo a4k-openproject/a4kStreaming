@@ -2161,6 +2161,14 @@ def play(core, params):
         )
 
     results_keys = sorted(results_keys, key=sorter())
+
+    max_quality = int(core.kodi.get_setting('general.max_quality')) + 1
+    quality_list = ['4K', '1080P', '720P', 'SD']
+    excluded_quality = quality_list[:len(quality_list) - max_quality]
+    if len(excluded_quality) > 0:
+        results_keys_filtered = [key for key in results_keys if results[key]['quality'] not in excluded_quality]
+        if len(results_keys_filtered) > 0: results_keys = results_keys_filtered
+
     result_style = '[LIGHT]%s[/LIGHT]'
     selection = core.kodi.xbmcgui.Dialog().select(
         'Choose source',

@@ -2,11 +2,12 @@
 <settings>
     <!-- General -->
     <category label="33001">
-        <setting id="general.page_size"              label="33101" type="slider" default="29" option="int" range="10,100"/>
-        <setting id="general.lists_page_size"        label="33102" type="slider" default="29" option="int" range="10,100"/>
-        <setting id="general.mark_as_watched_rating" label="33103" type="slider" default="7" option="int" range="1,10"/>
-        <setting id="general.season_title_template"  label="33104" type="enum"   default="0" lvalues='33111|33112|33113|33114'/>
-        <setting id="general.episode_title_template" label="33105" type="enum"   default="0" lvalues='33116|33117|33118|33119'/>
+        <setting id="general.max_quality"            label="33101" type="enum"   default="3" lvalues='33120|33121|33122|33123'/>
+        <setting id="general.mark_as_watched_rating" label="33102" type="slider" default="7"  option="int" range="1,10"/>
+        <setting id="general.page_size"              label="33103" type="slider" default="29" option="int" range="10,100"/>
+        <setting id="general.lists_page_size"        label="33104" type="slider" default="29" option="int" range="10,100"/>
+        <setting id="general.season_title_template"  label="33105" type="enum"   default="0" lvalues='33111|33112|33113|33114'/>
+        <setting id="general.episode_title_template" label="33106" type="enum"   default="0" lvalues='33116|33117|33118|33119'/>
     </category>
     <!-- Views -->
     <category label="33002">
