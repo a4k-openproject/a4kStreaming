@@ -2302,7 +2302,7 @@ def play(core, params):
             files = video_files
 
         try:
-            if len(files) > 1 and result['package'] in ['show', 'season'] and result['ref'].mediatype == 'episode':
+            if len(files) > 1 and result['ref'].mediatype == 'episode':
                 season_zfill = str(result['ref'].season).zfill(2)
                 episode_zfill = str(result['ref'].episode).zfill(2)
                 season = 'S%s' % season_zfill

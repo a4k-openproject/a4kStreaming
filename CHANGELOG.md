@@ -1,3 +1,6 @@
+* [v1.1.0](https://github.com/newt-sc/a4kStreaming/releases/tag/plugin.video.a4kstreaming%2Fplugin.video.a4kstreaming-1.1.0):
+  * Fix episode auto selection being skipped for some results
+
 * [v1.0.0](https://github.com/newt-sc/a4kStreaming/releases/tag/plugin.video.a4kstreaming%2Fplugin.video.a4kstreaming-1.0.0):
   * Fix TV Specials not being shown in search and other views
   * Increase Cast And Crew view limit
