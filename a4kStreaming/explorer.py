@@ -2301,6 +2301,7 @@ def play(core, params):
         if len(video_files) > 0:
             files = video_files
 
+        filtered = False
         try:
             if len(files) > 1 and result['ref'].mediatype == 'episode':
                 season_zfill = str(result['ref'].season).zfill(2)
@@ -2320,10 +2321,11 @@ def play(core, params):
                 episodes = list(filter(lambda v: any(match in v['path'] for match in matches), files))
                 if len(episodes) == 1:
                     files = episodes
+                    filtered = True
         except Exception as e:
             core.logger.notice(e)
 
-        if len(files) > 1:
+        if len(files) > 1 or (len(files) == 1 and not filtered and result['package'] in ['show', 'season']):
             file_results = {}
             for file in files:
                 file_result = {
