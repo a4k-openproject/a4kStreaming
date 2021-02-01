@@ -4,7 +4,7 @@
 <addons>
 <addon id="plugin.video.a4kstreaming"
        name="a4kStreaming"
-       version="1.0.0"
+       version="1.1.0"
        provider-name="Unknown">
     <requires>
       <import addon="script.module.requests"/>
@@ -35,6 +35,9 @@ Designed for low-end devices and Estuary skin.
             <screenshot>screenshot-06.jpg</screenshot>
         </assets>
         <news>
+[v1.1.0]:
+  * Fix episode auto selection being skipped for some results
+
 [v1.0.0]:
   * Fix TV Specials not being shown in search and other views
   * Increase Cast And Crew view limit
