@@ -4,7 +4,7 @@
 <addons>
 <addon id="plugin.video.a4kstreaming"
        name="a4kStreaming"
-       version="1.2.0"
+       version="1.3.0"
        provider-name="Unknown">
     <requires>
       <import addon="script.module.requests"/>
@@ -35,6 +35,10 @@ Designed for low-end devices and Estuary skin.
             <screenshot>screenshot-06.jpg</screenshot>
         </assets>
         <news>
+[v1.3.0]:
+  * New settings:
+    * Max quality of sources
+
 [v1.2.0]:
   * Prompt for episode selection for uncomplete packs with single video
 

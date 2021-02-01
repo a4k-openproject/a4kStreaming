@@ -1,3 +1,7 @@
+* [v1.3.0](https://github.com/newt-sc/a4kStreaming/releases/tag/plugin.video.a4kstreaming%2Fplugin.video.a4kstreaming-1.3.0):
+  * New settings:
+    * Max quality of sources
+
 * [v1.2.0](https://github.com/newt-sc/a4kStreaming/releases/tag/plugin.video.a4kstreaming%2Fplugin.video.a4kstreaming-1.2.0):
   * Prompt for episode selection for uncomplete packs with single video
 
