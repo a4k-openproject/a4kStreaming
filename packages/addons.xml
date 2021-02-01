@@ -4,7 +4,7 @@
 <addons>
 <addon id="plugin.video.a4kstreaming"
        name="a4kStreaming"
-       version="1.1.0"
+       version="1.2.0"
        provider-name="Unknown">
     <requires>
       <import addon="script.module.requests"/>
@@ -35,6 +35,9 @@ Designed for low-end devices and Estuary skin.
             <screenshot>screenshot-06.jpg</screenshot>
         </assets>
         <news>
+[v1.2.0]:
+  * Prompt for episode selection for uncomplete packs with single video
+
 [v1.1.0]:
   * Fix episode auto selection being skipped for some results
 
