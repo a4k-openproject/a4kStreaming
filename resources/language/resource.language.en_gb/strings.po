@@ -33,15 +33,78 @@ msgstr ""
 
 # General
 msgctxt "#33101"
-msgid "Page size"
+msgid "Max quality of sources"
 msgstr ""
 
 msgctxt "#33102"
-msgid "Lists page size"
+msgid "Mark as watched effective title rating"
 msgstr ""
 
 msgctxt "#33103"
-msgid "Mark as watched effective title rating"
+msgid "General views page size"
+msgstr ""
+
+msgctxt "#33104"
+msgid "Watchlist, Lists page size"
+msgstr ""
+
+msgctxt "#33105"
+msgid "Season title template"
+msgstr ""
+
+msgctxt "#33106"
+msgid "Episode title template"
+msgstr ""
+
+# Season Title Templates
+msgctxt "#33111"
+msgid "Season 1 (2020) - 10 Episodes"
+msgstr ""
+
+msgctxt "#33112"
+msgid "Season 1 (2020)"
+msgstr ""
+
+msgctxt "#33113"
+msgid "Season 1"
+msgstr ""
+
+msgctxt "#33114"
+msgid "Season 1 - 10 Episodes"
+msgstr ""
+
+# Episode Title Templates
+msgctxt "#33116"
+msgid "1. Title"
+msgstr ""
+
+msgctxt "#33117"
+msgid "E01. Title"
+msgstr ""
+
+msgctxt "#33118"
+msgid "01x01. Title"
+msgstr ""
+
+msgctxt "#33119"
+msgid "S01E01. Title"
+msgstr ""
+
+# Max Quality
+msgctxt "#33120"
+msgid "SD"
+msgstr ""
+
+msgctxt "#33121"
+msgid "720P"
+msgstr ""
+
+msgctxt "#33122"
+msgid "1080P"
+msgstr ""
+
+msgctxt "#33123"
+msgid "4K"
 msgstr ""
 
 # Views
@@ -113,6 +176,22 @@ msgid "Premiumize"
 msgstr ""
 
 msgctxt "#33402"
+msgid "API key: "
+msgstr ""
+
+msgctxt "#33403"
+msgid "RealDebrid"
+msgstr ""
+
+msgctxt "#33404"
+msgid "API key (real-debrid.com/apitoken): "
+msgstr ""
+
+msgctxt "#33405"
+msgid "AllDebrid"
+msgstr ""
+
+msgctxt "#33406"
 msgid "API key: "
 msgstr ""
 

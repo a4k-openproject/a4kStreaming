@@ -29,7 +29,7 @@ class A4kStreamingApi(object):
 
         def get_setting(id):
             setting = settings.get(id, None)
-            if not setting:
+            if setting is None:
                 setting = default(id)
             return setting
 

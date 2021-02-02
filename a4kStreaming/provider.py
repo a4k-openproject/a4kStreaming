@@ -10,6 +10,9 @@ def __meta(core):
     return __meta_data
 
 def __new_version_check(core, params):
+    global __meta_data
+
+    __meta_data = None
     if not __meta(core).name:
         if not params.silent:
             core.kodi.notification('Provider not installed')
@@ -40,7 +43,8 @@ def __sources_module_name(core):
 
 def __update_config(core):
     provider = core.cache.get_provider()
-    sources = core.importlib.import_module(__sources_module_name(core)).__all__
+    try: sources = core.importlib.import_module(__sources_module_name(core)).__all__
+    except: sources = []
     sources = [source.upper() for source in sources]
 
     provider_sources = list(provider.keys())
@@ -160,8 +164,10 @@ def __search(core, params):
         if not provider[key]:
             continue
 
-        source = core.importlib.import_module(__sources_module_name(core) + ('.%s' % key.lower()))
-        sources[key] = source.sources()
+        try:
+            source = core.importlib.import_module(__sources_module_name(core) + ('.%s' % key.lower()))
+            sources[key] = source.sources()
+        except: pass
 
     threads = []
     search = lambda: None
@@ -196,33 +202,119 @@ def __search(core, params):
                     all_info = { 'info': { 'tvshow.imdb_id': params.title.tvshowid } }
                     results += source.episode(simple_info, all_info)
 
-                if len(results) > 0:
-                    request = {
-                        'method': 'POST',
-                        'url': 'https://www.premiumize.me/api/cache/check?apikey=%s' % core.utils.get_debrid_apikey(core),
-                        'data': {
-                            'items[]': [item['hash'] for item in results]
-                        },
-                    }
+                if len(results) <= 0:
+                    return
 
-                    response = core.request.execute(core, request)
-                    if response.status_code == 200:
+                def check_pm(apikey):
+                    try:
+                        hashes = [item['hash'] for item in results]
+                        request = core.debrid.premiumize_check(apikey, hashes)
+                        response = core.request.execute(core, request)
                         parsed_response = core.json.loads(response.content)
-                        for i, status in enumerate(parsed_response['response']):
-                            result = results[i]
-                            search.results[result['hash']] = True
-                            if not status:
-                                continue
+                        return { 'status': parsed_response['response'], 'filesize': parsed_response['filesize'], 'files': None }
+                    except:
+                        return { 'status': [], 'filesize': [], 'files': None }
 
-                            result['ref'] = params.title
+                def check_rd(apikey):
+                    check_result = { 'status': [], 'filesize': [], 'files': [] }
+                    try:
+                        auth = core.utils.rd_auth_query_params(core, apikey)
+                        keys = [item['hash'] for item in results]
+                        hashes = '/'.join(keys)
+                        request = core.debrid.realdebrid_check(auth, hashes)
+                        response = core.request.execute(core, request)
+                        if response.status_code == 500:
+                            response = core.request.execute(core, request)
+                        parsed_response = core.json.loads(response.content)
 
-                            size = float(parsed_response['filesize'][i]) / 1024 / 1024 / 1024
-                            if size <= 0:
-                                size = float(result['size']) / 1024
-                            result['size'] = round(size, 1)
+                        for key in keys:
+                            parsed_result = parsed_response.get(key, {})
+                            if isinstance(parsed_result, list):
+                                parsed_result = {}
+                            status = len(parsed_result.get('rd', [])) > 0
+                            filesize = 0
+                            files = None
+                            if status:
+                                try:
+                                    files = {}
+                                    for file_result in parsed_result['rd']:
+                                        for file_id in file_result.keys():
+                                            files[file_id] = file_result[file_id]
+                                    filesize = sum(f.get('filesize', 0) for f in files.values())
+                                except:
+                                    status = False
+                            check_result['status'].append(status)
+                            check_result['filesize'].append(filesize)
+                            check_result['files'].append(files)
 
-                            core.utils.cleanup_result(result)
-                            search.cached[result['hash']] = result
+                        return check_result
+                    except:
+                        return check_result
+
+                def check_ad(apikey):
+                    try:
+                        auth = core.utils.ad_auth_query_params(core, apikey)
+                        hashes = [item['hash'] for item in results]
+                        request = core.debrid.alldebrid_check(auth, hashes)
+                        response = core.request.execute(core, request)
+                        parsed_response = core.json.loads(response.content)
+                        response_status = {}
+                        for magnet in parsed_response.get('data', parsed_response)['magnets']:
+                            response_status[magnet['hash']] = magnet['instant']
+
+                        return { 'status': [response_status[hash] for hash in hashes], 'filesize': None, 'files': None }
+                    except:
+                        return { 'status': [], 'filesize': None, 'files': None }
+
+                def sanitize_results(check, debrid):
+                    for i, status in enumerate(check['status']):
+                        result = results[i].copy()
+                        result['ref'] = params.title
+
+                        size = 0
+                        if check['filesize']:
+                            size = float(check['filesize'][i]) / 1024 / 1024 / 1024
+                        if size <= 0:
+                            size = float(result['size']) / 1024
+                        result['size'] = round(size, 1)
+
+                        core.utils.cleanup_result(result)
+                        if search.results.get(result['hash'], None) is None:
+                            search.results[result['hash']] = result
+
+                        if status:
+                            result_copy = result
+                            result_copy['title_with_debrid'] = '%s  |  %s' % (debrid, result['title'])
+                            result_copy['debrid'] = debrid
+                            if check['files'] and len(check['files']) > i:
+                                result_copy['debrid_files'] = check['files'][i]
+                            search.cached['%s%s' % (debrid, result['hash'])] = result_copy
+
+                def pm(apikey):
+                    sanitize_results(check_pm(apikey), 'PM')
+                def rd(apikey):
+                    sanitize_results(check_rd(apikey), 'RD')
+                def ad(apikey):
+                    sanitize_results(check_ad(apikey), 'AD')
+
+                threads = []
+
+                premiumize_apikey = core.utils.get_premiumize_apikey(core)
+                if premiumize_apikey:
+                    threads.append(core.threading.Thread(target=pm, args=(premiumize_apikey,)))
+
+                realdebrid_apikey = core.utils.get_realdebrid_apikey(core)
+                if realdebrid_apikey:
+                    threads.append(core.threading.Thread(target=rd, args=(realdebrid_apikey,)))
+
+                alldebrid_apikey = core.utils.get_alldebrid_apikey(core)
+                if alldebrid_apikey:
+                    threads.append(core.threading.Thread(target=ad, args=(alldebrid_apikey,)))
+
+                for thread in threads:
+                    thread.start()
+                for thread in threads:
+                    thread.join()
 
             except Exception as e:
                 core.logger.notice(e)
@@ -309,7 +401,7 @@ def __search(core, params):
         pass
 
     close_progress()
-    return search.cached
+    return core.utils.DictAsObject({ 'results': search.results, 'cached': search.cached })
 
 def provider_meta(core):
     return __meta(core)

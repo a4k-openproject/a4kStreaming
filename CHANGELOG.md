@@ -1,3 +1,68 @@
+* [v1.3.0](https://github.com/newt-sc/a4kStreaming/releases/tag/plugin.video.a4kstreaming%2Fplugin.video.a4kstreaming-1.3.0):
+  * New settings:
+    * Max quality of sources
+
+* [v1.2.0](https://github.com/newt-sc/a4kStreaming/releases/tag/plugin.video.a4kstreaming%2Fplugin.video.a4kstreaming-1.2.0):
+  * Prompt for episode selection for uncomplete packs with single video
+
+* [v1.1.0](https://github.com/newt-sc/a4kStreaming/releases/tag/plugin.video.a4kstreaming%2Fplugin.video.a4kstreaming-1.1.0):
+  * Fix episode auto selection being skipped for some results
+
+* [v1.0.0](https://github.com/newt-sc/a4kStreaming/releases/tag/plugin.video.a4kstreaming%2Fplugin.video.a4kstreaming-1.0.0):
+  * Fix TV Specials not being shown in search and other views
+  * Increase Cast And Crew view limit
+  * PM support for deleting files/folders/transfers and clearing finished transfers
+
+* [v0.26.0](https://github.com/newt-sc/a4kStreaming/releases/tag/plugin.video.a4kstreaming%2Fplugin.video.a4kstreaming-0.26.0):
+  * AllDebrid and RealDebrid:
+    * Cloud browsing
+    * Deleting transfers
+    * Caching additional sources
+
+* [v0.25.0](https://github.com/newt-sc/a4kStreaming/releases/tag/plugin.video.a4kstreaming%2Fplugin.video.a4kstreaming-0.25.0):
+  * AllDebrid support
+
+* [v0.24.0](https://github.com/newt-sc/a4kStreaming/releases/tag/plugin.video.a4kstreaming%2Fplugin.video.a4kstreaming-0.24.0):
+  * Reduce file size filter
+  * Remove debug logs
+
+* [v0.23.0](https://github.com/newt-sc/a4kStreaming/releases/tag/plugin.video.a4kstreaming%2Fplugin.video.a4kstreaming-0.23.0):
+  * RealDebrid support
+
+* [v0.22.0](https://github.com/newt-sc/a4kStreaming/releases/tag/plugin.video.a4kstreaming%2Fplugin.video.a4kstreaming-0.22.0):
+  * New context menu:
+    * Trailer
+    * Add sources - Used to cache new sources to debrid
+  * Option to cache sources if none are found
+  * Add debrid transfers browsing
+  * Fix issue of not finding enough sources for movie titles from the Search menu
+
+* [v0.21.0](https://github.com/newt-sc/a4kStreaming/releases/tag/plugin.video.a4kstreaming%2Fplugin.video.a4kstreaming-0.21.0):
+  * Add debrid files browsing and streaming
+
+* [v0.20.0](https://github.com/newt-sc/a4kStreaming/releases/tag/plugin.video.a4kstreaming%2Fplugin.video.a4kstreaming-0.20.0):
+  * Fix missing seasons meta breaking tvshow scraping
+
+* [v0.19.0](https://github.com/newt-sc/a4kStreaming/releases/tag/plugin.video.a4kstreaming%2Fplugin.video.a4kstreaming-0.19.0):
+  * Remove the extra info view on title click
+  * New context menu:
+    * Cast and Crew - Showing the extra info view
+  * New settings:
+    * Season title template
+    * Episode title template
+  * Cache last title for the play by id action to speedup usage from TheMovieDb Helper
+
+* [v0.18.0](https://github.com/newt-sc/a4kStreaming/releases/tag/plugin.video.a4kstreaming%2Fplugin.video.a4kstreaming-0.18.0):
+  * Fix poster transform twice
+
+* [v0.17.0](https://github.com/newt-sc/a4kStreaming/releases/tag/plugin.video.a4kstreaming%2Fplugin.video.a4kstreaming-0.17.0):
+  * Support play action with an id only
+  * Add player meta json for tmdb helper
+
+* [v0.16.0](https://github.com/newt-sc/a4kStreaming/releases/tag/plugin.video.a4kstreaming%2Fplugin.video.a4kstreaming-0.16.0):
+  * Fix more like this context menu for KODI 19
+  * More patterns for episode auto selection
+
 * [v0.15.0](https://github.com/newt-sc/a4kStreaming/releases/tag/plugin.video.a4kstreaming%2Fplugin.video.a4kstreaming-0.15.0):
   * Select proper image for episode thumbnail
   * Add one more pattern for episode auto selection

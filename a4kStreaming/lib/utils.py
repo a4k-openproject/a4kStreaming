@@ -103,6 +103,14 @@ def imdb_auth_request_props():
         }
     }
 
+def rd_auth_query_params(core, rd_api_key=None):
+    rd_apikey = rd_api_key if rd_api_key else get_realdebrid_apikey(core)
+    return '?client_id=X245A4XAIBGVM&auth_token=%s' % rd_apikey
+
+def ad_auth_query_params(core, ad_api_key=None):
+    ad_apikey = ad_api_key if ad_api_key else get_alldebrid_apikey(core)
+    return '&agent=%s&apikey=%s' % (core.kodi.addon_name, ad_apikey)
+
 def time_ms():
     return int(round(time.time() * 1000))
 
@@ -171,8 +179,14 @@ def extract_zip(src, dest):
 def random_digit_str(length):
     return ''.join(random.choice(string.digits) for _ in range(length))
 
-def get_debrid_apikey(core):
+def get_premiumize_apikey(core):
     return core.kodi.get_setting('premiumize.apikey')
+
+def get_realdebrid_apikey(core):
+    return core.kodi.get_setting('realdebrid.apikey')
+
+def get_alldebrid_apikey(core):
+    return core.kodi.get_setting('alldebrid.apikey')
 
 def get_color_string(string, color):
     return '[B][COLOR %s]%s[/COLOR][/B]' % (color, string)
@@ -353,14 +367,25 @@ def generic_list_items(core, items):
             'poster': core.kodi.addon_icon,
             'landscape': core.kodi.addon_icon,
         })
-        list_item.setInfo('video', {'mediatype': 'video', 'plot': item['info']})
-        url = '%s?action=%s&type=%s' % (core.url, item['action'], item['type'])
 
-        params = item.get('params', {})
-        for param in params:
-            url += '&%s=%s' % (param, params[param])
+        if item.get('url', None) is not None:
+            url = item['url']
+        else:
+            list_item.setInfo('video', {'mediatype': 'video', 'plot': item['info']})
+            url = '%s?action=%s&type=%s' % (core.url, item['action'], item['type'])
+
+            params = item.get('params', {})
+            for param in params:
+                url += '&%s=%s' % (param, params[param])
 
         list_item.setContentLookup(False)
+
+        context_menu_items = []
+        contextmenu = item.get('contextmenu', {})
+        for key in contextmenu:
+            context_menu_items.append((key, contextmenu[key]))
+
+        list_item.addContextMenuItems(context_menu_items)
         list_items.append((url, list_item, item['subitems']))
 
     return list_items
@@ -437,8 +462,28 @@ def get_graphql_query(body):
                     aggregateRating
                     voteCount
                 }
+                certificate {
+                    rating
+                }
                 runtime {
                     seconds
+                }
+                plot {
+                    plotText {
+                        plainText
+                    }
+                }
+                genres {
+                    genres(limit: $genresLimit) {
+                        text
+                    }
+                }
+                primaryVideos(first: 1) {
+                    edges {
+                        node {
+                            id
+                        }
+                    }
                 }
                 isAdult
                 %s
@@ -449,21 +494,13 @@ def get_graphql_query(body):
                 ...Title
                 ...TitleCredits
                 ...TVShow
-                certificate {
-                    rating
-                }
-                images(first: 5) {
+                images(first: 10) {
                     edges {
                         node {
                             url
                             width
                             height
                         }
-                    }
-                }
-                genres {
-                    genres(limit: $genresLimit) {
-                        text
                     }
                 }
                 countriesOfOrigin {
@@ -483,18 +520,6 @@ def get_graphql_query(body):
                                 text
                             }
                         }
-                    }
-                }
-                primaryVideos(first: 1) {
-                    edges {
-                        node {
-                            id
-                        }
-                    }
-                }
-                plot {
-                    plotText {
-                        plainText
                     }
                 }
                 taglines(first: 1) {
@@ -566,6 +591,13 @@ def get_graphql_query(body):
                     plotText {
                         plainText
                     }
+                }
+                certificate {
+                    rating
+                }
+                ratingsSummary {
+                    aggregateRating
+                    voteCount
                 }
                 %s
             }
@@ -671,6 +703,9 @@ def get_graphql_query(body):
             fragment Episodes on Title {
                 ...Title
                 episodes {
+                    seasons {
+                        number
+                    }
                     ... on Episodes {
                         episodes(first: 100, filter: $episodesFilter) {
                             edges {
@@ -715,7 +750,7 @@ def get_graphql_query(body):
 
     body['variables'].update({
         'genresLimit': 3,
-        'castLimit': 10,
+        'castLimit': 20,
         'companiesLimit': 3,
         'countriesLimit': 1
     })
