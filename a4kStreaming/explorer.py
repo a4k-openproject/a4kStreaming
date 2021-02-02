@@ -374,15 +374,14 @@ def __add_titles(core, titles, browse, silent=False):
 
         list_item = core.kodi.xbmcgui.ListItem(label=title['titleTextStyled'] if title.get('titleTextStyled', None) else title['titleText'], offscreen=True)
 
-        thumb_image = None
         primary_image = title.get('primaryImage', None)
         poster_image = title.get('poster', None)
         if poster_image:
             poster_image = core.utils.fix_poster_size(poster_image)
-            thumb_image = core.utils.fix_thumb_size(primary_image) if primary_image else poster_image
         else:
             poster_image = core.utils.fix_poster_size(primary_image)
 
+        thumb_image = core.utils.fix_thumb_size(primary_image) if primary_image else poster_image
         fanart_image = title.get('fanart', None)
         if fanart_image:
             fanart_image = core.utils.fix_fanart_size(fanart_image)
