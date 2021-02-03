@@ -1,3 +1,6 @@
+* [v1.8.0](https://github.com/newt-sc/a4kStreaming/releases/tag/plugin.video.a4kstreaming%2Fplugin.video.a4kstreaming-1.8.0):
+  * Ignore sample videos in RD's resolve files selection
+
 * [v1.7.0](https://github.com/newt-sc/a4kStreaming/releases/tag/plugin.video.a4kstreaming%2Fplugin.video.a4kstreaming-1.7.0):
   * Speedup source searching for episodes from still airing seasons
 
