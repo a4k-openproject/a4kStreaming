@@ -489,21 +489,26 @@ def get_graphql_query(body):
                         }
                     }
                 }
-                isAdult
-                %s
-            }
-        ''' % ('userRating { value }' if kodi.get_setting('imdb.at-main') != '' else ''),
-        'TitleFull': '''
-            fragment TitleFull on Title {
-                ...Title
-                ...TitleCredits
-                ...TVShow
-                images(first: 10) {
-                    edges {
-                        node {
-                            url
-                            width
-                            height
+                principalCredits {
+                    category {
+                        text
+                    }
+                    credits {
+                        name {
+                            id
+                            nameText {
+                                text
+                            }
+                            primaryImage {
+                                url
+                                width
+                                height
+                            }
+                        }
+                        ... on Cast {
+                            characters {
+                                name
+                            }
                         }
                     }
                 }
@@ -530,6 +535,24 @@ def get_graphql_query(body):
                     edges {
                         node {
                             text
+                        }
+                    }
+                }
+                isAdult
+                %s
+            }
+        ''' % ('userRating { value }' if kodi.get_setting('imdb.at-main') != '' else ''),
+        'TitleFull': '''
+            fragment TitleFull on Title {
+                ...Title
+                ...TitleCredits
+                ...TVShow
+                images(first: 10) {
+                    edges {
+                        node {
+                            url
+                            width
+                            height
                         }
                     }
                 }
@@ -621,29 +644,6 @@ def get_graphql_query(body):
         ''' % ('userRating { value }' if kodi.get_setting('imdb.at-main') != '' else ''),
         'TitleCredits': '''
             fragment TitleCredits on Title {
-                principalCredits {
-                    category {
-                        text
-                    }
-                    credits {
-                        name {
-                            id
-                            nameText {
-                                text
-                            }
-                            primaryImage {
-                                url
-                                width
-                                height
-                            }
-                        }
-                        ... on Cast {
-                            characters {
-                                name
-                            }
-                        }
-                    }
-                }
                 credits(first: $castLimit, filter: { categories: ["cast"] }) {
                     edges {
                         node {
@@ -674,11 +674,6 @@ def get_graphql_query(body):
                     isOngoing
                     seasons {
                         number
-                    }
-                    ... on Episodes {
-                        totalEpisodes: episodes(first: 0) {
-                            total
-                        }
                     }
                 }
             }
