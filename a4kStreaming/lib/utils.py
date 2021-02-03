@@ -194,6 +194,9 @@ def get_color_string(string, color):
 def video_containers():
     return ['3GP', '3G2', 'ASF', 'WMV', 'AVI', 'DIVX', 'EVO', 'F4V', 'FLV', 'MKV', 'MK3D', 'MP4', 'M4V', 'MPG', 'MPEG', 'M2P', 'PS', 'TS', 'M2TS', 'MXF', 'OGG', 'OGV', 'OGX', 'MOV', 'QT', 'RMVB', 'VOB', 'WEBM']
 
+def clean_release_title(title):
+    return re.sub(r'\s+', ' ', re.sub(r'\-|\_|\.', ' ', title))
+
 def cleanup_result(result, no_meta=False):
     title = result['release_title'].upper()
 
