@@ -402,12 +402,17 @@ def get_image_params(image, desired_width, desired_height):
     target_width = desired_width if scaled_height >= desired_height else scaled_width
     target_height = desired_height if scaled_width >= desired_width else scaled_height
 
-    if target_width < desired_width:
+    aspect_change = (width > height and desired_width < desired_height)
+    cx = 0
+
+    if aspect_change or target_width < desired_width or scaled_height < desired_height:
         params = 'UY%s' % target_height
+        if aspect_change:
+            cx = (scaled_width - desired_width) / 2
     else:
         params = 'UX%s' % target_width
 
-    return '_V1_%s_CR0,0,%s,%s_AL_.' % (params, desired_width, desired_height)
+    return '_V1_%s_CR%s,0,%s,%s_AL_.' % (params, cx, desired_width, desired_height)
 
 def fix_thumb_size(image):
     if image and image.get('url', None):
@@ -419,14 +424,7 @@ def fix_fanart_size(image):
 
 def fix_poster_size(image):
     if image and image.get('url', None):
-        if not image.get('width', None) or not image.get('height', None):
-            params = get_image_params(image, 0, 0)
-        elif image['width'] < image['height']:
-            params = get_image_params(image, 528, 781)
-        else:
-            params = '_V1_UX528.'
-
-        return image['url'].replace('_V1_.', params)
+        return image['url'].replace('_V1_.', get_image_params(image, 528, 781))
 
 def apply_viewtype(core):
     kodi.xbmc.executebuiltin('Container.SetViewMode(%s)' % core.viewTypes[int(core.viewType)])
