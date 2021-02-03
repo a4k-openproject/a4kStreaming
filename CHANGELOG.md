@@ -1,3 +1,7 @@
+* [v1.5.0](https://github.com/newt-sc/a4kStreaming/releases/tag/plugin.video.a4kstreaming%2Fplugin.video.a4kstreaming-1.5.0):
+  * When poster and thumb are the same use the same size for them
+  * Fix poster aspect ratio in some skins
+
 * [v1.4.0](https://github.com/newt-sc/a4kStreaming/releases/tag/plugin.video.a4kstreaming%2Fplugin.video.a4kstreaming-1.4.0):
   * Fix titles do not have poster in AURA skin
 
