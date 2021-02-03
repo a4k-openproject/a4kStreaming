@@ -2219,9 +2219,13 @@ def play(core, params):
         files = []
         try:
             file_ids = []
+            title_name = provider_params.title.title.lower()
             for file_id in result['debrid_files'].keys():
                 file = result['debrid_files'][file_id]
-                if core.os.path.splitext(file['filename'])[1].upper() in video_ext and int(file['filesize']) > size:
+                is_video = core.os.path.splitext(file['filename'])[1].upper() in video_ext
+                is_enough_size = int(file['filesize']) > size
+                is_sample = 'sample' not in title_name and 'sample' in file['filename'].lower()
+                if is_video and is_enough_size and not is_sample:
                     file_ids.append(file_id)
 
             request = core.debrid.realdebrid_select(auth, id, files=','.join(file_ids))
