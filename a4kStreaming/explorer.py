@@ -314,6 +314,8 @@ def __add_title(core, title, silent=False):
                 title['seriesPoster'] = series['primaryImage']
             if series.get('seasons', None):
                 title['seasons'] = series['seasons']
+            if series.get('nextEpisodeSeasonNumber', None):
+                title['nextEpisodeSeasonNumber'] = next(iter(series['nextEpisodeSeasonNumber']), -1)
 
     if not title.get('poster', None) and title.get('seriesPoster', None):
         title['poster'] = title['seriesPoster']
@@ -521,6 +523,7 @@ def __add_titles(core, titles, browse, silent=False):
                     title_meta.update({
                         'tvshowid': title.get('tvshowid', None),
                         'seasons': title.get('seasons', None),
+                        'is_airing': title_meta.get('season', None) == title.get('nextEpisodeSeasonNumber', -1),
                         'poster': thumb_image if thumb_image else poster_image,
                     })
                     type = core.base64.b64encode(core.json.dumps(title_meta).encode())
@@ -2027,7 +2030,7 @@ def play(core, params):
             core.utils.end_action(core, True)
             return
         last_title = core.cache.get_last_title()
-        if params.id in last_title:
+        if params.id in last_title and last_title[params.id]:
             params.type = last_title[params.id]
         else:
             params.type = query(core, core.utils.DictAsObject({ 'type': 'browse', 'id': params.id, 'silent': True }))
@@ -2397,6 +2400,7 @@ def play(core, params):
     video_meta.pop('tvshowseasonid', None)
     video_meta.pop('tvshowid', None)
     video_meta.pop('seasons', None)
+    video_meta.pop('is_airing', None)
     video_meta.pop('poster', None)
 
     if provider_params.title.poster:

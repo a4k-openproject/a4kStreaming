@@ -186,8 +186,7 @@ def __search(core, params):
                         if 'movie() takes' in str(e):
                             results += source.movie(params.title.title, params.title.year)
                         else:
-                            import traceback
-                            core.logger.notice(traceback.format_exc())
+                            core.logger.notice(core.traceback.format_exc())
                 else:
                     simple_info = {
                         'show_title': params.title.tvshowtitle,
@@ -197,7 +196,8 @@ def __search(core, params):
                         'episode_title': params.title.title,
                         'season_number': str(params.title.season),
                         'episode_number': str(params.title.episode),
-                        'no_seasons': str(params.title.seasons[-1])
+                        'no_seasons': str(params.title.seasons[-1]),
+                        'is_airing': params.title.is_airing
                     }
                     all_info = { 'info': { 'tvshow.imdb_id': params.title.tvshowid } }
                     results += source.episode(simple_info, all_info)
