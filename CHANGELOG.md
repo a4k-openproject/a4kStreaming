@@ -1,3 +1,6 @@
+* [v1.6.0](https://github.com/newt-sc/a4kStreaming/releases/tag/plugin.video.a4kstreaming%2Fplugin.video.a4kstreaming-1.6.0):
+  * Improve episode selection matching
+
 * [v1.5.0](https://github.com/newt-sc/a4kStreaming/releases/tag/plugin.video.a4kstreaming%2Fplugin.video.a4kstreaming-1.5.0):
   * When poster and thumb are the same use the same size for them
   * Fix poster aspect ratio in some skins

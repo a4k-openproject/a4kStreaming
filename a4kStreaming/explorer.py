@@ -2319,14 +2319,11 @@ def play(core, params):
                 matches = [
                     '%s%s' % (season, episode),
                     '%s %s' % (season, episode),
-                    '%s.%s' % (season, episode),
-                    '%s_%s' % (season, episode),
-                    '%s-%s' % (season, episode),
-                    '%s%s' % (result['ref'].season, episode_zfill),
                     '%sX%s' % (season_zfill, episode_zfill),
                     '%sX%s' % (season, episode_zfill),
+                    ' %s%s ' % (result['ref'].season, episode_zfill),
                 ]
-                episodes = list(filter(lambda v: any(match in v['path'] for match in matches), files))
+                episodes = list(filter(lambda file: any(match in core.utils.clean_release_title(file['path']) for match in matches), files))
                 if len(episodes) == 1:
                     files = episodes
                     filtered = True

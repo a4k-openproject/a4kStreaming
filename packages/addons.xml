@@ -4,7 +4,7 @@
 <addons>
 <addon id="plugin.video.a4kstreaming"
        name="a4kStreaming"
-       version="1.5.0"
+       version="1.6.0"
        provider-name="Unknown">
     <requires>
       <import addon="script.module.requests"/>
@@ -35,6 +35,9 @@ Designed for low-end devices and Estuary skin.
             <screenshot>screenshot-06.jpg</screenshot>
         </assets>
         <news>
+[v1.6.0]:
+  * Improve episode selection matching
+
 [v1.5.0]:
   * When poster and thumb are the same use the same size for them
   * Fix poster aspect ratio in some skins
