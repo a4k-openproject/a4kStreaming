@@ -1,3 +1,7 @@
+* [v1.9.0](https://github.com/newt-sc/a4kStreaming/releases/tag/plugin.video.a4kstreaming%2Fplugin.video.a4kstreaming-1.9.0):
+  * Add watched indication to TVShow title in season's listing when all seasons are watched
+  * Include director, writer, cast, country and studio meta in general title views
+
 * [v1.8.0](https://github.com/newt-sc/a4kStreaming/releases/tag/plugin.video.a4kstreaming%2Fplugin.video.a4kstreaming-1.8.0):
   * Ignore sample videos in RD's resolve files selection
 

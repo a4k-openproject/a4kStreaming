@@ -178,6 +178,11 @@ def __add_seasons(core, title):
         except:
             pass
 
+    title['tvshow_watched'] = True
+    if not title.get('episodes', None):
+        title['episodes'] = {}
+    title['episodes']['totalEpisodes'] = len(episodes)
+
     list_items = []
     for key in seasons:
         season = seasons[key]
@@ -230,6 +235,7 @@ def __add_seasons(core, title):
             context_menu_items.append(
                 ('IMDb: Mark as watched', 'RunPlugin(plugin://plugin.video.a4kstreaming/?action=profile&type=mark_as_watched&id=%s&ids=%s)' % ('Season %s' % season.key, '__'.join(season.episode_ids)))
             )
+            title['tvshow_watched'] = False
 
         list_item.addContextMenuItems(context_menu_items)
         list_item.setContentLookup(False)
@@ -408,7 +414,7 @@ def __add_titles(core, titles, browse, silent=False):
 
         overlay = 0 if title.get('userRating', 'unknown') == 'unknown' else (4 if not title.get('userRating', None) else 5)
         if mediatype == 'tvshow':
-            overlay = 0
+            overlay = 5 if title.get('tvshow_watched', False) else 0
 
         video_meta = {
             'mediatype': mediatype,
@@ -444,11 +450,12 @@ def __add_titles(core, titles, browse, silent=False):
                 if not video_meta.get('season', None):
                     video_meta.update({ 'season': episodes['seasons'][-1] })
             if episodes.get('totalEpisodes', None):
+                total_episodes = episodes['totalEpisodes']
                 list_item.setProperty('WatchedEpisodes', '*')
                 list_item.setProperty('UnWatchedEpisodes', '*')
-                list_item.setProperty('TotalEpisodes', str(episodes['totalEpisodes']))
-                list_item.setProperty('NumEpisodes', str(episodes['totalEpisodes']))
-                video_meta.update({ 'episode': episodes['totalEpisodes'] })
+                list_item.setProperty('TotalEpisodes', str(total_episodes))
+                list_item.setProperty('NumEpisodes', str(total_episodes))
+                video_meta.update({ 'episode': total_episodes })
 
         if title.get('series', None):
             series = title['series']
