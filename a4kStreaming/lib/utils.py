@@ -9,6 +9,7 @@ import string
 import zipfile
 import shutil
 import time
+from datetime import datetime
 from io import BytesIO
 from itertools import islice
 from contextlib import closing
@@ -433,6 +434,8 @@ def apply_viewtype(core):
     kodi.xbmc.executebuiltin('Container.SetViewMode(%s)' % core.viewTypes[int(core.viewType)])
 
 def get_graphql_query(body):
+    now = datetime.now()
+
     fragments = {
         'Title': '''
             fragment Title on Title {
@@ -546,6 +549,19 @@ def get_graphql_query(body):
                                 number
                             }
                         }
+                        nextEpisodeSeasonNumber: episodes {
+                            episodes(first: 1, filter: { releasedOnOrAfter: { day: %s, month: %s, year: %s } }) {
+                                edges {
+                                    node {
+                                        series {
+                                            episodeNumber {
+                                                seasonNumber
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
                     }
                     episodeNumber {
                         episodeNumber
@@ -553,7 +569,7 @@ def get_graphql_query(body):
                     }
                 }
             }
-        ''',
+        ''' % (now.day + 1, now.month, now.year),
         'Episode': '''
             fragment Episode on Title {
                 id
