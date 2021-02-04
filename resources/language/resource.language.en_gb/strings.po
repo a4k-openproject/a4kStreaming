@@ -74,6 +74,10 @@ msgid "Season 1 - 10 Episodes"
 msgstr ""
 
 # Episode Title Templates
+msgctxt "#33115"
+msgid "Title"
+msgstr ""
+
 msgctxt "#33116"
 msgid "1. Title"
 msgstr ""

@@ -15,12 +15,14 @@ def __get_episode_title(core, season, episode, title):
     season_zfill = str(season).zfill(2)
     episode_zfill = str(episode).zfill(2)
     if season_template == '1':
-        return 'E%s. %s' % (episode_zfill, title)
+        return '%s. %s' % (episode, title)
     if season_template == '2':
-        return '%sx%s. %s' % (season_zfill, episode_zfill, title)
+        return 'E%s. %s' % (episode_zfill, title)
     if season_template == '3':
+        return '%sx%s. %s' % (season_zfill, episode_zfill, title)
+    if season_template == '4':
         return 'S%sE%s. %s' % (season_zfill, episode_zfill, title)
-    return '%s. %s' % (episode, title)
+    return '%s' % title
 
 def __handle_request_error(core, params, response):
     if not params.silent:
@@ -178,11 +180,6 @@ def __add_seasons(core, title):
         except:
             pass
 
-    title['tvshow_watched'] = True
-    if not title.get('episodes', None):
-        title['episodes'] = {}
-    title['episodes']['totalEpisodes'] = len(episodes)
-
     list_items = []
     for key in seasons:
         season = seasons[key]
@@ -203,7 +200,8 @@ def __add_seasons(core, title):
             'tvshowtitle': season.title,
             'year': season.year,
             'season': key,
-            'episode': season.episodes
+            'episode': season.episodes,
+            'plot': title.get('plot', None)
         }
         list_item.setInfo('video', video_meta)
 
@@ -235,13 +233,11 @@ def __add_seasons(core, title):
             context_menu_items.append(
                 ('IMDb: Mark as watched', 'RunPlugin(plugin://plugin.video.a4kstreaming/?action=profile&type=mark_as_watched&id=%s&ids=%s)' % ('Season %s' % season.key, '__'.join(season.episode_ids)))
             )
-            title['tvshow_watched'] = False
 
         list_item.addContextMenuItems(context_menu_items)
         list_item.setContentLookup(False)
         list_items.append((url, list_item, True))
 
-    __add_titles(core, [title], browse=False)
     core.kodi.xbmcplugin.addDirectoryItems(core.handle, list_items, len(list_items))
 
 def __add_episodes(core, title, season):
