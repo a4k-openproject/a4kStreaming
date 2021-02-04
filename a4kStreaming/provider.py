@@ -205,9 +205,10 @@ def __search(core, params):
                 if len(results) <= 0:
                     return
 
+                hashes = [item['hash'].lower() for item in results]
+
                 def check_pm(apikey):
                     try:
-                        hashes = [item['hash'] for item in results]
                         request = core.debrid.premiumize_check(apikey, hashes)
                         response = core.request.execute(core, request)
                         parsed_response = core.json.loads(response.content)
@@ -219,15 +220,17 @@ def __search(core, params):
                     check_result = { 'status': [], 'filesize': [], 'files': [] }
                     try:
                         auth = core.utils.rd_auth_query_params(core, apikey)
-                        keys = [item['hash'] for item in results]
-                        hashes = '/'.join(keys)
-                        request = core.debrid.realdebrid_check(auth, hashes)
+                        hashes_path = '/'.join(hashes)
+                        request = core.debrid.realdebrid_check(auth, hashes_path)
                         response = core.request.execute(core, request)
                         if response.status_code == 500:
                             response = core.request.execute(core, request)
                         parsed_response = core.json.loads(response.content)
 
-                        for key in keys:
+                        for key in parsed_response.keys():
+                            parsed_response[key.lower()] = parsed_response[key]
+
+                        for key in hashes:
                             parsed_result = parsed_response.get(key, {})
                             if isinstance(parsed_result, list):
                                 parsed_result = {}
@@ -254,13 +257,12 @@ def __search(core, params):
                 def check_ad(apikey):
                     try:
                         auth = core.utils.ad_auth_query_params(core, apikey)
-                        hashes = [item['hash'] for item in results]
                         request = core.debrid.alldebrid_check(auth, hashes)
                         response = core.request.execute(core, request)
                         parsed_response = core.json.loads(response.content)
                         response_status = {}
                         for magnet in parsed_response.get('data', parsed_response)['magnets']:
-                            response_status[magnet['hash']] = magnet['instant']
+                            response_status[magnet['hash'].lower()] = magnet['instant']
 
                         return { 'status': [response_status[hash] for hash in hashes], 'filesize': None, 'files': None }
                     except:
@@ -279,6 +281,7 @@ def __search(core, params):
                         result['size'] = round(size, 1)
 
                         core.utils.cleanup_result(result)
+                        result['hash'] = result['hash'].lower()
                         if search.results.get(result['hash'], None) is None:
                             search.results[result['hash']] = result
 
