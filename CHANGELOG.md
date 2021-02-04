@@ -1,3 +1,6 @@
+* [v1.11.0](https://github.com/newt-sc/a4kStreaming/releases/tag/plugin.video.a4kstreaming%2Fplugin.video.a4kstreaming-1.11.0):
+  * Add support for provider's own caching
+
 * [v1.10.0](https://github.com/newt-sc/a4kStreaming/releases/tag/plugin.video.a4kstreaming%2Fplugin.video.a4kstreaming-1.10.0):
   * Remove TVShow item from season listing
   * Add episode title template without number

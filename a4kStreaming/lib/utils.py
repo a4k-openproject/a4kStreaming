@@ -36,11 +36,13 @@ zip_utf8_flag = 0x800
 py3_zip_missing_utf8_flag_fallback_encoding = 'cp437'
 
 temp_dir = os.path.join(kodi.addon_profile, 'temp')
+provider_temp_dir = os.path.join(kodi.addon_profile, 'provider-temp')
 provider_data_dir = os.path.join(kodi.addon_path, 'providerData')
 provider_sources_dir = os.path.join(kodi.addon_path, 'providers')
 provider_modules_dir = os.path.join(kodi.addon_path, 'providerModules')
 
 kodi.xbmcvfs.mkdirs(temp_dir)
+kodi.xbmcvfs.mkdirs(provider_temp_dir)
 kodi.xbmcvfs.mkdirs(provider_data_dir)
 
 class DictAsObject(dict):
