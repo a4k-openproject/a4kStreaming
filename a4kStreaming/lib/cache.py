@@ -3,7 +3,7 @@
 import os
 import json
 from . import kodi
-from . import utils
+from .utils import DictAsObject, open_file_wrapper
 
 __search_filepath = os.path.join(kodi.addon_profile, 'search.json')
 __provider_filepath = os.path.join(kodi.addon_profile, 'provider.json')
@@ -13,16 +13,16 @@ __general_filepath = os.path.join(kodi.addon_profile, 'general.json')
 
 def __get_cache(filepath):
     try:
-        with utils.open_file_wrapper(filepath)() as f:
+        with open_file_wrapper(filepath)() as f:
             data = json.loads(f.read())
-            return utils.DictAsObject(data)
+            return DictAsObject(data)
     except:
-        return utils.DictAsObject({})
+        return DictAsObject({})
 
 def __save_cache(filepath, cache):
     try:
         json_data = json.dumps(cache, indent=2)
-        with utils.open_file_wrapper(filepath, mode='w')() as f:
+        with open_file_wrapper(filepath, mode='w')() as f:
             f.write(json_data)
     except: pass
 
