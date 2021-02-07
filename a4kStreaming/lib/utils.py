@@ -539,6 +539,12 @@ def get_graphql_query(body):
                             text
                         }
                     }
+                },
+                episodes {
+                    isOngoing
+                    seasons {
+                        number
+                    }
                 }
                 isAdult
                 %s
@@ -548,7 +554,6 @@ def get_graphql_query(body):
             fragment TitleFull on Title {
                 ...Title
                 ...TitleCredits
-                ...TVShow
                 images(first: 10) {
                     edges {
                         node {
@@ -666,16 +671,6 @@ def get_graphql_query(body):
                                 }
                             }
                         }
-                    }
-                }
-            }
-        ''',
-        'TVShow': '''
-            fragment TVShow on Title {
-                episodes {
-                    isOngoing
-                    seasons {
-                        number
                     }
                 }
             }
