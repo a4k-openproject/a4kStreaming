@@ -60,12 +60,8 @@ def __set_title_contextmenu(core, title, list_item):
     context_menu_items = [
         ('IMDb: %s rating' % ('Update' if has_rating else 'Set'), 'RunPlugin(plugin://plugin.video.a4kstreaming/?action=profile&type=rate&id=%s)' % title['id']),
         ('IMDb: Trailer', 'RunPlugin(plugin://plugin.video.a4kstreaming/?action=trailer&id=%s&play=true)' % trailer),
+        ('IMDb: Cast & Crew', 'ActivateWindow(Videos,%s?action=query&type=browse&id=%s,return)' % (core.url, title['id'])),
     ]
-
-    if titleType != 'tvSeries':
-        context_menu_items.append(
-            ('IMDb: Cast & Crew', 'ActivateWindow(Videos,%s?action=query&type=browse&id=%s,return)' % (core.url, title['id'])),
-        )
 
     if titleType != 'tvEpisode':
         context_menu_items.append(
@@ -1098,7 +1094,7 @@ def cloud(core, params):
     return items
 
 def query(core, params):
-    no_auth_required_actions = ['popular', 'year', 'fan_picks', 'seasons', 'episodes', 'browse']
+    no_auth_required_actions = ['popular', 'year', 'fan_picks', 'more_like_this', 'seasons', 'episodes', 'browse']
     bool_response_actions = ['rate', 'unrate', 'add_to_list', 'remove_from_list', 'add_to_predefined_list', 'remove_from_predefined_list']
 
     if params.type not in no_auth_required_actions and not __check_imdb_auth_config(core, params):
@@ -2173,7 +2169,10 @@ def play(core, params):
     excluded_quality = quality_list[:len(quality_list) - max_quality]
     if len(excluded_quality) > 0:
         results_keys_filtered = [key for key in results_keys if results[key]['quality'] not in excluded_quality]
-        if len(results_keys_filtered) > 0: results_keys = results_keys_filtered
+        if len(results_keys_filtered) > 0:
+            results_keys = results_keys_filtered
+        else:
+            core.kodi.notification('No results for specified quality. Showing all results.')
 
     result_style = '[LIGHT]%s[/LIGHT]'
     selection = core.kodi.xbmcgui.Dialog().select(

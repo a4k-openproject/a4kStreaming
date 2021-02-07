@@ -1,3 +1,9 @@
+* [v1.13.0](https://github.com/newt-sc/a4kStreaming/releases/tag/plugin.video.a4kstreaming%2Fplugin.video.a4kstreaming-1.13.0):
+  * Allow "More like this" to be used without IMMDb token
+  * Add more TVShows info on titles listing
+  * Add "Cast and Crew" context menu on TVShows
+  * Show notification if the specified quality filter is being ignored when no results are left after it
+
 * [v1.12.0](https://github.com/newt-sc/a4kStreaming/releases/tag/plugin.video.a4kstreaming%2Fplugin.video.a4kstreaming-1.12.0):
   * Ensure character casing matches on debrid check
 
