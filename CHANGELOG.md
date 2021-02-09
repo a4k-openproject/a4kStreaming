@@ -1,3 +1,6 @@
+* [v1.14.0](https://github.com/newt-sc/a4kStreaming/releases/tag/plugin.video.a4kstreaming%2Fplugin.video.a4kstreaming-1.14.0):
+  * Fix hash check issues
+
 * [v1.13.0](https://github.com/newt-sc/a4kStreaming/releases/tag/plugin.video.a4kstreaming%2Fplugin.video.a4kstreaming-1.13.0):
   * Allow "More like this" to be used without IMMDb token
   * Add more TVShows info on titles listing
