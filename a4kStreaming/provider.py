@@ -205,7 +205,7 @@ def __search(core, params):
                 if len(results) <= 0:
                     return
 
-                hashes = [item['hash'].lower() for item in results]
+                hashes = [item['hash'].lower().strip('"\'\\/') for item in results]
 
                 def check_pm(apikey):
                     try:
