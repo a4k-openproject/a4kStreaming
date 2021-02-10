@@ -1,3 +1,6 @@
+* [v1.15.0](https://github.com/newt-sc/a4kStreaming/releases/tag/plugin.video.a4kstreaming%2Fplugin.video.a4kstreaming-1.15.0):
+  * Add RD expired notification
+
 * [v1.14.0](https://github.com/newt-sc/a4kStreaming/releases/tag/plugin.video.a4kstreaming%2Fplugin.video.a4kstreaming-1.14.0):
   * Fix hash check issues
 

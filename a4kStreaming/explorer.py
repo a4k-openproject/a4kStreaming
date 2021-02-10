@@ -2215,6 +2215,12 @@ def play(core, params):
         request = core.debrid.realdebrid_cache(auth, result['magnet'])
         response = core.request.execute(core, request)
         parsed_response = core.json.loads(response.content)
+
+        if 'id' not in parsed_response:
+            if 'error' in parsed_response and parsed_response['error'] == 'permission_denied':
+                core.kodi.notification('RD subscription expired')
+            return []
+
         id = parsed_response['id']
         uri = parsed_response['uri']
 
