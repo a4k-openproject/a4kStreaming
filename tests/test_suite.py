@@ -56,6 +56,7 @@ def __invoke(a4kstreaming_api, action, params={}, settings={}, prerun=None, remo
     fn.settings = {
         'general.timeout': '30',
         'general.max_quality': '3',
+        'general.autoplay': 'false',
         'general.mark_as_watched_rating': '7',
         'general.page_size': '29',
         'general.lists_page_size': '29',
@@ -288,12 +289,12 @@ def test_browse_episode():
 
     assert len(fn.results) > 0
 
-def test_person():
+def test_knownfor():
     a4kstreaming_api = api.A4kStreamingApi({'kodi': True})
 
-    fn = __invoke(a4kstreaming_api, 'query', { 'type': 'person', 'id': 'nm1434871' })
+    fn = __invoke(a4kstreaming_api, 'query', { 'type': 'knownfor', 'id': 'nm1434871' })
 
-    assert fn.results is None
+    assert len(fn.results) > 0
 
 def test_status():
     a4kstreaming_api = api.A4kStreamingApi({'kodi': True})

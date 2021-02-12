@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 def __trakt_request(core, endpoint, type):
     headers = {
         'content-type': 'application/json',
