@@ -18,6 +18,7 @@ from .lib import (
     utils,
     cache,
     debrid,
+    goto
 )
 
 core = sys.modules[__name__]

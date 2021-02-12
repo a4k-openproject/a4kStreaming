@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 __meta_data = None
 
 def __meta(core):

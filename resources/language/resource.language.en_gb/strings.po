@@ -37,22 +37,26 @@ msgid "Max quality of sources"
 msgstr ""
 
 msgctxt "#33102"
-msgid "Mark as watched effective title rating"
+msgid "Autoplay"
 msgstr ""
 
 msgctxt "#33103"
-msgid "General views page size"
+msgid "Mark as watched effective title rating"
 msgstr ""
 
 msgctxt "#33104"
-msgid "Watchlist, Lists page size"
+msgid "General views page size"
 msgstr ""
 
 msgctxt "#33105"
-msgid "Season title template"
+msgid "Watchlist, Lists page size"
 msgstr ""
 
 msgctxt "#33106"
+msgid "Season title template"
+msgstr ""
+
+msgctxt "#33107"
 msgid "Episode title template"
 msgstr ""
 

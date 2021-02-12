@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 import hashlib
 from . import kodi
 from .utils import open_file_wrapper, os, re, json, time, provider_temp_dir

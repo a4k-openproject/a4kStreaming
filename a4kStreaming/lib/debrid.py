@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 def premiumize_transfers(apikey):
     return {
         'method': 'GET',

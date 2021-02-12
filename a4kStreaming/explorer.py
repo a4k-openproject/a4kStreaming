@@ -1,3 +1,7 @@
+# -*- coding: utf-8 -*-
+
+from .lib.goto import with_goto
+
 __action_menu_style = '[COLOR white][B]%s[/B][/COLOR]'
 
 def __get_season_title(core, season, year, episodes):
@@ -93,6 +97,11 @@ def __set_title_contextmenu(core, title, list_item):
         context_menu_items.extend([
             ('Debrid: Add sources', 'RunPlugin(plugin://plugin.video.a4kstreaming/?action=cache_sources&id=%s)' % title['id'])
         ])
+        if core.kodi.get_bool_setting('general.autoplay'):
+            context_menu_items.extend([
+                ('Force source select', 'RunPlugin(plugin://plugin.video.a4kstreaming/?action=play&id=%s&force_sourceselect=true)' % title['id'])
+            ])
+
     list_item.addContextMenuItems(context_menu_items)
 
 def __generate_mutation_query(action, ids, vars=''):
@@ -532,7 +541,7 @@ def __add_titles(core, titles, browse, silent=False):
                         return type
         elif titleType in ['person']:
             action = 'query'
-            type = 'person'
+            type = 'knownfor'
         else:  # tvSeries
             if browse or browse is None:
                 action = 'query'
@@ -1236,6 +1245,32 @@ def query(core, params):
                     'releasedOnOrAfter': releasedOnOrAfter if len(releasedOnOrAfter) > 0 else None,
                     'releasedOnOrBefore': releasedOnOrBefore if len(releasedOnOrBefore) > 0 else None
                 }
+            }
+        }),
+        'knownfor': lambda: core.utils.get_graphql_query({
+            'query': '''
+                query fn($id: ID!, $limit: Int!, $EXTRA_PARAMS) {
+                    name(id: $id) {
+                        credits(first: $limit) {
+                            titles: edges {
+                                node {
+                                    title {
+                                        ...Title
+                                    }
+                                }
+                            }
+                            pageInfo {
+                                hasNextPage
+                                endCursor
+                            }
+                        }
+                    }
+                }
+            ''',
+            'operationName': 'fn',
+            'variables': {
+                'id': params.id,
+                'limit': page_size,
             }
         }),
         'browse': lambda: core.utils.get_graphql_query({
@@ -1990,6 +2025,7 @@ def cache_sources(core, params, results=None):
 
             results.pop(results_keys[selection])
 
+@with_goto
 def play(core, params):
     general = core.cache.get_general()
 
@@ -2175,10 +2211,15 @@ def play(core, params):
             core.kodi.notification('No results for specified quality. Showing all results.')
 
     result_style = '[LIGHT]%s[/LIGHT]'
-    selection = core.kodi.xbmcgui.Dialog().select(
-        'Choose source',
-        [__action_menu_style % 'New Search'] + [result_style % results[key].get('title_with_debrid', results[key]['title']) for key in results_keys],
-    )
+    autoplay = core.kodi.get_bool_setting('general.autoplay') and not params.force_sourceselect
+
+    if not autoplay:
+        selection = core.kodi.xbmcgui.Dialog().select(
+            'Choose source',
+            [__action_menu_style % 'New Search'] + [result_style % results[key].get('title_with_debrid', results[key]['title']) for key in results_keys],
+        )
+    else:
+        selection = 1
 
     if selection == -1:
         general.last_action_time = core.utils.time_ms()
@@ -2200,6 +2241,7 @@ def play(core, params):
     else:
         selection -= 1
 
+    label .begin  # type: ignore # noqa: F821
     result = results[results_keys[selection]]
     video_ext = list(map(lambda v: '.%s' % v.upper(), core.utils.video_containers()))
     size = 1048576 * 100
@@ -2329,17 +2371,24 @@ def play(core, params):
             if len(files) > 1 and result['ref'].mediatype == 'episode':
                 season_zfill = str(result['ref'].season).zfill(2)
                 episode_zfill = str(result['ref'].episode).zfill(2)
+                episode_zfill_3 = episode_zfill.zfill(3)
                 season = 'S%s' % season_zfill
                 episode = 'E%s' % episode_zfill
+                episode_0 = 'E0%s' % episode_zfill
                 matches = [
-                    '%s%s' % (season, episode),
-                    '%s %s' % (season, episode),
-                    '%sX%s' % (season_zfill, episode_zfill),
-                    '%sX%s' % (season, episode_zfill),
+                    ' %s%s ' % (season, episode),
+                    ' %s%s ' % (season, episode_0),
+                    ' %s %s ' % (season, episode),
+                    ' %s %s ' % (season, episode_0),
+                    ' %sX%s ' % (season_zfill, episode_zfill),
+                    ' %sX%s ' % (season_zfill, episode_zfill_3),
+                    ' %sX%s ' % (season, episode_zfill),
+                    ' %sX%s ' % (season, episode_zfill_3),
                     ' %s%s ' % (result['ref'].season, episode_zfill),
+                    ' %s%s ' % (result['ref'].season, episode_zfill_3),
                 ]
                 episodes = list(filter(lambda file: any(match in core.utils.clean_release_title(file['path']) for match in matches), files))
-                if len(episodes) == 1:
+                if len(episodes) > 0:
                     files = episodes
                     filtered = True
         except Exception as e:
@@ -2380,6 +2429,10 @@ def play(core, params):
             link = file.get('link', file.get('stream_link', None))
 
     if not link:
+        if selection + 1 < len(results_keys) and autoplay:
+            selection += 1
+            goto .begin  # type: ignore # noqa: F821
+
         general.last_action_time = core.utils.time_ms()
         core.cache.save_general(general)
         core.kodi.notification('Failed to resolve debrid')
