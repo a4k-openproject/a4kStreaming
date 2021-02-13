@@ -1,3 +1,6 @@
+* [v1.19.0](https://github.com/newt-sc/a4kStreaming/releases/tag/plugin.video.a4kstreaming%2Fplugin.video.a4kstreaming-1.19.0):
+  * Fix PM browsing in KODI 18 - redefining variable from scope
+
 * [v1.18.0](https://github.com/newt-sc/a4kStreaming/releases/tag/plugin.video.a4kstreaming%2Fplugin.video.a4kstreaming-1.18.0):
   * Show only video files in Premiumize folder browsing by default - allows using "Play from here" KODI context menu to play the files sequentially
   * New context menu:
