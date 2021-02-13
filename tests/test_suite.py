@@ -418,6 +418,20 @@ def test_premiumize_files():
 
     assert len(fn.results) > 0
 
+    result = [result for result in fn.results if 'aws' in result['label'].lower()][0]
+    fn = __invoke(a4kstreaming_api, 'cloud', { 'type': 'premiumize_files', 'id': result['params']['id'] })
+
+    assert len(fn.results) > 0
+
+    result = [result for result in fn.results if 'aws' in result['label'].lower()][0]
+    fn = __invoke(a4kstreaming_api, 'cloud', { 'type': 'premiumize_files', 'id': result['params']['id'] })
+
+    assert len(fn.results) > 0
+
+    fn = __invoke(a4kstreaming_api, 'cloud', { 'type': 'premiumize_files', 'id': fn.results[0]['params']['id'] })
+
+    assert len(fn.results) > 0
+
 def test_premiumize_transfers():
     a4kstreaming_api = api.A4kStreamingApi({'kodi': True})
 

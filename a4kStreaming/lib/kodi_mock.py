@@ -89,6 +89,7 @@ __listitem.setInfo = lambda _, __: None
 __listitem.setLabel = lambda _: None
 __listitem.setCast = lambda _: None
 __listitem.setRating = lambda n, r, v, d: None
+__listitem.setSubtitles = lambda _: None
 __listitem.addContextMenuItems = lambda _: None
 __listitem.setContentLookup = lambda _: None
 __listitem.addStreamInfo = lambda _, __: None

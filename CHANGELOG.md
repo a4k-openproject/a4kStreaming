@@ -1,10 +1,13 @@
+* [v1.17.0](https://github.com/newt-sc/a4kStreaming/releases/tag/plugin.video.a4kstreaming%2Fplugin.video.a4kstreaming-1.17.0):
+  * Support subtitles from Premiumize files browsing if located next to video file with same name
+
 * [v1.16.0](https://github.com/newt-sc/a4kStreaming/releases/tag/plugin.video.a4kstreaming%2Fplugin.video.a4kstreaming-1.16.0):
   * New settings:
     * Autoplay - instead of showing source select, auto choose the first source that resolves
   * New context menu:
     * Force source select - only available when Autoplay is enabled
   * Add more episode auto selection checks
-  * Allow browsing cast and crew to find titles which they are known for. (This is new API which currently returns test results)
+  * Allow browsing cast and crew to find titles which they are known for (This is new API which currently returns test results)
 
 * [v1.15.0](https://github.com/newt-sc/a4kStreaming/releases/tag/plugin.video.a4kstreaming%2Fplugin.video.a4kstreaming-1.15.0):
   * Add RD expired notification

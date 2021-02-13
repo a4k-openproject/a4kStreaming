@@ -4,7 +4,7 @@
 <addons>
 <addon id="plugin.video.a4kstreaming"
        name="a4kStreaming"
-       version="1.16.0"
+       version="1.17.0"
        provider-name="Unknown">
     <requires>
       <import addon="script.module.requests"/>
@@ -35,13 +35,16 @@ Designed for low-end devices and Estuary skin.
             <screenshot>screenshot-06.jpg</screenshot>
         </assets>
         <news>
+[v1.17.0]:
+  * Support subtitles from Premiumize files browsing if located next to video file with same name
+
 [v1.16.0]:
   * New settings:
     * Autoplay - instead of showing source select, auto choose the first source that resolves
   * New context menu:
     * Force source select - only available when Autoplay is enabled
   * Add more episode auto selection checks
-  * Allow browsing cast and crew to find titles which they are known for. (This is new API which currently returns test results)
+  * Allow browsing cast and crew to find titles which they are known for (This is new API which currently returns test results)
 
 [v1.15.0]:
   * Add RD expired notification
