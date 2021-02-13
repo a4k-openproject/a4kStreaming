@@ -820,7 +820,7 @@ def cloud(core, params):
                     filename_without_ext = core.os.path.splitext(file['name'])[0]
                     subfile_ext = ['srt', 'sub', 'ass', 'smi', 'ssa']
                     subfile_names = ['%s.%s' % (filename_without_ext, ext) for ext in subfile_ext]
-                    subfiles = [file for file in files if any(subfile_name in file['name'] for subfile_name in subfile_names)]
+                    subfiles = [f for f in files if any(subfile_name in f['name'] for subfile_name in subfile_names)]
                     subfile = next(iter(subfiles), None)
 
                     items.append({
