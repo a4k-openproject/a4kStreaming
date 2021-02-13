@@ -385,6 +385,8 @@ def generic_list_items(core, items):
                 url += '&%s=%s' % (param, params[param])
 
         list_item.setContentLookup(False)
+        if item.get('subfile', None):
+            list_item.setSubtitles([item['subfile']])
 
         context_menu_items = []
         contextmenu = item.get('contextmenu', {})
