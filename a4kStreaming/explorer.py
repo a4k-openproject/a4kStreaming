@@ -814,12 +814,14 @@ def cloud(core, params):
                     isvideo = core.os.path.splitext(file['name'])[1].upper() in video_ext
                     subfile = None
 
-                    if isvideo:
-                        filename_without_ext = core.os.path.splitext(file['name'])[0]
-                        subfile_ext = ['srt', 'sub', 'ass', 'smi', 'ssa']
-                        subfile_names = ['%s.%s' % (filename_without_ext, ext) for ext in subfile_ext]
-                        subfiles = [file for file in files if any(subfile_name in file['name'] for subfile_name in subfile_names)]
-                        subfile = next(iter(subfiles), None)
+                    if not isvideo and not params.force_allfiles:
+                        continue
+
+                    filename_without_ext = core.os.path.splitext(file['name'])[0]
+                    subfile_ext = ['srt', 'sub', 'ass', 'smi', 'ssa']
+                    subfile_names = ['%s.%s' % (filename_without_ext, ext) for ext in subfile_ext]
+                    subfiles = [file for file in files if any(subfile_name in file['name'] for subfile_name in subfile_names)]
+                    subfile = next(iter(subfiles), None)
 
                     items.append({
                         'label': file['name'],
@@ -841,7 +843,8 @@ def cloud(core, params):
                             'id': file['id'],
                         },
                         'contextmenu': {
-                            'Premiumize: Delete': 'RunPlugin(plugin://plugin.video.a4kstreaming/?action=cloud&type=premiumize_folder_delete&id=%s)' % file['id']
+                            'Premiumize: All Files': 'ActivateWindow(Videos,plugin://plugin.video.a4kstreaming/?action=cloud&type=premiumize_files&id=%s&force_allfiles=true,return)' % file['id'],
+                            'Premiumize: Delete': 'RunPlugin(plugin://plugin.video.a4kstreaming/?action=cloud&type=premiumize_folder_delete&id=%s)' % file['id'],
                         }
                     })
 
