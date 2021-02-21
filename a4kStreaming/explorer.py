@@ -156,9 +156,9 @@ def __add_seasons(core, title):
                 seasons[episodeSeason] = core.utils.DictAsObject({
                     'episodes': 0,
                     'episode_ids': [],
-                    'year': episodeReleaseDate['year'],
-                    'month': episodeReleaseDate['month'],
-                    'day': episodeReleaseDate['day'],
+                    'year': 1900,
+                    'month': 1,
+                    'day': 1,
                 })
 
             seasons[episodeSeason].episodes += 1
@@ -166,22 +166,30 @@ def __add_seasons(core, title):
             seasons[episodeSeason].last_episode = episode
 
             if index > 0:
-                seasonToUpdate = None
+                season_to_update = None
                 releaseDate = None
                 if episodes[index - 1]['series']['seasonNumber'] + 1 == episodeSeason:
-                    seasonToUpdate = episodeSeason - 1
+                    season_to_update = episodeSeason - 1
                     releaseDate = episodes[index - 1]['releaseDate']
 
                 if index + 1 == len(episodes):
-                    seasonToUpdate = episodeSeason
+                    season_to_update = episodeSeason
                     releaseDate = episodeReleaseDate
 
-                if seasonToUpdate:
-                    seasons[seasonToUpdate].update({
+                if season_to_update:
+                    seasons[season_to_update].update({
                         'year_end': releaseDate['year'],
                         'month_end': releaseDate['month'],
                         'day_end': releaseDate['day'],
                     })
+
+                    if season_to_update > 1:
+                        prev_season_last_ep_release_date = seasons[season_to_update - 1].last_episode['releaseDate']
+                        seasons[season_to_update].update({
+                            'year': prev_season_last_ep_release_date['year'],
+                            'month': prev_season_last_ep_release_date['month'],
+                            'day': prev_season_last_ep_release_date['day'] + 1,
+                        })
         except:
             pass
 
@@ -323,6 +331,8 @@ def __add_title(core, title, silent=False):
                 title['seasons'] = series['seasons']
             if series.get('nextEpisodeSeasonNumber', None):
                 title['nextEpisodeSeasonNumber'] = next(iter(series['nextEpisodeSeasonNumber']), -1)
+            if not title.get('countriesOfOrigin', None) and series.get('countriesOfOrigin', None):
+                title['countriesOfOrigin'] = series['countriesOfOrigin']
 
     if not title.get('poster', None) and title.get('seriesPoster', None):
         title['poster'] = title['seriesPoster']
@@ -2399,6 +2409,12 @@ def play(core, params):
                     ' %sX%s ' % (season, episode_zfill_3),
                     ' %s%s ' % (result['ref'].season, episode_zfill),
                     ' %s%s ' % (result['ref'].season, episode_zfill_3),
+                    ' %s%s ' % (season_zfill, episode_zfill),
+                    ' %s%s ' % (season_zfill, episode_zfill_3),
+                    ' %s %s ' % (result['ref'].season, episode_zfill),
+                    ' %s %s ' % (result['ref'].season, episode_zfill_3),
+                    ' %s %s ' % (season_zfill, episode_zfill),
+                    ' %s %s ' % (season_zfill, episode_zfill_3),
                 ]
                 episodes = list(filter(lambda file: any(match in core.utils.clean_release_title(file['path']) for match in matches), files))
                 if len(episodes) > 0:
