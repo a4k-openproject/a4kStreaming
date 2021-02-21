@@ -156,10 +156,19 @@ def __add_seasons(core, title):
                 seasons[episodeSeason] = core.utils.DictAsObject({
                     'episodes': 0,
                     'episode_ids': [],
-                    'year': 1900,
-                    'month': 1,
-                    'day': 1,
+                    'first_episode_year': episodeReleaseDate['year'],
+                    'year': episodeReleaseDate['year'],
+                    'month': episodeReleaseDate['month'],
+                    'day': episodeReleaseDate['day'],
                 })
+
+                if index + 1 < len(episodes) and episodes[index + 1]['releaseDate']['year'] < episodeReleaseDate['year'] and (episodeSeason - 1) in seasons:
+                    prev_season_last_ep_release_date = seasons[episodeSeason - 1].last_episode['releaseDate']
+                    seasons[episodeSeason].update({
+                        'year': prev_season_last_ep_release_date['year'],
+                        'month': prev_season_last_ep_release_date['month'],
+                        'day': prev_season_last_ep_release_date['day'] + 1,
+                    })
 
             seasons[episodeSeason].episodes += 1
             seasons[episodeSeason].episode_ids.append(episode['id'])
@@ -183,13 +192,6 @@ def __add_seasons(core, title):
                         'day_end': releaseDate['day'],
                     })
 
-                    if season_to_update > 1:
-                        prev_season_last_ep_release_date = seasons[season_to_update - 1].last_episode['releaseDate']
-                        seasons[season_to_update].update({
-                            'year': prev_season_last_ep_release_date['year'],
-                            'month': prev_season_last_ep_release_date['month'],
-                            'day': prev_season_last_ep_release_date['day'] + 1,
-                        })
         except:
             pass
 
@@ -197,7 +199,7 @@ def __add_seasons(core, title):
     for key in seasons:
         season = seasons[key]
         season.key = key
-        season.title = __get_season_title(core, key, season.year if season.year else 'N/A', season.episodes)
+        season.title = __get_season_title(core, key, season.first_episode_year if season.first_episode_year else 'N/A', season.episodes)
 
         list_item = core.kodi.xbmcgui.ListItem(label=season.title, offscreen=True)
         poster = core.utils.fix_poster_size(title['primaryImage'])
