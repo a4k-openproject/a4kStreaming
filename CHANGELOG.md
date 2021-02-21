@@ -1,3 +1,7 @@
+* [v1.20.0](https://github.com/newt-sc/a4kStreaming/releases/tag/plugin.video.a4kstreaming%2Fplugin.video.a4kstreaming-1.20.0):
+  * Pass episodes country meta to the provider
+  * Use only last episodes release date for season ranges
+
 * [v1.19.0](https://github.com/newt-sc/a4kStreaming/releases/tag/plugin.video.a4kstreaming%2Fplugin.video.a4kstreaming-1.19.0):
   * Fix PM browsing in KODI 18 - redefining variable from scope
 

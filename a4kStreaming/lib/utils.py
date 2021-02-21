@@ -581,6 +581,11 @@ def get_graphql_query(body):
                                 number
                             }
                         }
+                        countriesOfOrigin {
+                            countries(limit: $countriesLimit) {
+                                text
+                            }
+                        }
                         nextEpisodeSeasonNumber: episodes {
                             episodes(first: 1, filter: { releasedOnOrAfter: { day: %s, month: %s, year: %s } }) {
                                 edges {

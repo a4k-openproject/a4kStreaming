@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <addon id="plugin.video.a4kstreaming"
        name="a4kStreaming"
-       version="1.19.0"
+       version="1.20.0"
        provider-name="Unknown">
     <requires>
       <import addon="script.module.requests"/>
@@ -32,6 +32,10 @@ Designed for low-end devices and Estuary skin.
             <screenshot>screenshot-06.jpg</screenshot>
         </assets>
         <news>
+[v1.20.0]:
+  * Pass episodes country meta to the provider
+  * Use only last episodes release date for season ranges
+
 [v1.19.0]:
   * Fix PM browsing in KODI 18 - redefining variable from scope
 
