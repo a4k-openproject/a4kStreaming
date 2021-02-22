@@ -46,7 +46,7 @@ def __set_wide_image_as_primary(title):
     if title_images and len(title_images) > 0:
         if title['primaryImage']:
             title_images.insert(0, title['primaryImage'])
-        wide_images = list(filter(lambda v: v['width'] > v['height'], title_images))
+        wide_images = list(filter(lambda v: v['width'] > v['height'] and v.get('type', None) != 'poster', title_images))
         if len(wide_images) > 0:
             title['primaryImage'] = wide_images[0]
 

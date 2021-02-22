@@ -457,6 +457,7 @@ def get_graphql_query(body):
                     url
                     width
                     height
+                    type
                 }
                 releaseYear {
                     year
@@ -507,6 +508,7 @@ def get_graphql_query(body):
                                 url
                                 width
                                 height
+                                type
                             }
                         }
                         ... on Cast {
@@ -556,12 +558,13 @@ def get_graphql_query(body):
             fragment TitleFull on Title {
                 ...Title
                 ...TitleCredits
-                images(first: 10) {
+                images(first: 10, filter: { types: ["still_frame"] }) {
                     edges {
                         node {
                             url
                             width
                             height
+                            type
                         }
                     }
                 }
@@ -575,6 +578,7 @@ def get_graphql_query(body):
                             url
                             width
                             height
+                            type
                         }
                         seasons: episodes {
                             seasons {
@@ -623,13 +627,15 @@ def get_graphql_query(body):
                     url
                     width
                     height
+                    type
                 }
-                images(first: 10) {
+                images(first: 10, filter: { types: ["still_frame"] }) {
                     edges {
                         node {
                             url
                             width
                             height
+                            type
                         }
                     }
                 }
@@ -670,6 +676,7 @@ def get_graphql_query(body):
                                     url
                                     width
                                     height
+                                    type
                                 }
                             }
                             ... on Cast {
