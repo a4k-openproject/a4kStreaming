@@ -1,3 +1,6 @@
+* [v1.23.0](https://github.com/newt-sc/a4kStreaming/releases/tag/plugin.video.a4kstreaming%2Fplugin.video.a4kstreaming-1.23.0):
+  * Fix force select context menu
+
 * [v1.22.0](https://github.com/newt-sc/a4kStreaming/releases/tag/plugin.video.a4kstreaming%2Fplugin.video.a4kstreaming-1.22.0):
   * Improve episode thumbnail meta
 

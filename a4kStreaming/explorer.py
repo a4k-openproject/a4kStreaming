@@ -62,8 +62,8 @@ def __set_title_contextmenu(core, title, list_item):
     tvseries = titleType == 'tvSeries'
     has_rating = title.get('userRating', None) is not None
     context_menu_items = [
-        ('IMDb: %s rating' % ('Update' if has_rating else 'Set'), 'RunPlugin(plugin://plugin.video.a4kstreaming/?action=profile&type=rate&id=%s)' % title['id']),
-        ('IMDb: Trailer', 'RunPlugin(plugin://plugin.video.a4kstreaming/?action=trailer&id=%s&play=true)' % trailer),
+        ('IMDb: %s rating' % ('Update' if has_rating else 'Set'), 'RunPlugin(%s?action=profile&type=rate&id=%s)' % (core.url, title['id'])),
+        ('IMDb: Trailer', 'RunPlugin(%s?action=trailer&id=%s&play=true)' % (core.url, trailer)),
         ('IMDb: Cast & Crew', 'ActivateWindow(Videos,%s?action=query&type=browse&id=%s,return)' % (core.url, title['id'])),
     ]
 
@@ -79,27 +79,27 @@ def __set_title_contextmenu(core, title, list_item):
                 'playcount': 1
             })
             context_menu_items.append(
-                ('IMDb: Mark as unwatched', 'RunPlugin(plugin://plugin.video.a4kstreaming/?action=profile&type=mark_as_unwatched&id=%s)' % title['id'])
+                ('IMDb: Mark as unwatched', 'RunPlugin(%s?action=profile&type=mark_as_unwatched&id=%s)' % (core.url, title['id']))
             )
         else:
             context_menu_items.append(
-                ('IMDb: Mark as watched', 'RunPlugin(plugin://plugin.video.a4kstreaming/?action=profile&type=mark_as_watched&id=%s)' % title['id'])
+                ('IMDb: Mark as watched', 'RunPlugin(%s?action=profile&type=mark_as_watched&id=%s)' % (core.url, title['id']))
             )
 
     context_menu_items.extend([
-        ('IMDb: Add to watchlist', 'RunPlugin(plugin://plugin.video.a4kstreaming/?action=profile&type=watchlist_add&id=%s)' % title['id']),
-        ('IMDb: Remove from watchlist', 'RunPlugin(plugin://plugin.video.a4kstreaming/?action=profile&type=watchlist_remove&id=%s)' % title['id']),
-        ('IMDb: Add to list', 'RunPlugin(plugin://plugin.video.a4kstreaming/?action=profile&type=list_add&id=%s)' % title['id']),
-        ('IMDb: Remove from list', 'RunPlugin(plugin://plugin.video.a4kstreaming/?action=profile&type=list_remove&id=%s)' % title['id']),
+        ('IMDb: Add to watchlist', 'RunPlugin(%s?action=profile&type=watchlist_add&id=%s)' % (core.url, title['id'])),
+        ('IMDb: Remove from watchlist', 'RunPlugin(%s?action=profile&type=watchlist_remove&id=%s)' % (core.url, title['id'])),
+        ('IMDb: Add to list', 'RunPlugin(%s?action=profile&type=list_add&id=%s)' % (core.url, title['id'])),
+        ('IMDb: Remove from list', 'RunPlugin(%s?action=profile&type=list_remove&id=%s)' % (core.url, title['id'])),
     ])
 
     if not tvseries:
         context_menu_items.extend([
-            ('Debrid: Add sources', 'RunPlugin(plugin://plugin.video.a4kstreaming/?action=cache_sources&id=%s)' % title['id'])
+            ('Debrid: Add sources', 'RunPlugin(%s?action=cache_sources&id=%s)' % (core.url, title['id']))
         ])
         if core.kodi.get_bool_setting('general.autoplay'):
             context_menu_items.extend([
-                ('Force source select', 'RunPlugin(plugin://plugin.video.a4kstreaming/?action=play&id=%s&force_sourceselect=true)' % title['id'])
+                ('Force source select', 'PlayMedia(%s?action=play&id=%s&force_sourceselect=true)' % (core.url, title['id']))
             ])
 
     list_item.addContextMenuItems(context_menu_items)
