@@ -1274,9 +1274,9 @@ def query(core, params):
         }),
         'knownfor': lambda: core.utils.get_graphql_query({
             'query': '''
-                query fn($id: ID!, $limit: Int!, $EXTRA_PARAMS) {
+                query fn($id: ID!, $limit: Int!, $paginationToken: ID, $EXTRA_PARAMS) {
                     name(id: $id) {
-                        credits(first: $limit) {
+                        credits(first: $limit, after: $paginationToken, filter: { categories: ["actor", "actress", "director", "writer"], credited: CREDITED_ONLY }) {
                             titles: edges {
                                 node {
                                     title {
@@ -1296,6 +1296,7 @@ def query(core, params):
             'variables': {
                 'id': params.id,
                 'limit': page_size,
+                'paginationToken': params.paginationToken,
             }
         }),
         'browse': lambda: core.utils.get_graphql_query({
@@ -1558,7 +1559,7 @@ def query(core, params):
                 return []
         else:
             if 'data' not in parsed_response:
-                if not params.retry and len(errors) > 0 and 'The channel was closed before the send operation began' in errors[0]['message']:
+                if not params.retry and len(errors) > 0:
                     params.retry = True
                     return query(core, params)
                 else:
@@ -1625,7 +1626,32 @@ def query(core, params):
             return result
     else:
         core.contentType = 'movies'
-        __add_titles(core, data if isinstance(data, list) else data.get('titles', []), browse=None)
+        titles = data if isinstance(data, list) else data.get('titles', [])
+        if params.type == 'knownfor':
+            title_ids = {}
+            temp_titles = []
+            for title in titles:
+                if title_ids.get(title['id'], True):
+                    title_ids[title['id']] = False
+                    temp_titles.append(title)
+
+            titles = list(filter(lambda t: t['titleType'] != 'tvEpisode' and t.get('primaryImage', None) and title, temp_titles))
+            pageInfo = data.get('pageInfo', {})
+            hasNextPage = pageInfo.get('hasNextPage', None)
+            paginationToken = pageInfo.get('endCursor', None)
+
+            if hasNextPage:
+                params_copy = core.utils.DictAsObject(params.copy())
+                params_copy.paginationToken = paginationToken
+                nextTitles = query(core, params_copy)
+                titles = titles + nextTitles
+
+            if params.paginationToken:
+                return titles
+
+            data['pageInfo'] = None
+
+        __add_titles(core, titles, browse=None)
 
     if isinstance(data, dict) and (data.get('paginationToken', None) or data.get('pageInfo', None) and data['pageInfo'].get('hasNextPage', False)):
         next_list_item = core.kodi.xbmcgui.ListItem(label='Next', offscreen=True)
