@@ -1,3 +1,6 @@
+* [v1.25.0](https://github.com/newt-sc/a4kStreaming/releases/tag/plugin.video.a4kstreaming%2Fplugin.video.a4kstreaming-1.25.0):
+  * Additional requests error handling
+
 * [v1.24.0](https://github.com/newt-sc/a4kStreaming/releases/tag/plugin.video.a4kstreaming%2Fplugin.video.a4kstreaming-1.24.0):
   * Improve Actor/Actress/Director titles browsing
 

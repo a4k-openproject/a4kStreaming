@@ -28,10 +28,11 @@ def __get_episode_title(core, season, episode, title):
         return 'S%sE%s. %s' % (season_zfill, episode_zfill, title)
     return '%s' % title
 
-def __handle_request_error(core, params, response):
+def __handle_request_error(core, params, response=None):
     if not params.silent:
         core.kodi.notification('Something went wrong. Check logs')
-    core.logger.notice(response.text)
+    if response:
+        core.logger.notice(response.text)
 
 def __check_imdb_auth_config(core, params):
     if core.kodi.get_setting('imdb.at-main') == '':
@@ -1581,6 +1582,13 @@ def query(core, params):
         return []
 
     data = core.utils.sanitize_response(data)
+    if data is None:
+        if not params.retry:
+            params.retry = True
+            return query(core, params)
+        else:
+            __handle_request_error(core, params)
+            return []
 
     if params.type in ['status', 'listid', 'ratings']:
         return data
