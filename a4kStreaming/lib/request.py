@@ -33,12 +33,14 @@ def execute(core, request, session=None):
     logger.debug('%s ^ - %s' % (request['method'], request['url']))
     try:
         response = session.request(verify=False, **request)
+        exc = ''
     except:
+        exc = core.traceback.format_exc()
         response = lambda: None
         response.text = ''
         response.content = ''
         response.status_code = 500
-    logger.debug('%s $ - %s - %s' % (request['method'], request['url'], response.status_code))
+    logger.debug('%s $ - %s - %s, %s' % (request['method'], request['url'], response.status_code, exc))
 
     alt_request = validate(response)
     if alt_request:

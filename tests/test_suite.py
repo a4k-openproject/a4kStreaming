@@ -206,7 +206,7 @@ def test_lists():
 def test_list():
     a4kstreaming_api = api.A4kStreamingApi({'kodi': True})
 
-    fn = __invoke(a4kstreaming_api, 'query', { 'type': 'list', 'id': 'ls082494257' })
+    fn = __invoke(a4kstreaming_api, 'query', { 'type': 'list', 'id': 'ls091520106' })
 
     assert len(fn.results) > 0
 
