@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <addon id="plugin.video.a4kstreaming"
        name="a4kStreaming"
-       version="1.25.0"
+       version="1.26.0"
        provider-name="Unknown">
     <requires>
       <import addon="script.module.requests"/>
@@ -32,6 +32,9 @@ Designed for low-end devices and Estuary skin.
             <screenshot>screenshot-06.jpg</screenshot>
         </assets>
         <news>
+[v1.26.0]:
+  * Handle meta issues where an older episode has newer release date
+
 [v1.25.0]:
   * Additional requests error handling
 

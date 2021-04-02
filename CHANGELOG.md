@@ -1,3 +1,6 @@
+* [v1.26.0](https://github.com/newt-sc/a4kStreaming/releases/tag/plugin.video.a4kstreaming%2Fplugin.video.a4kstreaming-1.26.0):
+  * Handle meta issues where an older episode has newer release date
+
 * [v1.25.0](https://github.com/newt-sc/a4kStreaming/releases/tag/plugin.video.a4kstreaming%2Fplugin.video.a4kstreaming-1.25.0):
   * Additional requests error handling
 

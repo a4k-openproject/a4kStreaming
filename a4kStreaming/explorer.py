@@ -146,51 +146,65 @@ def __add_seasons(core, title):
     episodes = title['episodes']['episodes']
     episodes = list(filter(lambda ep: ep['releaseDate'], episodes))
 
+    prev_rld = None
     for index, episode in enumerate(episodes):
         try:
-            episodeNumber = episode['series']
-            episodeSeason = episodeNumber['seasonNumber']
-            episodeNumber = episodeNumber['episodeNumber']
-            episodeReleaseDate = episode['releaseDate']
+            current_rld = episode['releaseDate']
+            if prev_rld:
+                if current_rld['year'] < prev_rld['year'] or current_rld['month'] < prev_rld['month'] or current_rld['day'] < prev_rld['day']:
+                    prev_rld['year'] = current_rld['year']
+                    prev_rld['month'] = max(current_rld['month'] - 1, 1)
+                    prev_rld['day'] = 1
 
-            if not seasons.get(episodeSeason, None) and episodeNumber == 1:
-                seasons[episodeSeason] = core.utils.DictAsObject({
+            prev_rld = current_rld
+        except:
+            pass
+
+    for index, episode in enumerate(episodes):
+        try:
+            episode_number = episode['series']
+            episode_season = episode_number['seasonNumber']
+            episode_number = episode_number['episodeNumber']
+            episode_rld = episode['releaseDate']
+
+            if not seasons.get(episode_season, None) and episode_number == 1:
+                seasons[episode_season] = core.utils.DictAsObject({
                     'episodes': 0,
                     'episode_ids': [],
-                    'first_episode_year': episodeReleaseDate['year'],
-                    'year': episodeReleaseDate['year'],
-                    'month': episodeReleaseDate['month'],
-                    'day': episodeReleaseDate['day'],
+                    'first_episode_year': episode_rld['year'],
+                    'year': episode_rld['year'],
+                    'month': episode_rld['month'],
+                    'day': episode_rld['day'],
                 })
 
-                if index + 1 < len(episodes) and episodes[index + 1]['releaseDate']['year'] < episodeReleaseDate['year'] and (episodeSeason - 1) in seasons:
-                    prev_season_last_ep_release_date = seasons[episodeSeason - 1].last_episode['releaseDate']
-                    seasons[episodeSeason].update({
+                if index + 1 < len(episodes) and episodes[index + 1]['releaseDate']['year'] < episode_rld['year'] and (episode_season - 1) in seasons:
+                    prev_season_last_ep_release_date = seasons[episode_season - 1].last_episode['releaseDate']
+                    seasons[episode_season].update({
                         'year': prev_season_last_ep_release_date['year'],
                         'month': prev_season_last_ep_release_date['month'],
                         'day': prev_season_last_ep_release_date['day'] + 1,
                     })
 
-            seasons[episodeSeason].episodes += 1
-            seasons[episodeSeason].episode_ids.append(episode['id'])
-            seasons[episodeSeason].last_episode = episode
+            seasons[episode_season].episodes += 1
+            seasons[episode_season].episode_ids.append(episode['id'])
+            seasons[episode_season].last_episode = episode
 
             if index > 0:
                 season_to_update = None
-                releaseDate = None
-                if episodes[index - 1]['series']['seasonNumber'] + 1 == episodeSeason:
-                    season_to_update = episodeSeason - 1
-                    releaseDate = episodes[index - 1]['releaseDate']
+                rld = None
+                if episodes[index - 1]['series']['seasonNumber'] + 1 == episode_season:
+                    season_to_update = episode_season - 1
+                    rld = episodes[index - 1]['releaseDate']
 
                 if index + 1 == len(episodes):
-                    season_to_update = episodeSeason
-                    releaseDate = episodeReleaseDate
+                    season_to_update = episode_season
+                    rld = episode_rld
 
                 if season_to_update:
                     seasons[season_to_update].update({
-                        'year_end': releaseDate['year'],
-                        'month_end': releaseDate['month'],
-                        'day_end': releaseDate['day'],
+                        'year_end': rld['year'],
+                        'month_end': rld['month'],
+                        'day_end': rld['day'],
                     })
 
         except:
