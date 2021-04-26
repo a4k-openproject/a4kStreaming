@@ -250,7 +250,7 @@ def __add_seasons(core, title):
             url += '&day_end=%s' % season.day_end
 
         context_menu_items = []
-        last_episode_has_rating = season.last_episode.get('userRating', None) is not None
+        last_episode_has_rating = season.last_episode and season.last_episode.get('userRating', None) is not None
         if last_episode_has_rating:
             list_item.setInfo('video', {
                 'overlay': 5,
