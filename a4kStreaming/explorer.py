@@ -203,7 +203,7 @@ def __add_seasons(core, title):
                 if season_to_update:
                     seasons[season_to_update].update({
                         'year_end': rld['year'],
-                        'month_end': rld['month'],
+                        'month_end': min(rld['month'] + 1, 12),
                         'day_end': rld['day'],
                     })
 

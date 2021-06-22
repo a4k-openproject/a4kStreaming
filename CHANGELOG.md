@@ -1,3 +1,6 @@
+* [v1.28.0](https://github.com/newt-sc/a4kStreaming/releases/tag/plugin.video.a4kstreaming%2Fplugin.video.a4kstreaming-1.28.0):
+  * Small fix to handle meta mismatch between season's episode vs episode's release date
+
 * [v1.27.0](https://github.com/newt-sc/a4kStreaming/releases/tag/plugin.video.a4kstreaming%2Fplugin.video.a4kstreaming-1.27.0):
   * Fix browsing seasons of some shows with incomplete meta for future works
 
