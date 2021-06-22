@@ -4,7 +4,7 @@
 <addons>
 <addon id="plugin.video.a4kstreaming"
        name="a4kStreaming"
-       version="1.27.0"
+       version="1.28.0"
        provider-name="Unknown">
     <requires>
       <import addon="script.module.requests"/>
@@ -35,6 +35,9 @@ Designed for low-end devices and Estuary skin.
             <screenshot>screenshot-06.jpg</screenshot>
         </assets>
         <news>
+[v1.28.0]:
+  * Small fix to handle meta mismatch between season's episode vs episode's release date
+
 [v1.27.0]:
   * Fix browsing seasons of some shows with incomplete meta for future works
 
