@@ -1296,6 +1296,23 @@ def query(core, params):
                                 node {
                                     title {
                                         ...Title
+                                        series {
+                                            series {
+                                                id
+                                                titleType {
+                                                    id
+                                                }
+                                                titleText {
+                                                    text
+                                                }
+                                                primaryImage {
+                                                    url
+                                                    width
+                                                    height
+                                                    type
+                                                }
+                                            }
+                                        }
                                     }
                                 }
                             }
@@ -1653,11 +1670,13 @@ def query(core, params):
             title_ids = {}
             temp_titles = []
             for title in titles:
+                if title['titleType'] == 'tvEpisode':
+                    title = title['series']
                 if title_ids.get(title['id'], True):
                     title_ids[title['id']] = False
                     temp_titles.append(title)
 
-            titles = list(filter(lambda t: t['titleType'] != 'tvEpisode' and t.get('primaryImage', None) and title, temp_titles))
+            titles = list(filter(lambda t: (t['titleType'] in ['movie', 'tvSeries']) and t.get('primaryImage', None), temp_titles))
             pageInfo = data.get('pageInfo', {})
             hasNextPage = pageInfo.get('hasNextPage', None)
             paginationToken = pageInfo.get('endCursor', None)
@@ -1670,6 +1689,14 @@ def query(core, params):
 
             if params.paginationToken:
                 return titles
+
+            title_ids = {}
+            temp_titles = titles
+            titles = []
+            for title in temp_titles:
+                if title_ids.get(title['id'], True):
+                    title_ids[title['id']] = False
+                    titles.append(title)
 
             data['pageInfo'] = None
 

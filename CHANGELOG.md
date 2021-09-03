@@ -1,3 +1,6 @@
+* [v1.29.0](https://github.com/newt-sc/a4kStreaming/releases/tag/plugin.video.a4kstreaming%2Fplugin.video.a4kstreaming-1.29.0):
+  * Improve actor browsing. Remove non-relevent titles and include TV Shows.
+
 * [v1.28.0](https://github.com/newt-sc/a4kStreaming/releases/tag/plugin.video.a4kstreaming%2Fplugin.video.a4kstreaming-1.28.0):
   * Small fix to handle meta mismatch between season's episode vs episode's release date
 
