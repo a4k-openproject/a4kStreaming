@@ -19,8 +19,15 @@ def start(api):
     update = lambda: None
     update.last_check = None
 
+    def reset_vars():
+        watched.playing_imdb_id = None
+        watched.play_count = None
+        watched.time_played = None
+        watched.total_time = None
+
     def update_playing_imdb_id(retry):
-        core.kodi.xbmc.sleep(2000)
+        reset_vars()
+        core.kodi.xbmc.sleep(5000)
         try:
             video_meta = player.getVideoInfoTag()
             watched.playing_imdb_id = video_meta.getIMDBNumber()
@@ -36,10 +43,7 @@ def start(api):
                 return
             core.profile(core, core.utils.DictAsObject({ 'type': 'mark_as_watched', 'id': watched.playing_imdb_id, 'silent': True }))
         finally:
-            watched.playing_imdb_id = None
-            watched.play_count = None
-            watched.time_played = None
-            watched.total_time = None
+            reset_vars()
 
     player.onPlayBackStarted = lambda: update_playing_imdb_id(retry=True)
     player.onPlayBackEnded = lambda: mark_as_watched()
