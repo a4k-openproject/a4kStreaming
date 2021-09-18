@@ -4,7 +4,7 @@
 <addons>
 <addon id="plugin.video.a4kstreaming"
        name="a4kStreaming"
-       version="1.29.0"
+       version="1.30.0"
        provider-name="Unknown">
     <requires>
       <import addon="script.module.requests"/>
@@ -35,6 +35,9 @@ Designed for low-end devices and Estuary skin.
             <screenshot>screenshot-06.jpg</screenshot>
         </assets>
         <news>
+[v1.30.0]:
+  * RealDebrid resolving improvements
+
 [v1.29.0]:
   * Improve actor browsing. Remove non-relevent titles and include TV Shows.
 

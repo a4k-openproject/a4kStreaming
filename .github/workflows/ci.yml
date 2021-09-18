@@ -27,7 +27,7 @@ jobs:
     strategy:
       matrix:
         python-version: [2.7, 3.7]
-      max-parallel: 1
+      max-parallel: 2
 
     steps:
     - uses: actions/checkout@v2
@@ -59,11 +59,4 @@ jobs:
         A4KSTREAMING_ALLDEBRID_APIKEY: ${{ secrets.A4KSTREAMING_ALLDEBRID_APIKEY }}
         A4KSTREAMING_PROVIDER_URL: ${{ secrets.A4KSTREAMING_PROVIDER_URL }}
       run: |
-        coverage run -m pytest -v
-
-    - name: coverage
-      if: "!startsWith(needs.validate.outputs.commit, 'chore:') && matrix.python-version == 3.7"
-      env:
-        COVERALLS_REPO_TOKEN: ${{ secrets.COVERALLS_REPO_TOKEN }}
-      run: |
-        coveralls
+        pytest -v

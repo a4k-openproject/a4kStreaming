@@ -167,7 +167,7 @@ def __add_seasons(core, title):
             episode_number = episode_number['episodeNumber']
             episode_rld = episode['releaseDate']
 
-            if not seasons.get(episode_season, None) and episode_number == 1:
+            if not seasons.get(episode_season, None) and episode_number <= 1:
                 seasons[episode_season] = core.utils.DictAsObject({
                     'episodes': 0,
                     'episode_ids': [],
@@ -283,7 +283,7 @@ def __add_episodes(core, title, season):
 
     episodes = []
     for episode in raw_episodes:
-        if not episode or not episode.get('series', None) or episode['series'].get('seasonNumber', None) != season or not episode['series'].get('episodeNumber', None):
+        if not episode or not episode.get('series', None) or episode['series'].get('seasonNumber', None) != season or episode['series'].get('episodeNumber', None) is None:
             continue
 
         episodeNumber = episode['series']['episodeNumber']
@@ -2346,13 +2346,40 @@ def play(core, params):
     video_ext = list(map(lambda v: '.%s' % v.upper(), core.utils.video_containers()))
     size = 1048576 * 100
 
+    def util_filter_episodes(files, propName):
+        season_zfill = str(result['ref'].season).zfill(2)
+        episode_zfill = str(result['ref'].episode).zfill(2)
+        episode_zfill_3 = episode_zfill.zfill(3)
+        season = 'S%s' % season_zfill
+        episode = 'E%s' % episode_zfill
+        episode_0 = 'E0%s' % episode_zfill
+        matches = [
+            ' %s%s ' % (season, episode),
+            ' %s%s ' % (season, episode_0),
+            ' %s %s ' % (season, episode),
+            ' %s %s ' % (season, episode_0),
+            ' %sX%s ' % (season_zfill, episode_zfill),
+            ' %sX%s ' % (season_zfill, episode_zfill_3),
+            ' %sX%s ' % (season, episode_zfill),
+            ' %sX%s ' % (season, episode_zfill_3),
+            ' %s%s ' % (result['ref'].season, episode_zfill),
+            ' %s%s ' % (result['ref'].season, episode_zfill_3),
+            ' %s%s ' % (season_zfill, episode_zfill),
+            ' %s%s ' % (season_zfill, episode_zfill_3),
+            ' %s %s ' % (result['ref'].season, episode_zfill),
+            ' %s %s ' % (result['ref'].season, episode_zfill_3),
+            ' %s %s ' % (season_zfill, episode_zfill),
+            ' %s %s ' % (season_zfill, episode_zfill_3),
+        ]
+        return list(filter(lambda file: any(match in core.utils.clean_release_title(file[propName]) for match in matches), files))
+
     def resolve_pm():
         request = core.debrid.premiumize_resolve(pm_apikey, result['magnet'])
         response = core.request.execute(core, request)
         parsed_response = core.json.loads(response.content)
         return parsed_response.get('content', [])
 
-    def resolve_rd():
+    def resolve_rd(resolve_files='all'):
         auth = core.utils.rd_auth_query_params(core, rd_apikey)
         request = core.debrid.realdebrid_cache(auth, result['magnet'])
         response = core.request.execute(core, request)
@@ -2368,15 +2395,32 @@ def play(core, params):
 
         files = []
         try:
-            file_ids = []
-            title_name = provider_params.title.title.lower()
-            for file_id in result['debrid_files'].keys():
-                file = result['debrid_files'][file_id]
-                is_video = core.os.path.splitext(file['filename'])[1].upper() in video_ext
-                is_enough_size = int(file['filesize']) > size
-                is_sample = 'sample' not in title_name and 'sample' in file['filename'].lower()
-                if is_video and is_enough_size and not is_sample:
-                    file_ids.append(file_id)
+            all_files = result['debrid_files'].keys()
+            file_ids = [] if resolve_files != 'all' else all_files
+            if resolve_files == 'videos':
+                title_name = provider_params.title.title.lower()
+                for file_id in result['debrid_files'].keys():
+                    file = result['debrid_files'][file_id]
+                    is_video = core.os.path.splitext(file['filename'])[1].upper() in video_ext
+                    is_enough_size = int(file['filesize']) > size
+                    is_sample = 'sample' not in title_name and 'sample' in file['filename'].lower()
+                    if is_video and is_enough_size and not is_sample:
+                        file_ids.append(file_id)
+                if len(file_ids) == len(all_files):
+                    file_ids = []
+            if result['ref'].mediatype == 'episode' and (len(file_ids) == 0 or resolve_files == 'exact'):
+                resolve_files = 'exact'
+                episodes = []
+                for file_id in result['debrid_files'].keys():
+                    episodes.append({
+                        'id': file_id,
+                        'filename': result['debrid_files'][file_id]['filename']
+                    })
+                episodes = util_filter_episodes(episodes, 'filename')
+                for ep in episodes:
+                    file_ids.append(ep['id'])
+            if len(file_ids) == 0:
+                return files
 
             request = core.debrid.realdebrid_select(auth, id, files=','.join(file_ids))
             response = core.request.execute(core, request)
@@ -2389,7 +2433,16 @@ def play(core, params):
             parsed_response = core.json.loads(response.content)
 
             if len(parsed_response['links']) == 0:
-                return files
+                if resolve_files == 'all':
+                    request = core.debrid.realdebrid_delete(auth, id)
+                    core.request.execute(core, request)
+                    return resolve_rd(resolve_files='videos')
+                elif resolve_files == 'videos' and result['ref'].mediatype == 'episode':
+                    request = core.debrid.realdebrid_delete(auth, id)
+                    core.request.execute(core, request)
+                    return resolve_rd(resolve_files='exact')
+                else:
+                    return files
 
             selected_files = []
             for file in parsed_response['files']:
@@ -2469,31 +2522,7 @@ def play(core, params):
         filtered = False
         try:
             if len(files) > 1 and result['ref'].mediatype == 'episode':
-                season_zfill = str(result['ref'].season).zfill(2)
-                episode_zfill = str(result['ref'].episode).zfill(2)
-                episode_zfill_3 = episode_zfill.zfill(3)
-                season = 'S%s' % season_zfill
-                episode = 'E%s' % episode_zfill
-                episode_0 = 'E0%s' % episode_zfill
-                matches = [
-                    ' %s%s ' % (season, episode),
-                    ' %s%s ' % (season, episode_0),
-                    ' %s %s ' % (season, episode),
-                    ' %s %s ' % (season, episode_0),
-                    ' %sX%s ' % (season_zfill, episode_zfill),
-                    ' %sX%s ' % (season_zfill, episode_zfill_3),
-                    ' %sX%s ' % (season, episode_zfill),
-                    ' %sX%s ' % (season, episode_zfill_3),
-                    ' %s%s ' % (result['ref'].season, episode_zfill),
-                    ' %s%s ' % (result['ref'].season, episode_zfill_3),
-                    ' %s%s ' % (season_zfill, episode_zfill),
-                    ' %s%s ' % (season_zfill, episode_zfill_3),
-                    ' %s %s ' % (result['ref'].season, episode_zfill),
-                    ' %s %s ' % (result['ref'].season, episode_zfill_3),
-                    ' %s %s ' % (season_zfill, episode_zfill),
-                    ' %s %s ' % (season_zfill, episode_zfill_3),
-                ]
-                episodes = list(filter(lambda file: any(match in core.utils.clean_release_title(file['path']) for match in matches), files))
+                episodes = util_filter_episodes(files, 'path')
                 if len(episodes) > 0:
                     files = episodes
                     filtered = True
