@@ -2550,19 +2550,17 @@ def play(core, params):
             file_result_keys.sort()
             file_result_keys = sorted(file_result_keys, key=lambda v: file_results[v]['release_title'])
 
-            selection = core.kodi.xbmcgui.Dialog().select(
+            file_selection = core.kodi.xbmcgui.Dialog().select(
                 'Choose file',
                 [result_style % key for key in file_result_keys],
             )
 
-            if selection > -1:
-                file = file_results[file_result_keys[selection]]
+            if file_selection > -1:
+                file = file_results[file_result_keys[file_selection]]
                 link = file['link']
-            elif selection == -1:
-                general.last_action_time = core.utils.time_ms()
-                core.cache.save_general(general)
-                core.utils.end_action(core, True)
-                return
+            elif file_selection == -1:
+                selection += 1
+                goto .selection  # type: ignore # noqa: F821
 
         elif len(files) == 1:
             file = files[0]

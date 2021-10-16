@@ -1,3 +1,6 @@
+* [v1.32.0](https://github.com/newt-sc/a4kStreaming/releases/tag/plugin.video.a4kstreaming%2Fplugin.video.a4kstreaming-1.32.0):
+  * Back navigation from source files browsing 
+
 * [v1.31.0](https://github.com/newt-sc/a4kStreaming/releases/tag/plugin.video.a4kstreaming%2Fplugin.video.a4kstreaming-1.31.0):
   * Source select dialog now pre-selects first result
   * When the Debrid resolve fails, show the source select dialog with the last selected source pre-selected
