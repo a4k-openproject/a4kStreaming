@@ -2313,13 +2313,14 @@ def play(core, params):
     result_style = '[LIGHT]%s[/LIGHT]'
     autoplay = core.kodi.get_bool_setting('general.autoplay') and not params.force_sourceselect
 
+    selection = 1
+    label .selection  # type: ignore # noqa: F821
     if not autoplay:
         selection = core.kodi.xbmcgui.Dialog().select(
             'Choose source',
             [__action_menu_style % 'New Search'] + [result_style % results[key].get('title_with_debrid', results[key]['title']) for key in results_keys],
+            preselect=selection
         )
-    else:
-        selection = 1
 
     if selection == -1:
         general.last_action_time = core.utils.time_ms()
@@ -2341,7 +2342,7 @@ def play(core, params):
     else:
         selection -= 1
 
-    label .begin  # type: ignore # noqa: F821
+    label .afterselection  # type: ignore # noqa: F821
     result = results[results_keys[selection]]
     video_ext = list(map(lambda v: '.%s' % v.upper(), core.utils.video_containers()))
     size = 1048576 * 100
@@ -2397,6 +2398,7 @@ def play(core, params):
         try:
             all_files = result['debrid_files'].keys()
             file_ids = [] if resolve_files != 'all' else all_files
+
             if resolve_files == 'videos':
                 title_name = provider_params.title.title.lower()
                 for file_id in result['debrid_files'].keys():
@@ -2408,6 +2410,7 @@ def play(core, params):
                         file_ids.append(file_id)
                 if len(file_ids) == len(all_files):
                     file_ids = []
+
             if result['ref'].mediatype == 'episode' and (len(file_ids) == 0 or resolve_files == 'exact'):
                 resolve_files = 'exact'
                 episodes = []
@@ -2419,6 +2422,7 @@ def play(core, params):
                 episodes = util_filter_episodes(episodes, 'filename')
                 for ep in episodes:
                     file_ids.append(ep['id'])
+
             if len(file_ids) == 0:
                 return files
 
@@ -2450,11 +2454,12 @@ def play(core, params):
                     selected_files.append(file)
 
             for i, file in enumerate(selected_files):
-                files.append({
-                    'path': file['path'],
-                    'size': file['bytes'],
-                    'link': parsed_response['links'][i]
-                })
+                if i < len(parsed_response['links']):
+                    files.append({
+                        'path': file['path'],
+                        'size': file['bytes'],
+                        'link': parsed_response['links'][i]
+                    })
 
         finally:
             def delete_magnet():
@@ -2564,15 +2569,12 @@ def play(core, params):
             link = file.get('link', file.get('stream_link', None))
 
     if not link:
-        if selection + 1 < len(results_keys) and autoplay:
-            selection += 1
-            goto .begin  # type: ignore # noqa: F821
-
-        general.last_action_time = core.utils.time_ms()
-        core.cache.save_general(general)
-        core.kodi.notification('Failed to resolve debrid')
-        core.utils.end_action(core, True)
-        return
+        selection += 1
+        if selection < len(results_keys) and autoplay:
+            goto .afterselection  # type: ignore # noqa: F821
+        else:
+            core.kodi.notification('Failed to resolve debrid')
+            goto .selection  # type: ignore # noqa: F821
 
     if result.get('debrid', 'PM') == 'RD':
         try:
