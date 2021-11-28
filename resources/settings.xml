@@ -21,9 +21,10 @@
     </category>
     <!-- Provider -->
     <category label="33003">
-        <setting id="provider.install" type="action" label="33301" action="RunPlugin(plugin://plugin.video.a4kstreaming/?action=provider&type=install)"/>
-        <setting id="provider.manage"  type="action" label="33302" action="RunPlugin(plugin://plugin.video.a4kstreaming/?action=provider&type=manage)"/>
-        <setting id="provider.check"   type="action" label="33303" action="RunPlugin(plugin://plugin.video.a4kstreaming/?action=provider&type=new_version_check)"/>
+        <setting id="provider.install"         type="action" label="33301" action="RunPlugin(plugin://plugin.video.a4kstreaming/?action=provider&type=install)"/>
+        <setting id="provider.use_recommended" type="bool"   label="33302" default="true"/>
+        <setting id="provider.manage"          type="action" label="33303" action="RunPlugin(plugin://plugin.video.a4kstreaming/?action=provider&type=manage)" enable="eq(-1,false)"/>
+        <setting id="provider.check"           type="action" label="33304" action="RunPlugin(plugin://plugin.video.a4kstreaming/?action=provider&type=new_version_check)"/>
     </category>
     <!-- Debrid -->
     <category label="33004">

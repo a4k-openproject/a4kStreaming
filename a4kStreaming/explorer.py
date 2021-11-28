@@ -2271,7 +2271,7 @@ def play(core, params):
         season_results = None
         pack_results = None
 
-        if len(last_results) > 50:
+        while len(last_results) > 10:
             oldest_key = list(last_results.keys())[0]
             for key in last_results:
                 if last_results[key]['time'] < last_results[oldest_key]['time']:
@@ -2500,7 +2500,10 @@ def play(core, params):
             core.threading.Thread(target=delete_magnet).start()
         return files
 
-    link = None
+    link = result.get('url', None)
+    if link:
+        goto .play  # type: ignore # noqa: F821
+
     files = []
     if result.get('debrid', 'PM') == 'PM':
         try: files = resolve_pm()
@@ -2594,7 +2597,10 @@ def play(core, params):
         except:
             core.logger.notice(core.traceback.format_exc())
 
+    label .play  # type: ignore # noqa: F821
     item = core.kodi.xbmcgui.ListItem(path=link, offscreen=True)
+    item.setProperty('IsPlayable', 'true')
+    item.setContentLookup(False)
 
     video_meta = provider_params.title.copy()
     video_meta.pop('tvshowseasonid', None)

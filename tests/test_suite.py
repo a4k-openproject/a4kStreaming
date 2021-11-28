@@ -41,7 +41,7 @@ def __setup_provider(a4kstreaming_api, settings={}):
     provider = a4kstreaming_api.core.cache.get_provider()
     selected = {}
     for key in provider.keys():
-        if len(key) == 8:
+        if len(key) == 8 or settings.get('provider.use_recommended', 'false') == 'true':
             selected[key] = True
     a4kstreaming_api.core.cache.save_provider(selected)
 
@@ -68,6 +68,7 @@ def __invoke(a4kstreaming_api, action, params={}, settings={}, prerun=None, remo
         'views.episodes': '0',
         'views.season': '0',
         'views.episode': '0',
+        'provider.use_recommended': 'false',
         'premiumize.apikey': premiumize_apikey,
         'realdebrid.apikey': realdebrid_apikey,
         'alldebrid.apikey': alldebrid_apikey,
@@ -131,6 +132,18 @@ def test_play_movie_pm():
     a4kstreaming_api = api.A4kStreamingApi({'kodi': True})
 
     settings = { 'realdebrid.apikey': '', 'alldebrid.apikey': '' }
+    def prerun():
+        __setup_provider(a4kstreaming_api, settings)
+
+    title = b'eyJtZWRpYXR5cGUiOiAibW92aWUiLCAiaW1kYm51bWJlciI6ICJ0dDAxMDgxNjAiLCAidGl0bGUiOiAiU2xlZXBsZXNzIGluIFNlYXR0bGUiLCAib3JpZ2luYWx0aXRsZSI6ICJTbGVlcGxlc3MgaW4gU2VhdHRsZSIsICJ0dnNob3dpZCI6IG51bGwsICJzZWFzb25zIjogbnVsbCwgInR2c2hvd3RpdGxlIjogIiIsICJ5ZWFyIjogMTk5MywgInByZW1pZXJlZCI6ICIxOTkzLTYtMjUiLCAiZHVyYXRpb24iOiA2MzAwLCAibXBhYSI6ICJQRyIsICJnZW5yZSI6IFsiQ29tZWR5IiwgIkRyYW1hIiwgIlJvbWFuY2UiXSwgImNvdW50cnkiOiBbIlVuaXRlZCBTdGF0ZXMiXSwgInRyYWlsZXIiOiAiP2FjdGlvbj10cmFpbGVyJmlkPXZpNzI3MzY3NDQ5IiwgInBsb3QiOiAiQSByZWNlbnRseSB3aWRvd2VkIG1hbidzIHNvbiBjYWxscyBhIHJhZGlvIHRhbGstc2hvdyBpbiBhbiBhdHRlbXB0IHRvIGZpbmQgaGlzIGZhdGhlciBhIHBhcnRuZXIuIiwgInRhZ2xpbmUiOiAiV2hhdCBpZiBzb21lb25lIHlvdSBuZXZlciBtZXQsIHNvbWVvbmUgeW91IG5ldmVyIHNhdywgc29tZW9uZSB5b3UgbmV2ZXIga25ldyB3YXMgdGhlIG9ubHkgc29tZW9uZSBmb3IgeW91PyIsICJvdmVybGF5IjogMCwgInN0dWRpbyI6IFsiVHJpU3RhciBQaWN0dXJlcyIsICJUcmlTdGFyIFBpY3R1cmVzIiwgIkNvbHVtYmlhIFRyaVN0YXIgRmlsbSJdLCAiZGlyZWN0b3IiOiBbIk5vcmEgRXBocm9uIl0sICJ3cml0ZXIiOiBbIkplZmYgQXJjaCIsICJOb3JhIEVwaHJvbiIsICJEYXZpZCBTLiBXYXJkIl19'
+    play = __invoke(a4kstreaming_api, 'play', { 'type': title }, settings=settings, prerun=prerun)
+
+    assert play.results is not None
+
+def test_play_movie_pm_using_recommended():
+    a4kstreaming_api = api.A4kStreamingApi({'kodi': True})
+
+    settings = { 'realdebrid.apikey': '', 'alldebrid.apikey': '', 'provider.use_recommended': 'true' }
     def prerun():
         __setup_provider(a4kstreaming_api, settings)
 

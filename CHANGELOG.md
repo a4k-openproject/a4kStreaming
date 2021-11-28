@@ -1,3 +1,6 @@
+* [v1.33.0](https://github.com/newt-sc/a4kStreaming/releases/tag/plugin.video.a4kstreaming%2Fplugin.video.a4kstreaming-1.33.0):
+  * Add recommended providers usage for general speedup
+
 * [v1.32.0](https://github.com/newt-sc/a4kStreaming/releases/tag/plugin.video.a4kstreaming%2Fplugin.video.a4kstreaming-1.32.0):
   * Back navigation from source files browsing 
 
