@@ -3,6 +3,7 @@
     <!-- General -->
     <category label="33001">
         <setting id="general.max_quality"            label="33101" type="enum"   default="3" lvalues='33120|33121|33122|33123'/>
+        <setting id="general.max_movie_size"         label="33108" type="slider" default="200" option="int" range="5,200"/>
         <setting id="general.autoplay"               label="33102" type="bool"   default="false"/>
         <setting id="general.mark_as_watched_rating" label="33103" type="slider" default="7"  option="int" range="1,10"/>
         <setting id="general.page_size"              label="33104" type="slider" default="29" option="int" range="10,100"/>

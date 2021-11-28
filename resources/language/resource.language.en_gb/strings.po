@@ -60,6 +60,10 @@ msgctxt "#33107"
 msgid "Episode title template"
 msgstr ""
 
+msgctxt "#33108"
+msgid "Max movie size (GB)"
+msgstr ""
+
 # Season Title Templates
 msgctxt "#33111"
 msgid "Season 1 (2020) - 10 Episodes"
