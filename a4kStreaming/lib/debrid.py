@@ -10,9 +10,12 @@ def premiumize_transfers(apikey):
     }
 
 def premiumize_files(apikey, id):
+    if id != '':
+        id = 'id=%s&' % id
+
     return {
         'method': 'GET',
-        'url': 'https://www.premiumize.me/api/folder/list?id=%s&includebreadcrumbs=false&apikey=%s' % (id, apikey),
+        'url': 'https://www.premiumize.me/api/folder/list?%sincludebreadcrumbs=false&apikey=%s' % (id, apikey),
         'headers': {
             'content-type': 'application/json',
         },

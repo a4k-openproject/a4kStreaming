@@ -9,6 +9,7 @@ import string
 import zipfile
 import shutil
 import time
+import base64
 from datetime import datetime
 from io import BytesIO
 from itertools import islice
@@ -34,6 +35,7 @@ py3 = not py2
 default_encoding = 'utf-8'
 zip_utf8_flag = 0x800
 py3_zip_missing_utf8_flag_fallback_encoding = 'cp437'
+recommended = base64.b64decode('VE9SUkVOVElP')
 
 temp_dir = os.path.join(kodi.addon_profile, 'temp')
 provider_temp_dir = os.path.join(kodi.addon_profile, 'provider-temp')

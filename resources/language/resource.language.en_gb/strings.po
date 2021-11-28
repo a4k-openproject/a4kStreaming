@@ -171,10 +171,14 @@ msgid "Install"
 msgstr ""
 
 msgctxt "#33302"
-msgid "Manage"
+msgid "Use recommended"
 msgstr ""
 
 msgctxt "#33303"
+msgid "Manage"
+msgstr ""
+
+msgctxt "#33304"
 msgid "Check for an update"
 msgstr ""
 
@@ -218,11 +222,11 @@ msgid "Migrate Trakt.tv's watched status to IMDb (via rating)"
 msgstr ""
 
 msgctxt "#33602"
-msgid "Trakt API key (Client ID): "
+msgid "Trakt API key/Client ID (!used only for migration!): "
 msgstr ""
 
 msgctxt "#33603"
-msgid "Trakt username (User slug): "
+msgid "Trakt username/slug (!used only for migration!): "
 msgstr ""
 
 msgctxt "#33604"

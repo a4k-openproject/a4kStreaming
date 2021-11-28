@@ -162,31 +162,54 @@ def __search(core, params):
         return {}
 
     sources = {}
-    for key in provider:
-        if not provider[key]:
-            continue
 
-        try:
-            source = core.importlib.import_module(__sources_module_name(core) + ('.%s' % key.lower()))
-            sources[key] = source.sources()
-        except: pass
+    use_recommended = core.kodi.get_bool_setting('provider.use_recommended')
+    recommended = core.utils.recommended
+    try:
+        source = core.importlib.import_module(__sources_module_name(core) + ('.%s' % recommended.lower()))
+        sources[recommended] = source.sources()
+    except: pass
+
+    if len(sources) == 0 or not use_recommended:
+        use_recommended = False
+        for key in provider:
+            if not provider[key] or key == recommended:
+                continue
+
+            try:
+                source = core.importlib.import_module(__sources_module_name(core) + ('.%s' % key.lower()))
+                sources[key] = source.sources()
+            except: pass
 
     threads = []
     search = lambda: None
     search.results = {}
     search.cached = {}
 
+    premiumize_apikey = core.utils.get_premiumize_apikey(core)
+    realdebrid_apikey = core.utils.get_realdebrid_apikey(core)
+    alldebrid_apikey = core.utils.get_alldebrid_apikey(core)
+    use_direct_urls = False
+
     for key in sources.keys():
         def get_sources(key):
             source = sources[key]
             results = []
             try:
+                apikeys = {}
+                if use_direct_urls:
+                    apikeys = {
+                        'pm': premiumize_apikey,
+                        'rd': realdebrid_apikey,
+                        'ad': alldebrid_apikey
+                    }
+
                 if params.title.mediatype == 'movie':
                     try:
-                        results += source.movie(params.title.title, params.title.year, params.title.imdbnumber)
+                        results += source.movie(params.title.title, params.title.year, params.title.imdbnumber, apikeys=apikeys)
                     except Exception as e:
                         if 'movie() takes' in str(e):
-                            results += source.movie(params.title.title, params.title.year)
+                            results += source.movie(params.title.title, params.title.year, apikeys=apikeys)
                         else:
                             core.logger.notice(core.traceback.format_exc())
                 else:
@@ -202,7 +225,7 @@ def __search(core, params):
                         'is_airing': params.title.is_airing
                     }
                     all_info = { 'info': { 'tvshow.imdb_id': params.title.tvshowid } }
-                    results += source.episode(simple_info, all_info)
+                    results += source.episode(simple_info, all_info, apikeys=apikeys)
 
                 if len(results) <= 0:
                     return
@@ -302,24 +325,33 @@ def __search(core, params):
                 def ad(apikey):
                     sanitize_results(check_ad(apikey), 'AD')
 
-                threads = []
+                def sanitize_direct_url_results():
+                    for result in results:
+                        result = result.copy()
+                        result['ref'] = params.title
+                        size = float(result['size']) / 1024
+                        result['size'] = round(size, 1)
+                        core.utils.cleanup_result(result)
+                        if search.results.get(result['url'], None) is None:
+                            search.results[result['url']] = result
+                        result['title_with_debrid'] = '%s  |  %s' % (result['debrid'], result['title'])
+                        search.cached['%s%s' % (result['debrid'], result['url'])] = result
 
-                premiumize_apikey = core.utils.get_premiumize_apikey(core)
-                if premiumize_apikey:
-                    threads.append(core.threading.Thread(target=pm, args=(premiumize_apikey,)))
+                if use_direct_urls:
+                    sanitize_direct_url_results()
+                else:
+                    threads = []
+                    if premiumize_apikey:
+                        threads.append(core.threading.Thread(target=pm, args=(premiumize_apikey,)))
+                    if realdebrid_apikey:
+                        threads.append(core.threading.Thread(target=rd, args=(realdebrid_apikey,)))
+                    if alldebrid_apikey:
+                        threads.append(core.threading.Thread(target=ad, args=(alldebrid_apikey,)))
 
-                realdebrid_apikey = core.utils.get_realdebrid_apikey(core)
-                if realdebrid_apikey:
-                    threads.append(core.threading.Thread(target=rd, args=(realdebrid_apikey,)))
-
-                alldebrid_apikey = core.utils.get_alldebrid_apikey(core)
-                if alldebrid_apikey:
-                    threads.append(core.threading.Thread(target=ad, args=(alldebrid_apikey,)))
-
-                for thread in threads:
-                    thread.start()
-                for thread in threads:
-                    thread.join()
+                    for thread in threads:
+                        thread.start()
+                    for thread in threads:
+                        thread.join()
 
             except Exception as e:
                 core.logger.notice(e)
@@ -373,8 +405,9 @@ def __search(core, params):
         time_after_start = core.utils.time_ms() - params.start_time
         if time_after_start < 1000:
             core.kodi.xbmc.sleep(int(round(1000 - time_after_start)))
-        progress.create(core.kodi.addon_name, *progress_msg())
-        search.dialog = True
+        if not use_recommended:
+            progress.create(core.kodi.addon_name, *progress_msg())
+            search.dialog = True
 
         chunk_size = len(sources)
         for chunk in core.utils.chunk(threads, chunk_size):
