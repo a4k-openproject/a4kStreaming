@@ -36,6 +36,8 @@ default_encoding = 'utf-8'
 zip_utf8_flag = 0x800
 py3_zip_missing_utf8_flag_fallback_encoding = 'cp437'
 recommended = base64.b64decode('VE9SUkVOVElP')
+if py3:
+    recommended = recommended.decode('ascii')
 
 temp_dir = os.path.join(kodi.addon_profile, 'temp')
 provider_temp_dir = os.path.join(kodi.addon_profile, 'provider-temp')
