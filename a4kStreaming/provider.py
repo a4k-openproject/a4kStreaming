@@ -165,15 +165,17 @@ def __search(core, params):
 
     use_recommended = core.kodi.get_bool_setting('provider.use_recommended')
     recommended = core.utils.recommended
-    try:
-        source = core.importlib.import_module(__sources_module_name(core) + ('.%s' % recommended.lower()))
-        sources[recommended] = source.sources()
-    except: pass
+
+    if use_recommended:
+        try:
+            source = core.importlib.import_module(__sources_module_name(core) + ('.%s' % recommended.lower()))
+            sources[recommended] = source.sources()
+        except: pass
 
     if len(sources) == 0 or not use_recommended:
         use_recommended = False
         for key in provider:
-            if not provider[key] or key == recommended:
+            if not provider[key] or sources.get(key, None):
                 continue
 
             try:

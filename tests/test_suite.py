@@ -62,6 +62,7 @@ def __invoke(a4kstreaming_api, action, params={}, settings={}, prerun=None, remo
         'general.lists_page_size': '29',
         'general.season_title_template': '0',
         'general.episode_title_template': '0',
+        'general.max_movie_size': '200',
         'views.menu': '0',
         'views.titles': '0',
         'views.seasons': '0',
