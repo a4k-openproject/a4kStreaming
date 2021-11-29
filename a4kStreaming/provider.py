@@ -301,8 +301,12 @@ def __search(core, params):
                         result['ref'] = params.title
 
                         size = 0
-                        if check['filesize']:
-                            size = float(check['filesize'][i]) / 1024 / 1024 / 1024
+                        if not use_recommended and status and check['filesize']:
+                            tmpsize = float(check['filesize'][i]) / 1024 / 1024 / 1024
+                            if result['package'] == 'single':
+                                size = tmpsize
+                            elif check['files'] and check['files'][i]:
+                                size = tmpsize / len(check['files'][i])
                         if size <= 0:
                             size = float(result['size']) / 1024
                         result['size'] = round(size, 1)
