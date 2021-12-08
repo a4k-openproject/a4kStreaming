@@ -2388,7 +2388,7 @@ def play(core, params):
         parsed_response = core.json.loads(response.content)
         return parsed_response.get('content', [])
 
-    def resolve_rd(resolve_files='all'):
+    def resolve_rd(resolve_files='videos'):
         auth = core.utils.rd_auth_query_params(core, rd_apikey)
         request = core.debrid.realdebrid_cache(auth, result['magnet'])
         response = core.request.execute(core, request)
@@ -2445,11 +2445,11 @@ def play(core, params):
             parsed_response = core.json.loads(response.content)
 
             if len(parsed_response['links']) == 0:
-                if resolve_files == 'all':
+                if resolve_files == 'videos':
                     request = core.debrid.realdebrid_delete(auth, id)
                     core.request.execute(core, request)
-                    return resolve_rd(resolve_files='videos')
-                elif resolve_files == 'videos' and result['ref'].mediatype == 'episode':
+                    return resolve_rd(resolve_files='all')
+                elif resolve_files == 'all' and result['ref'].mediatype == 'episode':
                     request = core.debrid.realdebrid_delete(auth, id)
                     core.request.execute(core, request)
                     return resolve_rd(resolve_files='exact')
