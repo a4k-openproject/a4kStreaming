@@ -2409,15 +2409,28 @@ def play(core, params):
 
             if resolve_files == 'videos':
                 title_name = provider_params.title.title.lower()
+                has_mt2s = False
                 for file_id in result['debrid_files'].keys():
                     file = result['debrid_files'][file_id]
-                    is_video = core.os.path.splitext(file['filename'])[1].upper() in video_ext
+                    ext = core.os.path.splitext(file['filename'])[1].upper()
+                    is_video = ext in video_ext
+                    if ext == '.M2TS':
+                        has_mt2s = True
+                        break
                     is_enough_size = int(file['filesize']) > size
                     is_sample = 'sample' not in title_name and 'sample' in file['filename'].lower()
                     if is_video and is_enough_size and not is_sample:
                         file_ids.append(file_id)
-                if len(file_ids) == len(all_files):
-                    file_ids = []
+                if has_mt2s:
+                    fsize = None
+                    fid = None
+                    for file_id in result['debrid_files'].keys():
+                        file = result['debrid_files'][file_id]
+                        if fsize is None or fsize < int(file['filesize']):
+                            fsize = int(file['filesize'])
+                            fid = file_id
+                    if fid:
+                        file_ids = [fid]
 
             if result['ref'].mediatype == 'episode' and (len(file_ids) == 0 or resolve_files == 'exact'):
                 resolve_files = 'exact'
@@ -2448,7 +2461,12 @@ def play(core, params):
                 if resolve_files == 'videos':
                     request = core.debrid.realdebrid_delete(auth, id)
                     core.request.execute(core, request)
-                    return resolve_rd(resolve_files='all')
+                    if len(file_ids) < len(all_files):
+                        return resolve_rd(resolve_files='all')
+                    elif result['ref'].mediatype == 'episode':
+                        return resolve_rd(resolve_files='exact')
+                    else:
+                        return files
                 elif resolve_files == 'all' and result['ref'].mediatype == 'episode':
                     request = core.debrid.realdebrid_delete(auth, id)
                     core.request.execute(core, request)
