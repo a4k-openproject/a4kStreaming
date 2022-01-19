@@ -1,3 +1,6 @@
+* [v1.38.0](https://github.com/newt-sc/a4kStreaming/releases/tag/plugin.video.a4kstreaming%2Fplugin.video.a4kstreaming-1.38.0):
+  * Dolby Vision stream detection and filtering (DV sources disabled by default)
+
 * [v1.37.0](https://github.com/newt-sc/a4kStreaming/releases/tag/plugin.video.a4kstreaming%2Fplugin.video.a4kstreaming-1.37.0):
   * .m2ts resolve support for RD
 

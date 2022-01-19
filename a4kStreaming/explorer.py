@@ -2289,12 +2289,19 @@ def play(core, params):
             not results[x]['quality'] == 'SD',
             not results[x]['quality'] == 'CAM',
             -results[x]['size'],
-            not results[x]['hdr'] == 'HDR',
+            'DV' not in results[x]['hdr'],
+            'HDR10+' not in results[x]['hdr'],
+            'HDR10' not in results[x]['hdr'],
+            'HDR' not in results[x]['hdr'],
+            '12BIT' not in results[x]['hdr'],
+            '10BIT' not in results[x]['hdr'],
+            '8BIT' not in results[x]['hdr'],
             not results[x]['videocodec'] == 'H265',
             'TRUEHD' not in results[x]['audiocodec'],
-            'DTS' not in results[x]['audiocodec'],
             'ATMOS' not in results[x]['audiocodec'],
             'HD-MA' not in results[x]['audiocodec'],
+            'DTS' not in results[x]['audiocodec'],
+            'DD' not in results[x]['audiocodec'],
             results[x]['release_title'],
         )
 
@@ -2317,6 +2324,11 @@ def play(core, params):
             results_keys = results_keys_filtered
         else:
             core.kodi.notification('No results for specified movie size. Showing all results.')
+
+    if not core.kodi.get_bool_setting('general.dolby_vision_allowed'):
+        results_keys = [key for key in results_keys if results[key]['hdr'] != 'DV']
+    else:
+        results_keys = [key for key in results_keys if not (results[key]['hdr'] == 'DV' and 'mkv' in results[key])]
 
     result_style = '[LIGHT]%s[/LIGHT]'
     autoplay = core.kodi.get_bool_setting('general.autoplay') and not params.force_sourceselect
