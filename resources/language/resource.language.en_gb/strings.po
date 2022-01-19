@@ -64,6 +64,10 @@ msgctxt "#33108"
 msgid "Max movie size (GB)"
 msgstr ""
 
+msgctxt "#33109"
+msgid "Allow Dolby Vision sources"
+msgstr ""
+
 # Season Title Templates
 msgctxt "#33111"
 msgid "Season 1 (2020) - 10 Episodes"

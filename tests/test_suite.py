@@ -56,6 +56,7 @@ def __invoke(a4kstreaming_api, action, params={}, settings={}, prerun=None, remo
     fn.settings = {
         'general.timeout': '30',
         'general.max_quality': '3',
+        'general.dolby_vision_allowed': 'false',
         'general.autoplay': 'false',
         'general.mark_as_watched_rating': '7',
         'general.page_size': '29',

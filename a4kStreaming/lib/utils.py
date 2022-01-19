@@ -226,13 +226,22 @@ def cleanup_result(result, no_meta=False):
     result['videocodec'] = videocodec
 
     hdr = ''
-    if '12BIT' in title: hdr = 'HDR'
     if 'HDR' in title: hdr = 'HDR'
-    if '10BIT' in title: hdr = '10BIT'
-    if '8BIT' in title: hdr = '8BIT'
+    if 'HDR10' in title: hdr = 'HDR10'
+    if 'HDR10+' in title: hdr = 'HDR10+'
+    if 'DV' in title: hdr = 'DV'
+    if 'DOLBY VISION' in title: hdr = 'DV'
     if 'SDR' in title: hdr = 'SDR'
 
-    result['hdr'] = hdr
+    bits = ''
+    if '12BIT' in title: bits = ' 12BIT'
+    if '10BIT' in title: bits = ' 10BIT'
+    if '8BIT' in title: bits = ' 8BIT'
+
+    result['hdr'] = hdr + bits
+
+    if 'MKV' in title:
+        result['mkv'] = True
 
     rip = ''
     if 'WEBRIP' in title: rip = 'WEBRIP'
@@ -247,6 +256,8 @@ def cleanup_result(result, no_meta=False):
     if 'BD-RIP' in title: rip = 'BLURAY'
     if 'BD.RIP' in title: rip = 'BLURAY'
     if 'BDRIP' in title: rip = 'BLURAY'
+    if 'HDTV' in title: rip = 'HDTV'
+    if 'UHD' in title: rip = 'UHD'
 
     result['rip'] = rip
 
@@ -274,11 +285,12 @@ def cleanup_result(result, no_meta=False):
     result['audiocodec'] = audiocodec
 
     title = re.sub(r'\'|\’', '', title)
+    title = re.sub(r'COMPLETE|INTERNAL|AUHDTV|SUB', ' ', title)
     title = re.sub(r'HEVC|X265|X\.265|H265|H\.265|X264|X\.264|H264|H\.264|AVC|XVID|DIVX|WMV|MKV', ' ', title)
-    title = re.sub(r'12BIT|10BIT|HDR|8BIT|SDR', ' ', title)
-    title = re.sub(r'WEBRIP|WEB\-DL|WEB\.DL|WEBDL|WEB|DVD\-RIP|DVD\.RIP|DVDRIP|DVD|BLURAY|BD\-RIP|BD\.RIP|BDRIP', ' ', title)
+    title = re.sub(r'HDR10\+|HDR10|HDR|12BIT|10BIT|8BIT|SDR|DOLBY VISION', ' ', title)
+    title = re.sub(r'WEBRIP|WEB\-DL|WEB\.DL|WEBDL|WEB|DVD\-RIP|DVD\.RIP|DVDRIP|DVD|BLURAY|BD\-RIP|BD\.RIP|BDRIP|HDTV|UHD|FULLHD', ' ', title)
     title = re.sub(r'AAC|DTS|HDMA|HD\-MA|HD\.MA|ATMOS|TRUEHD|TRUE\-HD|TRUE\.HD|DD\+|DDP|DD|EAC3|AC3|MP3|WMA', ' ', title)
-    title = re.sub(r'COMPLETE', ' ', title)
+    title = re.sub(r'HD|SD|DV', ' ', title)
     title = re.sub(r'\:|\\|\/|\,|\||\!|\?|\(|\)|\"|\+|\[|\]|\_|\.|\{|\}', ' ', title)
 
     if result['ref'].season:
@@ -348,11 +360,8 @@ def cleanup_result(result, no_meta=False):
         result['title'] += '  |  %s' % get_color_string(result['quality'], 'white')
 
     if not no_meta:
-        if result['hdr'] == 'HDR':
+        if result['hdr'] != '':
             result['title'] += ' %s' % get_color_string(result['hdr'], 'white')
-        elif result['hdr'] != '':
-            result['title'] += ' %s' % result['hdr']
-
         if result['videocodec'] != '':
             result['title'] += '  |  %s' % result['videocodec']
         if result['audiocodec'] != '':
