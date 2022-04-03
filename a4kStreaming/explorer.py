@@ -736,7 +736,7 @@ def search(core, params):
 
     request = {
         'method': 'GET',
-        'url': 'https://v2.sg.media-imdb.com/suggestion/%s/%s.json' % (query[:1], query),
+        'url': 'https://v2.sg.media-imdb.com/suggestion/%s/%s.json' % (query[:1].lower(), query),
     }
 
     response = core.request.execute(core, request)
@@ -1168,6 +1168,19 @@ def query(core, params):
         releasedOnOrBefore['month'] = int(params.month_end)
     if params.day_end:
         releasedOnOrBefore['day'] = int(params.day_end)
+
+    try:
+        d1 = core.datetime(releasedOnOrAfter['year'], releasedOnOrAfter['month'], releasedOnOrAfter['day'])
+        d2 = core.datetime(releasedOnOrBefore['year'], releasedOnOrBefore['month'], releasedOnOrBefore['day'])
+        if d1 > d2:
+            releasedOnOrAfter['year'] = d2.year
+            releasedOnOrAfter['month'] = 1
+            releasedOnOrAfter['day'] = 1
+            releasedOnOrBefore['year'] = d1.year
+            releasedOnOrBefore['month'] = d1.month
+            releasedOnOrBefore['day'] = d1.day
+    except:
+        pass
 
     page_size = core.kodi.get_int_setting('general.page_size')
     lists_page_size = core.kodi.get_int_setting('general.lists_page_size')
