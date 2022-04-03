@@ -4,7 +4,7 @@
 <addons>
 <addon id="plugin.video.a4kstreaming"
        name="a4kStreaming"
-       version="1.39.0"
+       version="1.40.0"
        provider-name="Unknown">
     <requires>
       <import addon="script.module.requests"/>
@@ -35,6 +35,9 @@ Designed for low-end devices and Estuary skin.
             <screenshot>screenshot-06.jpg</screenshot>
         </assets>
         <news>
+[v1.40.0]:
+  * Fix issue when searching returns no results
+
 [v1.39.0]:
   * Handle season browsing issue when IMDB returns start episode date after the end episode date
   * Fix issue when searching with upper case first letter

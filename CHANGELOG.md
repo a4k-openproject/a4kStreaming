@@ -1,3 +1,6 @@
+* [v1.40.0](https://github.com/newt-sc/a4kStreaming/releases/tag/plugin.video.a4kstreaming%2Fplugin.video.a4kstreaming-1.40.0):
+  * Fix issue when searching returns no results
+
 * [v1.39.0](https://github.com/newt-sc/a4kStreaming/releases/tag/plugin.video.a4kstreaming%2Fplugin.video.a4kstreaming-1.39.0):
   * Handle season browsing issue when IMDB returns start episode date after the end episode date
   * Fix issue when searching with upper case first letter

@@ -745,7 +745,7 @@ def search(core, params):
         return []
 
     results = core.json.loads(response.content)
-    if len(results['d']) == 0:
+    if 'd' not in results or len(results['d']) == 0:
         return []
 
     items = []
