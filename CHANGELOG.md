@@ -1,3 +1,6 @@
+* [v1.42.0](https://github.com/newt-sc/a4kStreaming/releases/tag/plugin.video.a4kstreaming%2Fplugin.video.a4kstreaming-1.42.0):
+  * Update episodes date ranges
+
 * [v1.41.0](https://github.com/newt-sc/a4kStreaming/releases/tag/plugin.video.a4kstreaming%2Fplugin.video.a4kstreaming-1.41.0):
   * Fix trailers
 
