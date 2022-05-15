@@ -157,7 +157,7 @@ def test_play_movie_pm_using_recommended():
 def test_trailer():
     a4kstreaming_api = api.A4kStreamingApi({'kodi': True})
 
-    trailer = __invoke(a4kstreaming_api, 'trailer', { 'id': 'vi727367449' })
+    trailer = __invoke(a4kstreaming_api, 'trailer', { 'id': 'tt10048342', 'vi': 'vi1185857817' })
 
     assert len(trailer.results) > 0
 
