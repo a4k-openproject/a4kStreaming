@@ -64,7 +64,7 @@ def __set_title_contextmenu(core, title, list_item):
     has_rating = title.get('userRating', None) is not None
     context_menu_items = [
         ('IMDb: %s rating' % ('Update' if has_rating else 'Set'), 'RunPlugin(%s?action=profile&type=rate&id=%s)' % (core.url, title['id'])),
-        ('IMDb: Trailer', 'RunPlugin(%s?action=trailer&id=%s&play=true)' % (core.url, trailer)),
+        ('IMDb: Trailer', 'RunPlugin(%s?action=trailer&id=%s&vi=%s&play=true)' % (core.url, title['id'], trailer)),
         ('IMDb: Cast & Crew', 'ActivateWindow(Videos,%s?action=query&type=browse&id=%s,return)' % (core.url, title['id'])),
     ]
 
@@ -456,7 +456,7 @@ def __add_titles(core, titles, browse, silent=False):
             'mpaa': title.get('certificate', None),
             'genre': title.get('genres', None),
             'country': title.get('countriesOfOrigin', None),
-            'trailer': '%s?action=trailer&id=%s' % (core.url, title['primaryVideos'][0]) if title.get('primaryVideos', None) else None,
+            'trailer': '%s?action=trailer&id=%s&vi=%s' % (core.url, title['id'], title['primaryVideos'][0]) if title.get('primaryVideos', None) else None,
             'plot': title.get('plot', None),
             'tagline': next(iter(title.get('taglines', [])), None),
             'overlay': overlay,
@@ -1943,7 +1943,7 @@ def profile(core, params):
     return True
 
 def trailer(core, params):
-    if not params.id:
+    if not params.id or not params.vi:
         core.kodi.notification('Trailer not found')
         core.utils.end_action(core, False)
         return
@@ -1953,9 +1953,10 @@ def trailer(core, params):
 
     request = {
         'method': 'GET',
-        'url': 'https://www.imdb.com/ve/data/VIDEO_PLAYBACK_DATA',
+        'url': 'https://www.imdb.com/_next/data/kIv45L5XxdjXg8DM2TV9c/video/%s.json' % params.vi,
         'params': {
-            'key': core.base64.b64encode(core.json.dumps({ 'type': 'VIDEO_PLAYER', 'subType': 'FORCE_LEGACY', 'id': params.id }).encode('ascii'))
+            'playlistId': params.id,
+            'viconst': params.vi,
         },
         'headers': {
             'content-type': 'application/json',
@@ -1972,8 +1973,8 @@ def trailer(core, params):
 
     parsed_response = core.json.loads(response.content)
     try:
-        all = parsed_response[0]['videoLegacyEncodings']
-        filtered = filter(lambda v: v['definition'] != 'AUTO', all)
+        all = parsed_response['pageProps']['videoPlaybackData']['video']['playbackURLs']
+        filtered = filter(lambda v: v['displayName']['value'] != 'AUTO', all)
         trailerUrl = next(iter(filtered), iter(all))['url']
     except:
         core.kodi.close_busy_dialog()
