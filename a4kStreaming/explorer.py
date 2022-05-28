@@ -1946,7 +1946,11 @@ def profile(core, params):
         core.utils.end_action(core, True)
     return True
 
+__build_id = None
+
 def trailer(core, params):
+    global __build_id
+
     if not params.id or not params.vi:
         core.kodi.notification('Trailer not found')
         core.utils.end_action(core, False)
@@ -1955,9 +1959,33 @@ def trailer(core, params):
     if params.play == 'true':
         core.kodi.open_busy_dialog()
 
+    if not __build_id:
+        request = {
+            'method': 'GET',
+            'url': 'https://www.imdb.com/video/vi4240746009'
+        }
+
+        response = core.request.execute(core, request)
+        if response.status_code != 200:
+            core.kodi.close_busy_dialog()
+            core.utils.end_action(core, False)
+            core.logger.notice(response.text)
+            core.kodi.notification('Trailer not found')
+            return
+
+        __build_id = core.utils.re.search(r'"buildId":"(.*?)"', response.text)
+        if __build_id:
+            __build_id = __build_id.group(1).strip()
+        else:
+            core.kodi.close_busy_dialog()
+            core.utils.end_action(core, False)
+            core.logger.notice(response.text)
+            core.kodi.notification('Trailer not found')
+            return
+
     request = {
         'method': 'GET',
-        'url': 'https://www.imdb.com/_next/data/kIv45L5XxdjXg8DM2TV9c/video/%s.json' % params.vi,
+        'url': 'https://www.imdb.com/_next/data/%s/video/%s.json' % (__build_id, params.vi),
         'params': {
             'playlistId': params.id,
             'viconst': params.vi,
