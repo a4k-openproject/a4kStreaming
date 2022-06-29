@@ -243,7 +243,7 @@ def test_play_movie_ad():
 def test_seasons():
     a4kstreaming_api = api.A4kStreamingApi({'kodi': True})
 
-    fn = __invoke(a4kstreaming_api, 'query', { 'type': 'seasons', 'id': 'tt3288518' })
+    fn = __invoke(a4kstreaming_api, 'query', { 'type': 'seasons', 'id': 'tt1442437' })
 
     assert len(fn.results) > 0
 

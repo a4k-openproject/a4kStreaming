@@ -1,3 +1,6 @@
+* [v1.44.0](https://github.com/newt-sc/a4kStreaming/releases/tag/plugin.video.a4kstreaming%2Fplugin.video.a4kstreaming-1.44.0):
+  * Fix season watch status
+
 * [v1.43.0](https://github.com/newt-sc/a4kStreaming/releases/tag/plugin.video.a4kstreaming%2Fplugin.video.a4kstreaming-1.43.0):
   * Fix trailers (2nd attempt)
 
