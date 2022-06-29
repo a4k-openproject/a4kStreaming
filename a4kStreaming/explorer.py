@@ -205,9 +205,11 @@ def __add_seasons(core, title):
                         seasons[episode_season]['year_end'] = d2.year
                         seasons[episode_season]['month_end'] = min(int(d2.month) + 1, 12)
                         seasons[episode_season]['day_end'] = d2.day + 1
-                        seasons[episode_season].last_episode = episode
                 except:
                     pass
+
+                try: seasons[episode_season].last_episode = episode
+                except: pass
 
             seasons[episode_season].episodes += 1
             seasons[episode_season].episode_ids.append(episode['id'])
