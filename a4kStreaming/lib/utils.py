@@ -779,7 +779,7 @@ def get_graphql_query(body):
 
     has_work = True
     items = fragments.keys()
-    while(has_work):
+    while (has_work):
         (has_added, left) = add_fragments(items)
         has_work = has_added
         items = left

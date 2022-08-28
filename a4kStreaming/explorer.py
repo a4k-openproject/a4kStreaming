@@ -151,7 +151,7 @@ def __add_seasons(core, title):
         try:
             current_rld = episode['releaseDate']
             if prev_rld:
-                if current_rld['year'] < prev_rld['year'] or current_rld['month'] < prev_rld['month'] or current_rld['day'] < prev_rld['day']:
+                if current_rld['year'] <= prev_rld['year'] and current_rld['month'] <= prev_rld['month'] and current_rld['day'] <= prev_rld['day']:
                     prev_rld['year'] = current_rld['year']
                     prev_rld['month'] = max(current_rld['month'] - 1, 1)
                     prev_rld['day'] = 1
@@ -198,13 +198,14 @@ def __add_seasons(core, title):
                         seasons[episode_season]['day'] = d2.day
                 except:
                     pass
+
                 try:
                     d1 = core.datetime(seasons[episode_season]['year_end'], seasons[episode_season]['month_end'], seasons[episode_season]['day_end'])
                     d2 = core.datetime(episode_rld['year'], episode_rld['month'], episode_rld['day'])
                     if d1 < d2:
                         seasons[episode_season]['year_end'] = d2.year
-                        seasons[episode_season]['month_end'] = min(int(d2.month) + 1, 12)
-                        seasons[episode_season]['day_end'] = d2.day + 1
+                        seasons[episode_season]['month_end'] = d2.month
+                        seasons[episode_season]['day_end'] = d2.day
                 except:
                     pass
 
@@ -665,7 +666,7 @@ def years(core, params):
         start = 1900
         end = now + 1
 
-        while(start < end):
+        while (start < end):
             items.append({
                 'label': '%s-%s' % (start, start + 9),
                 'type': start,
@@ -678,7 +679,7 @@ def years(core, params):
         start = int(params.type)
         end = start + 10
 
-        while(start < end):
+        while (start < end):
             if start > now:
                 break
 
@@ -1948,11 +1949,7 @@ def profile(core, params):
         core.utils.end_action(core, True)
     return True
 
-__build_id = None
-
 def trailer(core, params):
-    global __build_id
-
     if not params.id or not params.vi:
         core.kodi.notification('Trailer not found')
         core.utils.end_action(core, False)
@@ -1961,29 +1958,28 @@ def trailer(core, params):
     if params.play == 'true':
         core.kodi.open_busy_dialog()
 
-    if not __build_id:
-        request = {
-            'method': 'GET',
-            'url': 'https://www.imdb.com/video/vi4240746009'
-        }
+    request = {
+        'method': 'GET',
+        'url': 'https://www.imdb.com/video/vi4240746009'
+    }
 
-        response = core.request.execute(core, request)
-        if response.status_code != 200:
-            core.kodi.close_busy_dialog()
-            core.utils.end_action(core, False)
-            core.logger.notice(response.text)
-            core.kodi.notification('Trailer not found')
-            return
+    response = core.request.execute(core, request)
+    if response.status_code != 200:
+        core.kodi.close_busy_dialog()
+        core.utils.end_action(core, False)
+        core.logger.notice(response.text)
+        core.kodi.notification('Trailer not found')
+        return
 
-        __build_id = core.utils.re.search(r'"buildId":"(.*?)"', response.text)
-        if __build_id:
-            __build_id = __build_id.group(1).strip()
-        else:
-            core.kodi.close_busy_dialog()
-            core.utils.end_action(core, False)
-            core.logger.notice(response.text)
-            core.kodi.notification('Trailer not found')
-            return
+    __build_id = core.utils.re.search(r'"buildId":"(.*?)"', response.text)
+    if __build_id:
+        __build_id = __build_id.group(1).strip()
+    else:
+        core.kodi.close_busy_dialog()
+        core.utils.end_action(core, False)
+        core.logger.notice(response.text)
+        core.kodi.notification('Trailer not found')
+        return
 
     request = {
         'method': 'GET',
@@ -2073,7 +2069,7 @@ def cache_sources(core, params, results=None):
     debrid = debrid_map[debrid[selection]]
     selection = None
 
-    while(selection != -1):
+    while (selection != -1):
         results_keys = list(results.keys())
         def sorter():
             return lambda x: (
