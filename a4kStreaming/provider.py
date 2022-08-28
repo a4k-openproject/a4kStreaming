@@ -434,7 +434,7 @@ def __search(core, params):
     exec_thread = core.threading.Thread(target=execute)
     exec_thread.start()
 
-    while(not canceled() and not search.done):
+    while (not canceled() and not search.done):
         core.kodi.xbmc.sleep(1000)
         update_progress()
 

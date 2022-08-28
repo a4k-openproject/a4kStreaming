@@ -162,7 +162,7 @@ def __migrate_status(core, params):
         exec_thread = core.threading.Thread(target=execute)
         exec_thread.start()
 
-        while(not progress.iscanceled() and not state.done):
+        while (not progress.iscanceled() and not state.done):
             core.kodi.xbmc.sleep(1000)
             update_progress()
 
@@ -183,7 +183,7 @@ def __migrate_status(core, params):
         exec_thread = core.threading.Thread(target=execute)
         exec_thread.start()
 
-        while(not progress.iscanceled() and not state.done):
+        while (not progress.iscanceled() and not state.done):
             core.kodi.xbmc.sleep(1000)
             update_progress()
 
