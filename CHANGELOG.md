@@ -1,3 +1,6 @@
+* [v1.46.0](https://github.com/newt-sc/a4kStreaming/releases/tag/plugin.video.a4kstreaming%2Fplugin.video.a4kstreaming-1.46.0):
+  * Fix trailers
+
 * [v1.45.0](https://github.com/newt-sc/a4kStreaming/releases/tag/plugin.video.a4kstreaming%2Fplugin.video.a4kstreaming-1.45.0):
   * Fix some cases when season browsing is not showing all episodes
   * Fix trailers search failing when leaving KODI open for some time
