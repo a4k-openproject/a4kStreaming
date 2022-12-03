@@ -1,3 +1,6 @@
+* [v1.47.0](https://github.com/newt-sc/a4kStreaming/releases/tag/plugin.video.a4kstreaming%2Fplugin.video.a4kstreaming-1.47.0):
+  * Prevent recursion on cache miss and autoplay on
+
 * [v1.46.0](https://github.com/newt-sc/a4kStreaming/releases/tag/plugin.video.a4kstreaming%2Fplugin.video.a4kstreaming-1.46.0):
   * Fix trailers
 

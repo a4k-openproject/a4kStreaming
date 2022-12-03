@@ -6,6 +6,7 @@ import json
 import re
 import importlib
 from contextlib import contextmanager
+from threading import Timer
 
 kodi = sys.modules[__name__]
 api_mode = os.getenv('A4KSTREAMING_API_MODE')
@@ -69,7 +70,11 @@ def get_kodi_setting(setting, log_error=True):
     return json_rpc('Settings.GetSettingValue', {"setting": setting}, log_error)
 
 def notification(text, time=3000):
-    xbmc.executebuiltin('Notification(%s, %s, %d, %s)' % (addon_name, text, time, addon_icon))
+    def __run(): xbmc.executebuiltin('Notification(%s, %s, %d, %s)' % (addon_name, text, time, addon_icon))
+    try: notification.t.cancel()
+    except: pass
+    notification.t = Timer(0.5, __run)
+    notification.t.start()
 
 def open_busy_dialog():
     xbmc.executebuiltin('ActivateWindow(busydialognocancel)')

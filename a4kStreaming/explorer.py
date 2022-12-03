@@ -2657,6 +2657,7 @@ def play(core, params):
             goto .afterselection  # type: ignore # noqa: F821
         else:
             core.kodi.notification('Failed to resolve debrid')
+            autoplay = False
             goto .selection  # type: ignore # noqa: F821
 
     if result.get('debrid', 'PM') == 'RD':
