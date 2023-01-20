@@ -1,6 +1,13 @@
 # -*- coding: utf-8 -*-
 
-from .lib.goto import with_goto
+import sys
+
+use_goto = sys.version_info <= (3, 8)
+if use_goto:
+    from .lib.goto import with_goto
+else:
+    def with_goto(func):
+        return func
 
 __action_menu_style = '[COLOR white][B]%s[/B][/COLOR]'
 
@@ -2378,7 +2385,8 @@ def play(core, params):
     autoplay = core.kodi.get_bool_setting('general.autoplay') and not params.force_sourceselect
 
     selection = 1
-    label .selection  # type: ignore # noqa: F821
+    if use_goto:
+        label .selection  # type: ignore # noqa: F821
     if not autoplay:
         selection = core.kodi.xbmcgui.Dialog().select(
             'Choose source',
@@ -2406,7 +2414,8 @@ def play(core, params):
     else:
         selection -= 1
 
-    label .afterselection  # type: ignore # noqa: F821
+    if use_goto:
+        label .afterselection  # type: ignore # noqa: F821
     result = results[results_keys[selection]]
     video_ext = list(map(lambda v: '.%s' % v.upper(), core.utils.video_containers()))
     size = 1048576 * 100
@@ -2680,7 +2689,8 @@ def play(core, params):
         except:
             core.logger.notice(core.traceback.format_exc())
 
-    label .play  # type: ignore # noqa: F821
+    if use_goto:
+        label .play  # type: ignore # noqa: F821
     item = core.kodi.xbmcgui.ListItem(path=link, offscreen=True)
     item.setProperty('IsPlayable', 'true')
     item.setContentLookup(False)
