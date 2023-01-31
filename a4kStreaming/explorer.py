@@ -184,7 +184,7 @@ def __add_seasons(core, title):
                     'day': episode_rld['day'],
                     'year_end': episode_rld['year'],
                     'month_end': min(int(episode_rld['month']) + 1, 12),
-                    'day_end': episode_rld['day'] + 1,
+                    'day_end': episode_rld['day'],
                     'last_episode': episode,
                 })
 
@@ -193,7 +193,7 @@ def __add_seasons(core, title):
                     seasons[episode_season].update({
                         'year': prev_season_last_ep_release_date['year'],
                         'month': prev_season_last_ep_release_date['month'],
-                        'day': prev_season_last_ep_release_date['day'] + 1,
+                        'day': prev_season_last_ep_release_date['day'],
                     })
             else:
                 try:
@@ -207,7 +207,14 @@ def __add_seasons(core, title):
                     pass
 
                 try:
-                    d1 = core.datetime(seasons[episode_season]['year_end'], seasons[episode_season]['month_end'], seasons[episode_season]['day_end'])
+                    day_end = seasons[episode_season]['day_end']
+                    while True:
+                        try:
+                            d1 = core.datetime(seasons[episode_season]['year_end'], seasons[episode_season]['month_end'], day_end)
+                            seasons[episode_season]['day_end'] = day_end
+                            break
+                        except: day_end -= 1
+
                     d2 = core.datetime(episode_rld['year'], episode_rld['month'], episode_rld['day'])
                     if d1 < d2:
                         seasons[episode_season]['year_end'] = d2.year
