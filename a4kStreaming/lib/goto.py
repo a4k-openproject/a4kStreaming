@@ -5,6 +5,7 @@ import struct
 import array
 import types
 import functools
+import sys
 
 
 try:
@@ -31,6 +32,10 @@ class _Bytecode:
             # in the future might refer to code units (address in bytes / 2).
             # https://bugs.python.org/issue26647
             self.jump_unit = 8 // oparg
+        elif dis.opname[opcode] == 'LOAD_GLOBAL':
+            self.argument = struct.Struct('B')
+            self.have_argument = 0
+            self.jump_unit = 2
         else:
             self.argument = struct.Struct('<H')
             self.have_argument = dis.HAVE_ARGUMENT
@@ -47,7 +52,7 @@ _BYTECODE = _Bytecode()
 def _make_code(code, codestring):
     try:
         return code.replace(co_code=codestring) # new in 3.8+
-    except AttributeError:
+    except:
         args = [
             code.co_argcount,  code.co_nlocals,     code.co_stacksize,
             code.co_flags,     codestring,          code.co_consts,
@@ -61,40 +66,12 @@ def _make_code(code, codestring):
         except AttributeError:
             pass
 
-        try:
-            args.insert(1, code.co_posonlyargcount)  # PY3
-        except AttributeError:
-            pass
-
         return types.CodeType(*args)
 
 
 def _parse_instructions(code):
-    extended_arg = 0
-    extended_arg_offset = None
-    pos = 0
-
-    while pos < len(code):
-        offset = pos
-        if extended_arg_offset is not None:
-            offset = extended_arg_offset
-
-        opcode = struct.unpack_from('B', code, pos)[0]
-        pos += 1
-
-        oparg = None
-        if opcode >= _BYTECODE.have_argument:
-            oparg = extended_arg | _BYTECODE.argument.unpack_from(code, pos)[0]
-            pos += _BYTECODE.argument.size
-
-            if opcode == dis.EXTENDED_ARG:
-                extended_arg = oparg << _BYTECODE.argument_bits
-                extended_arg_offset = offset
-                continue
-
-        extended_arg = 0
-        extended_arg_offset = None
-        yield (dis.opname[opcode], oparg, offset)
+    for ins in dis.get_instructions(code):
+        yield (ins.opname, ins.arg, ins.offset, ins)
 
 
 def _get_instruction_size(opname, oparg=0):
@@ -155,26 +132,25 @@ def _find_labels_and_gotos(code):
     block_stack = []
     block_counter = 0
 
-    opname1 = oparg1 = offset1 = None
-    opname2 = oparg2 = offset2 = None
-    opname3 = oparg3 = offset3 = None
+    opname1 = oparg1 = offset1 = full1 = None
+    opname2 = oparg2 = offset2 = full2 = None
+    opname3 = oparg3 = offset3 = full3 = None
 
-    for opname4, oparg4, offset4 in _parse_instructions(code.co_code):
+    for opname4, oparg4, offset4, full4 in _parse_instructions(code):
         if opname1 in ('LOAD_GLOBAL', 'LOAD_NAME'):
             if opname2 == 'LOAD_ATTR' and opname3 == 'POP_TOP':
-                name = code.co_names[oparg1]
-                if name == 'label':
-                    if oparg2 in labels:
+                if full1.argval == 'label':
+                    if full2.argval in labels:
                         raise SyntaxError('Ambiguous label {0!r}'.format(
-                            code.co_names[oparg2]
+                            full2.argval
                         ))
-                    labels[oparg2] = (offset1,
+                    labels[full2.argval] = (offset1,
                                       offset4,
                                       tuple(block_stack))
-                elif name == 'goto':
+                elif full1.argval == 'goto':
                     gotos.append((offset1,
                                   offset4,
-                                  oparg2,
+                                  full2.argval,
                                   tuple(block_stack)))
         elif opname1 in ('SETUP_LOOP',
                          'SETUP_EXCEPT', 'SETUP_FINALLY',
@@ -184,9 +160,9 @@ def _find_labels_and_gotos(code):
         elif opname1 == 'POP_BLOCK' and block_stack:
             block_stack.pop()
 
-        opname1, oparg1, offset1 = opname2, oparg2, offset2
-        opname2, oparg2, offset2 = opname3, oparg3, offset3
-        opname3, oparg3, offset3 = opname4, oparg4, offset4
+        opname1, oparg1, offset1, full1 = opname2, oparg2, offset2, full2
+        opname2, oparg2, offset2, full2 = opname3, oparg3, offset3, full3
+        opname3, oparg3, offset3, full3 = opname4, oparg4, offset4, full4
 
     return labels, gotos
 
@@ -207,9 +183,7 @@ def _patch_code(code):
         try:
             _, target, target_stack = labels[label]
         except KeyError:
-            raise SyntaxError('Unknown label {0!r}'.format(
-                code.co_names[label]
-            ))
+            raise SyntaxError('Unknown label {0!r}'.format(label))
 
         target_depth = len(target_stack)
         if origin_stack[:target_depth] != target_stack:
@@ -218,13 +192,21 @@ def _patch_code(code):
         ops = []
         for i in range(len(origin_stack) - target_depth):
             ops.append('POP_BLOCK')
-        ops.append(('JUMP_ABSOLUTE', target // _BYTECODE.jump_unit))
+        
+        if sys.version_info >= (3, 11):
+            jump_direction = 'JUMP_FORWARD' if target > pos else 'JUMP_BACKWARD'
+            jump_target = (target-pos if target > pos else pos-target)  // _BYTECODE.jump_unit
+            jump_target = jump_target -1 if target > pos else jump_target
+        else:
+            jump_direction = 'JUMP_ABSOLUTE'
+            jump_target = target // _BYTECODE.jump_unit
+        ops.append((jump_direction, jump_target))
 
         if pos + _get_instructions_size(ops) > end:
             # not enough space, add code at buffer end and jump there
             buf_end = len(buf)
 
-            go_to_end_ops = [('JUMP_ABSOLUTE', buf_end // _BYTECODE.jump_unit)]
+            go_to_end_ops = [('JUMP_FORWARD', buf_end // _BYTECODE.jump_unit)]
 
             if pos + _get_instructions_size(go_to_end_ops) > end:
                 # not sure if reachable
