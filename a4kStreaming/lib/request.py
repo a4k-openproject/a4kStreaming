@@ -2,6 +2,10 @@
 
 import requests
 import urllib3
+
+from requests.adapters import HTTPAdapter
+from urllib3 import Retry
+
 from . import logger
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -18,7 +22,9 @@ def __retry_on_503(core, request, response, retry=True):
 
 def execute(core, request, session=None):
     if not session:
-        session = requests
+        session = requests.Session()
+        retries = Retry(total=3, backoff_factor=0.1, status_forcelist=[500, 502, 503, 504])
+        session.mount("https://", HTTPAdapter(max_retries=retries, pool_maxsize=100))
 
     request.setdefault('timeout', 10)
     headers = request.setdefault('headers', {})

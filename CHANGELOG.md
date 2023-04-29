@@ -1,3 +1,7 @@
+* [v1.50.0](https://github.com/newt-sc/a4kStreaming/releases/tag/plugin.video.a4kstreaming%2Fplugin.video.a4kstreaming-1.50.0):
+  * Fix goto for KODI 20
+  * More retries on requests errors
+
 * [v1.49.0](https://github.com/newt-sc/a4kStreaming/releases/tag/plugin.video.a4kstreaming%2Fplugin.video.a4kstreaming-1.49.0):
   * Fix not all episodes showing in some cases
 
