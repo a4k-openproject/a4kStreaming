@@ -99,6 +99,9 @@ def __set_title_contextmenu(core, title, list_item):
         context_menu_items.extend([
             ('Debrid: Add sources', 'RunPlugin(%s?action=cache_sources&id=%s)' % (core.url, title['id']))
         ])
+        context_menu_items.extend([
+            ('Force file select', 'PlayMedia(%s?action=play&id=%s&force_fileselect=true)' % (core.url, title['id']))
+        ])
         if core.kodi.get_bool_setting('general.autoplay'):
             context_menu_items.extend([
                 ('Force source select', 'PlayMedia(%s?action=play&id=%s&force_sourceselect=true)' % (core.url, title['id']))
@@ -2619,7 +2622,7 @@ def play(core, params):
 
         filtered = False
         try:
-            if len(files) > 1 and result['ref'].mediatype == 'episode':
+            if len(files) > 1 and result['ref'].mediatype == 'episode' and not params.force_fileselect:
                 episodes = util_filter_episodes(files, 'path')
                 if len(episodes) > 0:
                     files = episodes
