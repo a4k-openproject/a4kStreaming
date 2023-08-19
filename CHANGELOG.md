@@ -1,3 +1,6 @@
+* [v1.51.0](https://github.com/newt-sc/a4kStreaming/releases/tag/plugin.video.a4kstreaming%2Fplugin.video.a4kstreaming-1.51.0):
+  * New context menu option for forcing file selection
+
 * [v1.50.0](https://github.com/newt-sc/a4kStreaming/releases/tag/plugin.video.a4kstreaming%2Fplugin.video.a4kstreaming-1.50.0):
   * Fix goto for KODI 20
   * More retries on requests errors
