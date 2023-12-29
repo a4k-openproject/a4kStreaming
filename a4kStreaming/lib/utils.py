@@ -229,7 +229,7 @@ def cleanup_result(result, no_meta=False):
     if 'HDR' in title: hdr = 'HDR'
     if 'HDR10' in title: hdr = 'HDR10'
     if 'HDR10+' in title: hdr = 'HDR10+'
-    if 'DV' in title: hdr = 'DV'
+    if ' DV ' in title: hdr = 'DV'
     if 'DOLBY VISION' in title: hdr = 'DV'
     if 'SDR' in title: hdr = 'SDR'
 
@@ -248,7 +248,6 @@ def cleanup_result(result, no_meta=False):
     if 'WEB-DL' in title: rip = 'WEB-DL'
     if 'WEB.DL' in title: rip = 'WEB-DL'
     if 'WEBDL' in title: rip = 'WEB-DL'
-    if 'WEB' in title: rip = 'WEB'
     if 'DVD-RIP' in title: rip = 'DVD'
     if 'DVD.RIP' in title: rip = 'DVD'
     if 'DVDRIP' in title: rip = 'DVD'
@@ -271,7 +270,7 @@ def cleanup_result(result, no_meta=False):
     if 'TRUEHD' in title: audiocodec = 'TRUEHD'
     if 'TRUE-HD' in title: audiocodec = 'TRUEHD'
     if 'TRUE.HD' in title: audiocodec = 'TRUEHD'
-    if 'DD' in title: audiocodec = 'DD'
+    if ' DD ' in title: audiocodec = 'DD'
     if 'DD2' in title: audiocodec = 'DD'
     if 'DD5' in title: audiocodec = 'DD'
     if 'DD7' in title: audiocodec = 'DD'
@@ -285,12 +284,12 @@ def cleanup_result(result, no_meta=False):
     result['audiocodec'] = audiocodec
 
     title = re.sub(r'\'|\’', '', title)
-    title = re.sub(r'COMPLETE|INTERNAL|AUHDTV|SUB', ' ', title)
+    title = re.sub(r'COMPLETE|INTERNAL|AUHDTV| SUB ', ' ', title)
     title = re.sub(r'HEVC|X265|X\.265|H265|H\.265|X264|X\.264|H264|H\.264|AVC|XVID|DIVX|WMV|MKV', ' ', title)
     title = re.sub(r'HDR10\+|HDR10|HDR|12BIT|10BIT|8BIT|SDR|DOLBY VISION', ' ', title)
     title = re.sub(r'WEBRIP|WEB\-DL|WEB\.DL|WEBDL|WEB|DVD\-RIP|DVD\.RIP|DVDRIP|DVD|BLURAY|BD\-RIP|BD\.RIP|BDRIP|HDTV|UHD|FULLHD', ' ', title)
-    title = re.sub(r'AAC|DTS|HDMA|HD\-MA|HD\.MA|ATMOS|TRUEHD|TRUE\-HD|TRUE\.HD|DD\+|DDP|DD|EAC3|AC3|MP3|WMA', ' ', title)
-    title = re.sub(r'HD|SD|DV', ' ', title)
+    title = re.sub(r'AAC|DTS|HDMA|HD\-MA|HD\.MA|ATMOS|TRUEHD|TRUE\-HD|TRUE\.HD|DD\+|DDP| DD|EAC3|AC3|MP3|WMA', ' ', title)
+    title = re.sub(r'HD |SD |DV ', ' ', title)
     title = re.sub(r'\:|\\|\/|\,|\||\!|\?|\(|\)|\"|\+|\[|\]|\_|\.|\{|\}', ' ', title)
 
     if result['ref'].season:
@@ -332,7 +331,7 @@ def cleanup_result(result, no_meta=False):
         quality = "CAM"
 
     result['quality'] = quality
-    title = re.sub(r'4K|2160P|2160|1080P|1080|720P|720|480P|480', ' ', title)
+    title = re.sub(r'4K|2160P|2160|1080P|1080|1O8OP|720P|720|480P|480', ' ', title)
 
     targets_to_remove = [result['ref'].title, result['ref'].tvshowtitle, result['ref'].year] + bad_quality_indicators
     if isinstance(result['ref'].country, list):
@@ -340,18 +339,22 @@ def cleanup_result(result, no_meta=False):
     else:
         targets_to_remove.append(result['ref'].country)
 
+    title = re.sub(r'\&\&', 'AND', title)
+    title = re.sub(r'\&', 'AND', title)
+
     for target in targets_to_remove:
         if not target:
             continue
 
-        target = str(target).strip().upper()
+        target = re.sub(r'\:|\\|\/|\,|\||\!|\?|\(|\)|\"|\+|\[|\]|\_|\.|\{|\}', ' ', str(target))
+        target = re.sub(r'\s+', ' ', target)
+        target = target.strip().upper()
         if target == '':
             continue
 
         title = re.sub(re.escape(target.upper()), ' ', title)
 
     title = re.sub(r'\s+', ' ', title)
-    title = re.sub(r'\&', 'AND', title)
 
     result['release_title'] = title.strip()
     result['title'] = '%s GB' % result['size']

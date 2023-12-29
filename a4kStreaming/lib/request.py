@@ -26,7 +26,7 @@ def execute(core, request, session=None):
         retries = Retry(total=3, backoff_factor=0.1, status_forcelist=[500, 502, 503, 504])
         session.mount("https://", HTTPAdapter(max_retries=retries, pool_maxsize=100))
 
-    request.setdefault('timeout', 10)
+    request.setdefault('timeout', 60)
     headers = request.setdefault('headers', {})
     headers.setdefault('User-Agent', user_agent)
 
