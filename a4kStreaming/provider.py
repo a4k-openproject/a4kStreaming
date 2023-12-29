@@ -162,26 +162,14 @@ def __search(core, params):
         return {}
 
     sources = {}
+    for key in provider:
+        if not provider[key] or sources.get(key, None):
+            continue
 
-    use_recommended = core.kodi.get_bool_setting('provider.use_recommended')
-    recommended = core.utils.recommended
-
-    if use_recommended:
         try:
-            source = core.importlib.import_module(__sources_module_name(core) + ('.%s' % recommended.lower()))
-            sources[recommended] = source.sources()
+            source = core.importlib.import_module(__sources_module_name(core) + ('.%s' % key.lower()))
+            sources[key] = source.sources()
         except: pass
-
-    if len(sources) == 0 or not use_recommended:
-        use_recommended = False
-        for key in provider:
-            if not provider[key] or sources.get(key, None):
-                continue
-
-            try:
-                source = core.importlib.import_module(__sources_module_name(core) + ('.%s' % key.lower()))
-                sources[key] = source.sources()
-            except: pass
 
     threads = []
     search = lambda: None
@@ -301,7 +289,7 @@ def __search(core, params):
                         result['ref'] = params.title
 
                         size = 0
-                        if not use_recommended and status and check['filesize']:
+                        if status and check['filesize']:
                             tmpsize = float(check['filesize'][i]) / 1024 / 1024 / 1024
                             if result['package'] == 'single':
                                 size = tmpsize
@@ -411,9 +399,9 @@ def __search(core, params):
         time_after_start = core.utils.time_ms() - params.start_time
         if time_after_start < 1000:
             core.kodi.xbmc.sleep(int(round(1000 - time_after_start)))
-        if not use_recommended:
-            progress.create(core.kodi.addon_name, *progress_msg())
-            search.dialog = True
+
+        progress.create(core.kodi.addon_name, *progress_msg())
+        search.dialog = True
 
         chunk_size = len(sources)
         for chunk in core.utils.chunk(threads, chunk_size):

@@ -1,3 +1,9 @@
+* [v1.52.0](https://github.com/newt-sc/a4kStreaming/releases/tag/plugin.video.a4kstreaming%2Fplugin.video.a4kstreaming-1.52.0):
+  * Fix Dolby Vision detection
+  * Fix title clean up eating some letters
+  * Increase default request timeout to 60 seconds
+  * Remove the "recommended" provider option
+
 * [v1.51.0](https://github.com/newt-sc/a4kStreaming/releases/tag/plugin.video.a4kstreaming%2Fplugin.video.a4kstreaming-1.51.0):
   * New context menu option for forcing file selection
 

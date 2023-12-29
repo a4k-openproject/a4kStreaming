@@ -178,10 +178,6 @@ msgctxt "#33301"
 msgid "Install"
 msgstr ""
 
-msgctxt "#33302"
-msgid "Use recommended"
-msgstr ""
-
 msgctxt "#33303"
 msgid "Manage"
 msgstr ""
