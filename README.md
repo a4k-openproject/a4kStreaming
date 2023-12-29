@@ -68,7 +68,7 @@ Steps to install a4kStreaming:
 
 ## Rich meta browsing (more artwork, fanart, etc)
 
-For rich meta browsing the recommended approach is to use [TheMovieDb Helper](https://kodi.tv/addon/plugins-video-add-ons/themoviedb-helper).
+For rich meta browsing the recommended approach is to use [TheMovieDb Helper](https://kodi.wiki/view/Add-on:TheMovieDb_Helper).
 <br/>
 Then install [http://bit.ly/a4kStreaming-tmdb](http://bit.ly/a4kStreaming-tmdb) in order to use **a4kStreaming** as a player.
 
