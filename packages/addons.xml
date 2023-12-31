@@ -4,7 +4,7 @@
 <addons>
 <addon id="plugin.video.a4kstreaming"
        name="a4kStreaming"
-       version="1.52.0"
+       version="1.53.0"
        provider-name="Unknown">
     <requires>
       <import addon="script.module.requests"/>
@@ -35,6 +35,9 @@ Designed for low-end devices and Estuary skin.
             <screenshot>screenshot-06.jpg</screenshot>
         </assets>
         <news>
+[v1.53.0]:
+  * Improve episode auto selection from packs
+
 [v1.52.0]:
   * Fix Dolby Vision detection
   * Fix title clean up eating some letters
