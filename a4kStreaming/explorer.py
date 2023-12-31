@@ -2422,33 +2422,58 @@ def play(core, params):
     video_ext = list(map(lambda v: '.%s' % v.upper(), core.utils.video_containers()))
     size = 1048576 * 100
 
-    def util_filter_episodes(files, propName):
-        season_zfill = str(result['ref'].season).zfill(2)
-        episode_zfill = str(result['ref'].episode).zfill(2)
+    def util_filter_episodes(files, prop_name):
+        season_nozfill = str(result['ref'].season)
+        season_zfill = season_nozfill.zfill(2)
+        episode_nozfill = str(result['ref'].episode)
+        episode_zfill = episode_nozfill.zfill(2)
         episode_zfill_3 = episode_zfill.zfill(3)
-        season = 'S%s' % season_zfill
-        episode = 'E%s' % episode_zfill
-        episode_0 = 'E0%s' % episode_zfill
-        matches = [
-            ' %s%s ' % (season, episode),
-            ' %s%s ' % (season, episode_0),
-            ' %s %s ' % (season, episode),
-            ' %s %s ' % (season, episode_0),
-            ' %sX%s ' % (season_zfill, episode_zfill),
-            ' %sX%s ' % (season_zfill, episode_zfill_3),
-            ' %sX%s ' % (season, episode_zfill),
-            ' %sX%s ' % (season, episode_zfill_3),
-            ' %s%s ' % (result['ref'].season, episode_zfill),
-            ' %s%s ' % (result['ref'].season, episode_zfill_3),
-            ' %s%s ' % (season_zfill, episode_zfill),
-            ' %s%s ' % (season_zfill, episode_zfill_3),
-            ' %s %s ' % (result['ref'].season, episode_zfill),
-            ' %s %s ' % (result['ref'].season, episode_zfill_3),
-            ' %s %s ' % (season_zfill, episode_zfill),
-            ' %s %s ' % (season_zfill, episode_zfill_3),
+        season = 's%s' % season_nozfill
+        season_0 = 's%s' % season_zfill
+        episode = 'e%s' % episode_nozfill
+        episode_0 = 'e%s' % episode_zfill
+        episode_00 = 'e%s' % episode_zfill_3
+        matchesx = [
+            ' %sx%s ' % (season, episode),
+            ' %sx%s ' % (season, episode_0),
+            ' %sx%s ' % (season, episode_00),
+            ' %sx%s ' % (season, episode_zfill),
+            ' %sx%s ' % (season, episode_zfill_3),
+            ' %sx%s ' % (season_0, episode),
+            ' %sx%s ' % (season_0, episode_0),
+            ' %sx%s ' % (season_0, episode_00),
+            ' %sx%s ' % (season_0, episode_zfill),
+            ' %sx%s ' % (season_0, episode_zfill_3),
+            ' %sx%s ' % (season_zfill, episode),
+            ' %sx%s ' % (season_zfill, episode_0),
+            ' %sx%s ' % (season_zfill, episode_00),
+            ' %sx%s ' % (season_zfill, episode_zfill),
+            ' %sx%s ' % (season_zfill, episode_zfill_3),
+            ' %sx%s ' % (season_nozfill, episode),
+            ' %sx%s ' % (season_nozfill, episode_0),
+            ' %sx%s ' % (season_nozfill, episode_00),
+            ' %sx%s ' % (season_nozfill, episode_zfill),
+            ' %sx%s ' % (season_nozfill, episode_zfill_3),
         ]
 
-        return list(filter(lambda file: any(match in (' %s ' % core.utils.clean_release_title(file[propName])) for match in matches), files))
+        clean_name = 'clean_%s' % prop_name
+        for file in files:
+            file[clean_name] = ' %s ' % core.utils.clean_release_title(file[prop_name]).lower()
+
+        if result['package'] in ['season'] and all([' s0' not in f[clean_name] and ' s1' not in f[clean_name] for f in files]):
+            matchesx.append(' %s ' % episode)
+            matchesx.append(' %s ' % episode_0)
+            matchesx.append(' %s ' % episode_00)
+            matchesx.append(' %s ' % episode_zfill)
+            matchesx.append(' %s ' % episode_zfill_3)
+
+        matches = []
+        for match in matchesx:
+            matches.append(match)
+            matches.append(match.replace('x', ''))
+            matches.append(match.replace('x', ' '))
+
+        return list(filter(lambda file: any(match in file[clean_name] for match in matches), files))
 
     def resolve_pm():
         request = core.debrid.premiumize_resolve(pm_apikey, result['magnet'])

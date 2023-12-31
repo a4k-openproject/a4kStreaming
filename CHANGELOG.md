@@ -1,5 +1,8 @@
+* [v1.54.0](https://github.com/newt-sc/a4kStreaming/releases/tag/plugin.video.a4kstreaming%2Fplugin.video.a4kstreaming-1.54.0):
+  * More improvements on episode auto-selection from season/packs
+
 * [v1.53.0](https://github.com/newt-sc/a4kStreaming/releases/tag/plugin.video.a4kstreaming%2Fplugin.video.a4kstreaming-1.53.0):
-  * Improve episode auto selection from packs
+  * Improve episode auto-selection from packs
 
 * [v1.52.0](https://github.com/newt-sc/a4kStreaming/releases/tag/plugin.video.a4kstreaming%2Fplugin.video.a4kstreaming-1.52.0):
   * Fix Dolby Vision detection
