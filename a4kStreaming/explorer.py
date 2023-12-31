@@ -2447,7 +2447,8 @@ def play(core, params):
             ' %s %s ' % (season_zfill, episode_zfill),
             ' %s %s ' % (season_zfill, episode_zfill_3),
         ]
-        return list(filter(lambda file: any(match in core.utils.clean_release_title(file[propName]) for match in matches), files))
+
+        return list(filter(lambda file: any(match in (' %s ' % core.utils.clean_release_title(file[propName])) for match in matches), files))
 
     def resolve_pm():
         request = core.debrid.premiumize_resolve(pm_apikey, result['magnet'])
