@@ -2326,7 +2326,7 @@ def play(core, params):
         season_results = None
         pack_results = None
 
-        while len(last_results) > 10:
+        while len(last_results) > 20:
             oldest_key = list(last_results.keys())[0]
             for key in last_results:
                 if last_results[key]['time'] < last_results[oldest_key]['time']:
@@ -2389,6 +2389,11 @@ def play(core, params):
     autoplay = core.kodi.get_bool_setting('general.autoplay') and not params.force_sourceselect
 
     selection = 1
+    last_selected_result = core.cache.get_last_selected_result()
+    result_keys_hash = core.utils.hash_data(''.join(results_keys))
+    if result_keys_hash in last_selected_result:
+        selection = last_selected_result[result_keys_hash]
+
     label .selection  # type: ignore # noqa: F821
     if not autoplay:
         selection = core.kodi.xbmcgui.Dialog().select(
@@ -2415,6 +2420,7 @@ def play(core, params):
         core.cache.save_general(general)
         return play(core, params)
     else:
+        core.cache.save_last_selected_result({ result_keys_hash: selection })
         selection -= 1
 
     label .afterselection  # type: ignore # noqa: F821

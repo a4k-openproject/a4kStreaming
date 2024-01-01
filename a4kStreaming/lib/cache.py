@@ -9,6 +9,7 @@ __search_filepath = os.path.join(kodi.addon_profile, 'search.json')
 __provider_filepath = os.path.join(kodi.addon_profile, 'provider.json')
 __last_results_filepath = os.path.join(kodi.addon_profile, 'last_results.json')
 __last_title_filepath = os.path.join(kodi.addon_profile, 'last_title.json')
+__last_selected_result_filepath = os.path.join(kodi.addon_profile, 'last_selected_result.json')
 __general_filepath = os.path.join(kodi.addon_profile, 'general.json')
 
 def __get_cache(filepath):
@@ -45,6 +46,11 @@ def save_last_title(data):
     return __save_cache(__last_title_filepath, data)
 def get_last_title():
     return __get_cache(__last_title_filepath)
+
+def save_last_selected_result(data):
+    return __save_cache(__last_selected_result_filepath, data)
+def get_last_selected_result():
+    return __get_cache(__last_selected_result_filepath)
 
 def save_general(data):
     return __save_cache(__general_filepath, data)

@@ -10,6 +10,7 @@ import zipfile
 import shutil
 import time
 import base64
+import hashlib
 from datetime import datetime
 from io import BytesIO
 from itertools import islice
@@ -847,3 +848,6 @@ def sanitize_response(response):
                 response[key] = sanitize_response(response[key])
 
     return response
+
+def hash_data(data):
+    return hashlib.sha256(data.encode(default_encoding)).hexdigest()
