@@ -1,3 +1,7 @@
+* [v1.56.0](https://github.com/newt-sc/a4kStreaming/releases/tag/plugin.video.a4kstreaming%2Fplugin.video.a4kstreaming-1.56.0):
+  * Remember last selected result until the list changes
+  * Increase cache size
+
 * [v1.55.0](https://github.com/newt-sc/a4kStreaming/releases/tag/plugin.video.a4kstreaming%2Fplugin.video.a4kstreaming-1.55.0):
   * Proper fix for Dolby Vision detection and other result title clean improvements
 
