@@ -202,10 +202,10 @@ def video_containers():
     return ['3GP', '3G2', 'ASF', 'WMV', 'AVI', 'DIVX', 'EVO', 'F4V', 'FLV', 'MKV', 'MK3D', 'MP4', 'M4V', 'MPG', 'MPEG', 'M2P', 'PS', 'TS', 'M2TS', 'MXF', 'OGG', 'OGV', 'OGX', 'MOV', 'QT', 'RMVB', 'VOB', 'WEBM']
 
 def clean_release_title(title):
-    return re.sub(r'\s+', ' ', re.sub(r'\-|\_|\.|\,|\?|\!|\[|\]|\{|\}|\(|\)|\||\'|\"|\|\\|\/|\`|\~|\^|\<|\>', ' ', title))
+    return re.sub(r'\s+', ' ', re.sub(r'\-|\_|\.|\,|\?|\!|\[|\]|\{|\}|\(|\)|\||\'|\’|\"|\|\\|\/|\`|\~|\^|\<|\>', ' ', title))
 
 def cleanup_result(result, no_meta=False):
-    title = result['release_title'].upper()
+    title = clean_release_title(result['release_title']).upper()
 
     containers = list(map(lambda v: re.escape(' %s ' % v), video_containers()))
     videocodec = ''
@@ -215,13 +215,13 @@ def cleanup_result(result, no_meta=False):
     if 'HEVC' in title: videocodec = 'H265'
     if 'AVC' in title: videocodec = 'H264'
     if 'X265' in title: videocodec = 'H265'
-    if 'X.265' in title: videocodec = 'H265'
+    if 'X 265' in title: videocodec = 'H265'
     if 'H265' in title: videocodec = 'H265'
-    if 'H.265' in title: videocodec = 'H265'
+    if 'H 265' in title: videocodec = 'H265'
     if 'H264' in title: videocodec = 'H264'
-    if 'H.264' in title: videocodec = 'H265'
+    if 'H 264' in title: videocodec = 'H265'
     if 'X264' in title: videocodec = 'H264'
-    if 'X.264' in title: videocodec = 'H264'
+    if 'X 264' in title: videocodec = 'H264'
 
     result['videocodec'] = videocodec
 
@@ -245,15 +245,12 @@ def cleanup_result(result, no_meta=False):
 
     rip = ''
     if 'WEBRIP' in title: rip = 'WEBRIP'
-    if 'WEB-DL' in title: rip = 'WEB-DL'
-    if 'WEB.DL' in title: rip = 'WEB-DL'
+    if 'WEB DL' in title: rip = 'WEB-DL'
     if 'WEBDL' in title: rip = 'WEB-DL'
-    if 'DVD-RIP' in title: rip = 'DVD'
-    if 'DVD.RIP' in title: rip = 'DVD'
+    if 'DVD RIP' in title: rip = 'DVD'
     if 'DVDRIP' in title: rip = 'DVD'
     if 'BLURAY' in title: rip = 'BLURAY'
-    if 'BD-RIP' in title: rip = 'BLURAY'
-    if 'BD.RIP' in title: rip = 'BLURAY'
+    if 'BD RIP' in title: rip = 'BLURAY'
     if 'BDRIP' in title: rip = 'BLURAY'
     if 'HDTV' in title: rip = 'HDTV'
     if 'UHD' in title: rip = 'UHD'
@@ -264,12 +261,10 @@ def cleanup_result(result, no_meta=False):
     if 'AAC' in title: audiocodec = 'AAC'
     if 'DTS' in title: audiocodec = 'DTS'
     if 'HDMA' in title: audiocodec = 'HD-MA'
-    if 'HD-MA' in title: audiocodec = 'HD-MA'
-    if 'HD.MA' in title: audiocodec = 'HD-MA'
+    if 'HD MA' in title: audiocodec = 'HD-MA'
     if 'ATMOS' in title: audiocodec = 'ATMOS'
     if 'TRUEHD' in title: audiocodec = 'TRUEHD'
-    if 'TRUE-HD' in title: audiocodec = 'TRUEHD'
-    if 'TRUE.HD' in title: audiocodec = 'TRUEHD'
+    if 'TRUE HD' in title: audiocodec = 'TRUEHD'
     if ' DD ' in title: audiocodec = 'DD'
     if 'DD2' in title: audiocodec = 'DD'
     if 'DD5' in title: audiocodec = 'DD'
@@ -283,12 +278,11 @@ def cleanup_result(result, no_meta=False):
 
     result['audiocodec'] = audiocodec
 
-    title = re.sub(r'\'|\’', '', title)
     title = re.sub(r'COMPLETE|INTERNAL|AUHDTV| SUB ', ' ', title)
-    title = re.sub(r'HEVC|X265|X\.265|H265|H\.265|X264|X\.264|H264|H\.264|AVC|XVID|DIVX|WMV|MKV', ' ', title)
+    title = re.sub(r'HEVC|X265|X 265|H265|H 265|X264|X 264|H264|H 264|AVC|XVID|DIVX|WMV|MKV', ' ', title)
     title = re.sub(r'HDR10\+|HDR10|HDR|12BIT|10BIT|8BIT|SDR|DOLBY VISION', ' ', title)
-    title = re.sub(r'WEBRIP|WEB\-DL|WEB\.DL|WEBDL|WEB|DVD\-RIP|DVD\.RIP|DVDRIP|DVD|BLURAY|BD\-RIP|BD\.RIP|BDRIP|HDTV|UHD|FULLHD', ' ', title)
-    title = re.sub(r'AAC|DTS|HDMA|HD\-MA|HD\.MA|ATMOS|TRUEHD|TRUE\-HD|TRUE\.HD|DD\+|DDP| DD|EAC3|AC3|MP3|WMA', ' ', title)
+    title = re.sub(r'WEBRIP|WEB DL|WEBDL|WEB|DVD RIP|DVDRIP|DVD|BLURAY|BD RIP|BDRIP|HDTV|UHD|FULLHD', ' ', title)
+    title = re.sub(r'AAC|DTS|HDMA|HD MA|ATMOS|TRUEHD|TRUE HD|DD\+|DDP| DD|EAC3|AC3|MP3|WMA', ' ', title)
     title = re.sub(r'HD |SD |DV ', ' ', title)
     title = re.sub(r'\:|\\|\/|\,|\||\!|\?|\(|\)|\"|\+|\[|\]|\_|\.|\{|\}', ' ', title)
 
