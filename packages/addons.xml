@@ -4,7 +4,7 @@
 <addons>
 <addon id="plugin.video.a4kstreaming"
        name="a4kStreaming"
-       version="1.56.0"
+       version="1.57.0"
        provider-name="Unknown">
     <requires>
       <import addon="script.module.requests"/>
@@ -35,6 +35,10 @@ Designed for low-end devices and Estuary skin.
             <screenshot>screenshot-06.jpg</screenshot>
         </assets>
         <news>
+[v1.57.0]:
+  * New context menu:
+    * IMDB: Choose Trailer - allows to choose a trailer video from the list of available ones
+
 [v1.56.0]:
   * Remember last selected result until the list changes
   * Increase cache size

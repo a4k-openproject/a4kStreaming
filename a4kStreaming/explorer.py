@@ -58,14 +58,17 @@ def __set_title_contextmenu(core, title, list_item):
         return
 
     trailer = ''
+    all_trailers = ''
     if title.get('primaryVideos', None) and len(title['primaryVideos']) > 0:
         trailer = title['primaryVideos'][0]
+        all_trailers = '_'.join(title['primaryVideos'])
 
     tvseries = titleType == 'tvSeries'
     has_rating = title.get('userRating', None) is not None
     context_menu_items = [
         ('IMDb: %s rating' % ('Update' if has_rating else 'Set'), 'RunPlugin(%s?action=profile&type=rate&id=%s)' % (core.url, title['id'])),
         ('IMDb: Trailer', 'RunPlugin(%s?action=trailer&id=%s&vi=%s&play=true)' % (core.url, title['id'], trailer)),
+        ('IMDb: Choose Trailer', 'RunPlugin(%s?action=trailer&id=%s&vi=%s&play=true)' % (core.url, title['id'], all_trailers)),
         ('IMDb: Cast & Crew', 'ActivateWindow(Videos,%s?action=query&type=browse&id=%s,return)' % (core.url, title['id'])),
     ]
 
@@ -1992,9 +1995,25 @@ def trailer(core, params):
         core.kodi.notification('Trailer not found')
         return
 
+    videos = params.vi.split('_')
+    vi = videos[0]
+
+    if len(videos) > 1:
+        selection = core.kodi.xbmcgui.Dialog().select(
+            'Choose trailer',
+            ['%s. %s' % (i + 1, v) for i, v in enumerate(videos)],
+        )
+
+        if selection == -1:
+            core.kodi.close_busy_dialog()
+            core.utils.end_action(core, False)
+            return
+
+        vi = videos[selection]
+
     request = {
         'method': 'GET',
-        'url': 'https://www.imdb.com/_next/data/%s/video/%s.json' % (__build_id, params.vi),
+        'url': 'https://www.imdb.com/_next/data/%s/video/%s.json' % (__build_id, vi),
         'params': {
             'playlistId': params.id,
             'viconst': params.vi,

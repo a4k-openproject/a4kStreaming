@@ -1,3 +1,7 @@
+* [v1.57.0](https://github.com/newt-sc/a4kStreaming/releases/tag/plugin.video.a4kstreaming%2Fplugin.video.a4kstreaming-1.57.0):
+  * New context menu:
+    * IMDB: Choose Trailer - allows to choose a trailer video from the list of available ones
+
 * [v1.56.0](https://github.com/newt-sc/a4kStreaming/releases/tag/plugin.video.a4kstreaming%2Fplugin.video.a4kstreaming-1.56.0):
   * Remember last selected result until the list changes
   * Increase cache size
