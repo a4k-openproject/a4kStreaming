@@ -498,7 +498,7 @@ def get_graphql_query(body):
                         text
                     }
                 }
-                primaryVideos(first: 1) {
+                primaryVideos(first: 100) {
                     edges {
                         node {
                             id
