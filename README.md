@@ -5,7 +5,7 @@
 <br/>
 
 ## Status
-[![Kodi version](https://img.shields.io/badge/kodi%20versions-18--20-blue)](https://kodi.tv/) ![status-api](https://github.com/a4k-openproject/a4kStreaming/workflows/API/badge.svg) ![status-suite](https://github.com/a4k-openproject/a4kStreaming/workflows/Suite/badge.svg)
+[![Kodi version](https://img.shields.io/badge/kodi%20versions-19--20-blue)](https://kodi.tv/) ![status-api](https://github.com/a4k-openproject/a4kStreaming/workflows/API/badge.svg) ![status-suite](https://github.com/a4k-openproject/a4kStreaming/workflows/Suite/badge.svg)
 
 ## Description
 
