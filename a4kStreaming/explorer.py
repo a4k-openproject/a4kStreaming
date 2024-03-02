@@ -2453,32 +2453,84 @@ def play(core, params):
         episode_nozfill = str(result['ref'].episode)
         episode_zfill = episode_nozfill.zfill(2)
         episode_zfill_3 = episode_zfill.zfill(3)
+        episode_prev_nozfill = str(int(result['ref'].episode) - 1)
+        episode_prev_zfill = episode_prev_nozfill.zfill(2)
+        episode_prev_zfill_3 = episode_prev_zfill.zfill(3)
+        episode_next_nozfill = str(int(result['ref'].episode) + 1)
+        episode_next_zfill = episode_next_nozfill.zfill(2)
+        episode_next_zfill_3 = episode_next_zfill.zfill(3)
         season = 's%s' % season_nozfill
         season_0 = 's%s' % season_zfill
         episode = 'e%s' % episode_nozfill
         episode_0 = 'e%s' % episode_zfill
         episode_00 = 'e%s' % episode_zfill_3
+        episode_prev = 'e%s' % episode_prev_nozfill
+        episode_prev_0 = 'e%s' % episode_prev_zfill
+        episode_prev_00 = 'e%s' % episode_prev_zfill_3
+        episode_next = 'e%s' % episode_next_nozfill
+        episode_next_0 = 'e%s' % episode_next_zfill
+        episode_next_00 = 'e%s' % episode_next_zfill_3
         matchesx = [
             ' %sx%s ' % (season, episode),
             ' %sx%s ' % (season, episode_0),
             ' %sx%s ' % (season, episode_00),
             ' %sx%s ' % (season, episode_zfill),
             ' %sx%s ' % (season, episode_zfill_3),
+            ' %sx%s%s ' % (season, episode_prev, episode),
+            ' %sx%s%s ' % (season, episode_prev_0, episode_0),
+            ' %sx%s%s ' % (season, episode_prev_00, episode_00),
+            ' %sx%s%s ' % (season, episode_prev_zfill, episode_zfill),
+            ' %sx%s%s ' % (season, episode_prev_zfill_3, episode_zfill_3),
+            ' %sx%s%s ' % (season, episode, episode_next),
+            ' %sx%s%s ' % (season, episode_0, episode_next_0),
+            ' %sx%s%s ' % (season, episode_00, episode_next_00),
+            ' %sx%s%s ' % (season, episode_zfill, episode_next_zfill),
+            ' %sx%s%s ' % (season, episode_zfill_3, episode_next_zfill_3),
             ' %sx%s ' % (season_0, episode),
             ' %sx%s ' % (season_0, episode_0),
             ' %sx%s ' % (season_0, episode_00),
             ' %sx%s ' % (season_0, episode_zfill),
             ' %sx%s ' % (season_0, episode_zfill_3),
+            ' %sx%s%s ' % (season_0, episode_prev, episode),
+            ' %sx%s%s ' % (season_0, episode_prev_0, episode_0),
+            ' %sx%s%s ' % (season_0, episode_prev_00, episode_00),
+            ' %sx%s%s ' % (season_0, episode_prev_zfill, episode_zfill),
+            ' %sx%s%s ' % (season_0, episode_prev_zfill_3, episode_zfill_3),
+            ' %sx%s%s ' % (season_0, episode, episode_next),
+            ' %sx%s%s ' % (season_0, episode_0, episode_next_0),
+            ' %sx%s%s ' % (season_0, episode_00, episode_next_00),
+            ' %sx%s%s ' % (season_0, episode_zfill, episode_next_zfill),
+            ' %sx%s%s ' % (season_0, episode_zfill_3, episode_next_zfill_3),
             ' %sx%s ' % (season_zfill, episode),
             ' %sx%s ' % (season_zfill, episode_0),
             ' %sx%s ' % (season_zfill, episode_00),
             ' %sx%s ' % (season_zfill, episode_zfill),
             ' %sx%s ' % (season_zfill, episode_zfill_3),
+            ' %sx%s%s ' % (season_zfill, episode_prev, episode),
+            ' %sx%s%s ' % (season_zfill, episode_prev_0, episode_0),
+            ' %sx%s%s ' % (season_zfill, episode_prev_00, episode_00),
+            ' %sx%s%s ' % (season_zfill, episode_prev_zfill, episode_zfill),
+            ' %sx%s%s ' % (season_zfill, episode_prev_zfill_3, episode_zfill_3),
+            ' %sx%s%s ' % (season_zfill, episode, episode_next),
+            ' %sx%s%s ' % (season_zfill, episode_0, episode_next_0),
+            ' %sx%s%s ' % (season_zfill, episode_00, episode_next_00),
+            ' %sx%s%s ' % (season_zfill, episode_zfill, episode_next_zfill),
+            ' %sx%s%s ' % (season_zfill, episode_zfill_3, episode_next_zfill_3),
             ' %sx%s ' % (season_nozfill, episode),
             ' %sx%s ' % (season_nozfill, episode_0),
             ' %sx%s ' % (season_nozfill, episode_00),
             ' %sx%s ' % (season_nozfill, episode_zfill),
             ' %sx%s ' % (season_nozfill, episode_zfill_3),
+            ' %sx%s%s ' % (season_nozfill, episode_prev, episode),
+            ' %sx%s%s ' % (season_nozfill, episode_prev_0, episode_0),
+            ' %sx%s%s ' % (season_nozfill, episode_prev_00, episode_00),
+            ' %sx%s%s ' % (season_nozfill, episode_prev_zfill, episode_zfill),
+            ' %sx%s%s ' % (season_nozfill, episode_prev_zfill_3, episode_zfill_3),
+            ' %sx%s%s ' % (season_nozfill, episode, episode_next),
+            ' %sx%s%s ' % (season_nozfill, episode_0, episode_next_0),
+            ' %sx%s%s ' % (season_nozfill, episode_00, episode_next_00),
+            ' %sx%s%s ' % (season_nozfill, episode_zfill, episode_next_zfill),
+            ' %sx%s%s ' % (season_nozfill, episode_zfill_3, episode_next_zfill_3),
         ]
 
         clean_name = 'clean_%s' % prop_name
