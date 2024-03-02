@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <addon id="plugin.video.a4kstreaming"
        name="a4kStreaming"
-       version="1.57.0"
+       version="1.58.0"
        provider-name="Unknown">
     <requires>
       <import addon="script.module.requests"/>
@@ -32,6 +32,9 @@ Designed for low-end devices and Estuary skin.
             <screenshot>screenshot-06.jpg</screenshot>
         </assets>
         <news>
+[v1.58.0]:
+  * Improve episode auto-selection from season/packs
+
 [v1.57.0]:
   * New context menu:
     * IMDB: Choose Trailer - allows to choose a trailer video from the list of available ones

@@ -1,3 +1,6 @@
+* [v1.58.0](https://github.com/newt-sc/a4kStreaming/releases/tag/plugin.video.a4kstreaming%2Fplugin.video.a4kstreaming-1.58.0):
+  * Improve episode auto-selection from season/packs
+
 * [v1.57.0](https://github.com/newt-sc/a4kStreaming/releases/tag/plugin.video.a4kstreaming%2Fplugin.video.a4kstreaming-1.57.0):
   * New context menu:
     * IMDB: Choose Trailer - allows to choose a trailer video from the list of available ones
