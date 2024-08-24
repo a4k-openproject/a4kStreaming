@@ -101,7 +101,7 @@ __listitem.getVideoInfoTag = __get_video_info_tag
 
 __list_info_tag = lambda: None
 __list_info_tag.set_cast = lambda _: None
-__list_info_tag.set_stream_details = lambda _, __: None
+__list_info_tag.add_stream_info = lambda _, __: None
 def set_info_tag(*args, **kwargs): return __list_info_tag
 
 def __create_listitem(*args, **kwargs): return __listitem

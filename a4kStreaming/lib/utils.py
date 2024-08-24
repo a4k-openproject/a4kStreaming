@@ -75,12 +75,15 @@ def versiontuple(v):
     version_parts = [(int(v_part) if v_part.isdigit() else 0) for v_part in version_parts]
     return tuple(map(int, version_parts))
 
+def hash(data):
+    return hashlib.sha1(json.dumps(data, sort_keys=True).encode('utf-8')).hexdigest()
+
 def chunk(it, size):
     it = iter(it)
     return iter(lambda: tuple(islice(it, size)), ())
 
 def open_file_wrapper(file, mode='r', encoding='utf-8'):
-    if py2:
+    if py2 or mode.endswith('b'):
         return lambda: open(file, mode)
     return lambda: open(file, mode, encoding=encoding)
 
@@ -138,7 +141,7 @@ def download_zip(core, zip_url, zip_name):
         'timeout': 15
     }
 
-    with core.request.execute(core, request) as r:
+    with core.request.execute(core, request, False) as r:
         with open(filepath, 'wb') as f:
             shutil.copyfileobj(r.raw, f)
 

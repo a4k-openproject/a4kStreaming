@@ -1,3 +1,6 @@
+* [v1.60.0](https://github.com/newt-sc/a4kStreaming/releases/tag/plugin.video.a4kstreaming%2Fplugin.video.a4kstreaming-1.60.0):
+  * Add generic requests caching to speedup browsing
+
 * [v1.59.0](https://github.com/newt-sc/a4kStreaming/releases/tag/plugin.video.a4kstreaming%2Fplugin.video.a4kstreaming-1.59.0):
   * Remove deprecated usages ListItem methods
 

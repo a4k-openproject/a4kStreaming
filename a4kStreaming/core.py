@@ -21,8 +21,14 @@ from .lib import (
     goto
 )
 
+from .lib.database import db
+
 core = sys.modules[__name__]
 utils.core = core
+
+removed_bytes = db.cleanup()
+if removed_bytes:
+    logger.notice('Removed %s bytes from cache' % removed_bytes)
 
 api_mode_enabled = True
 url = ''
