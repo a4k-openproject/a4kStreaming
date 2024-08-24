@@ -2815,7 +2815,7 @@ def play(core, params):
         item.setArt({ 'poster': provider_params.title.poster })
 
     info_tag = core.kodi.set_info_tag(item, video_meta)
-    info_tag.set_stream_details('video', { 'codec': result['videocodec'], 'duration': result['ref'].duration })
+    info_tag.add_stream_info('video', { 'codec': result['videocodec'], 'duration': result['ref'].duration })
 
     core.utils.end_action(core, True, item)
     return link

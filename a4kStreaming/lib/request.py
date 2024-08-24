@@ -20,11 +20,10 @@ def __retry_on_503(core, request, response, retry=True):
         request['validate'] = lambda response: __retry_on_503(core, request, response, retry=False)
         return request
 
-def execute(core, request, session=None):
-    if not session:
-        session = requests.Session()
-        retries = Retry(total=3, backoff_factor=0.1, status_forcelist=[500, 502, 503, 504])
-        session.mount("https://", HTTPAdapter(max_retries=retries, pool_maxsize=100))
+def execute(core, request, cache=True):
+    session = requests.Session()
+    retries = Retry(total=3, backoff_factor=0.1, status_forcelist=[500, 502, 503, 504])
+    session.mount("https://", HTTPAdapter(max_retries=retries, pool_maxsize=100))
 
     request.setdefault('timeout', 60)
     headers = request.setdefault('headers', {})
@@ -41,7 +40,28 @@ def execute(core, request, session=None):
 
     logger.debug('%s ^ - %s' % (request['method'], request['url']))
     try:
-        response = session.request(verify=False, **request)
+        # hash request object for checking a cache file
+        request_hash = core.utils.hash({ 'url': request['url'], 'method': request['method'], 'data': request.get('data', '') })
+        if cache and core.db.check(request_hash):
+            core.logger.debug('Cache hit: %s' % request_hash)
+            response = lambda: None
+            response.text = ''
+            response.content = core.db.get(request_hash)
+            response.status_code = 200
+
+            def refresh():
+                response = session.request(verify=False, **request)
+                if response.status_code == 200:
+                    core.logger.debug('Cache refresh: %s' % request_hash)
+                    core.db.set(request_hash, response.content)
+
+            core.threading.Thread(target=refresh).start()
+        else:
+            if cache:
+                core.logger.debug('Cache miss: %s' % request_hash)
+            response = session.request(verify=False, **request)
+            if response.status_code == 200 and cache:
+                core.db.set(request_hash, response.content)
         exc = ''
     except:
         exc = core.traceback.format_exc()
