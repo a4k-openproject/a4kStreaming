@@ -1982,7 +1982,7 @@ def trailer(core, params):
         'url': 'https://www.imdb.com/video/vi4240746009'
     }
 
-    response = core.request.execute(core, request)
+    response = core.request.execute(core, request, False)
     if response.status_code != 200:
         core.kodi.close_busy_dialog()
         core.utils.end_action(core, False)
@@ -2028,7 +2028,7 @@ def trailer(core, params):
         },
     }
 
-    response = core.request.execute(core, request)
+    response = core.request.execute(core, request, False)
     if response.status_code != 200:
         core.kodi.close_busy_dialog()
         core.utils.end_action(core, False)
