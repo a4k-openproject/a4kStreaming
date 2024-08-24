@@ -79,7 +79,7 @@ def __set_title_contextmenu(core, title, list_item):
 
     if not tvseries:
         if has_rating:
-            list_item.setInfo('video', {
+            core.kodi.set_info_tag(list_item, {
                 'overlay': 5,
                 'playcount': 1
             })
@@ -254,7 +254,7 @@ def __add_seasons(core, title):
             'episode': season.episodes,
             'plot': title.get('plot', None)
         }
-        list_item.setInfo('video', video_meta)
+        core.kodi.set_info_tag(list_item, video_meta)
 
         url = '%s?action=query&type=episodes&id=%s&season=%s' % (core.url, title['id'], key)
         if season.year:
@@ -273,7 +273,7 @@ def __add_seasons(core, title):
         context_menu_items = []
         last_episode_has_rating = season.last_episode and season.last_episode.get('userRating', None) is not None
         if last_episode_has_rating:
-            list_item.setInfo('video', {
+            core.kodi.set_info_tag(list_item, {
                 'overlay': 5,
                 'playcount': 1
             })
@@ -430,6 +430,7 @@ def __add_titles(core, titles, browse, silent=False):
             continue
 
         list_item = core.kodi.xbmcgui.ListItem(label=title['titleTextStyled'] if title.get('titleTextStyled', None) else title['titleText'], offscreen=True)
+        video_info_tag = list_item.getVideoInfoTag()
 
         primary_image = title.get('primaryImage', None)
         poster_image = title.get('poster', None)
@@ -488,14 +489,18 @@ def __add_titles(core, titles, browse, silent=False):
         if title.get('ratingsSummary', None):
             ratingsSummary = title['ratingsSummary']
             if ratingsSummary.get('aggregateRating', None) and ratingsSummary.get('voteCount', None):
-                list_item.setRating("imdb", ratingsSummary['aggregateRating'], ratingsSummary['voteCount'], True)
+                video_info_tag.setRating(ratingsSummary['aggregateRating'], ratingsSummary['voteCount'], "imdb", True)
 
         if title.get('episodes', None):
             episodes = title['episodes']
             if episodes.get('isOngoing', None) is not None:
                 video_meta.update({ 'status': 'Continuing' if episodes['isOngoing'] else 'Ended' })
             if core.utils.safe_list_get(episodes.get('seasons', [None]), -1, None):
-                list_item.setProperty('TotalSeasons', str(episodes['seasons'][-1]))
+                seasons = str(episodes['seasons'][-1])
+                list_item.setProperty('TotalSeasons', seasons)
+                if mediatype == 'tvshow':
+                    list_item.setProperty('WatchedEpisodes', '*')
+                    list_item.setProperty('TotalEpisodes', seasons)
                 if not video_meta.get('season', None):
                     video_meta.update({ 'season': episodes['seasons'][-1] })
             if episodes.get('totalEpisodes', None):
@@ -541,7 +546,7 @@ def __add_titles(core, titles, browse, silent=False):
                 'writer': [item['nameText'] for item in writers] if isinstance(writers, list) else writers['nameText'],
             })
 
-        list_item.setInfo('video', video_meta)
+        info_tag = core.kodi.set_info_tag(list_item, video_meta)
 
         cast = []
         if 'principalCredits' in title:
@@ -563,7 +568,7 @@ def __add_titles(core, titles, browse, silent=False):
                 'role': ' / '.join(characters) if characters else None,
                 'thumbnail': core.utils.fix_poster_size(member.get('primaryImage', member.get('name', {}).get('primaryImage', None)))
             })
-        list_item.setCast(cast_meta)
+        info_tag.set_cast(cast_meta)
 
         if titleType in ['movie', 'tvEpisode']:
             if browse:
@@ -1043,7 +1048,7 @@ def cloud(core, params):
             parsed_response = core.json.loads(response.content)
             link = parsed_response['download']
             item = core.kodi.xbmcgui.ListItem(path=link, offscreen=True)
-            item.setInfo('video', {'mediatype': 'video'})
+            core.kodi.set_info_tag(item, {'mediatype': 'video'})
             core.utils.end_action(core, True, item)
             return core.skip_end_of_dir
 
@@ -1136,7 +1141,7 @@ def cloud(core, params):
 
             link = parsed_response.get('data', parsed_response)['link']
             item = core.kodi.xbmcgui.ListItem(path=link, offscreen=True)
-            item.setInfo('video', {'mediatype': 'video'})
+            core.kodi.set_info_tag(item, {'mediatype': 'video'})
             core.utils.end_action(core, True, item)
             return core.skip_end_of_dir
 
@@ -1738,7 +1743,7 @@ def query(core, params):
 
     if isinstance(data, dict) and (data.get('paginationToken', None) or data.get('pageInfo', None) and data['pageInfo'].get('hasNextPage', False)):
         next_list_item = core.kodi.xbmcgui.ListItem(label='Next', offscreen=True)
-        next_list_item.setInfo('video', {'mediatype': 'video'})
+        core.kodi.set_info_tag(next_list_item, {'mediatype': 'video'})
 
         paginationToken = data.get('paginationToken', None)
         if not paginationToken:
@@ -2043,7 +2048,7 @@ def trailer(core, params):
         return []
 
     item = core.kodi.xbmcgui.ListItem(path=trailerUrl, offscreen=True)
-    item.setInfo('video', {'mediatype': 'video'})
+    core.kodi.set_info_tag(item, {'mediatype': 'video'})
     if params.play == 'true':
         core.kodi.close_busy_dialog()
         core.kodi.xbmc.Player().play(item=trailerUrl, listitem=item)
@@ -2809,8 +2814,8 @@ def play(core, params):
     if provider_params.title.poster:
         item.setArt({ 'poster': provider_params.title.poster })
 
-    item.setInfo('video', video_meta)
-    item.addStreamInfo('video', { 'codec': result['videocodec'], 'duration': result['ref'].duration })
+    info_tag = core.kodi.set_info_tag(item, video_meta)
+    info_tag.set_stream_details('video', { 'codec': result['videocodec'], 'duration': result['ref'].duration })
 
     core.utils.end_action(core, True, item)
     return link

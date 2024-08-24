@@ -93,6 +93,17 @@ __listitem.setSubtitles = lambda _: None
 __listitem.addContextMenuItems = lambda _: None
 __listitem.setContentLookup = lambda _: None
 __listitem.addStreamInfo = lambda _, __: None
+
+__video_info_tag = lambda: None
+__video_info_tag.setRating = lambda _, __, ___, ____: None
+def __get_video_info_tag(*args, **kwargs): return __video_info_tag
+__listitem.getVideoInfoTag = __get_video_info_tag
+
+__list_info_tag = lambda: None
+__list_info_tag.set_cast = lambda _: None
+__list_info_tag.set_stream_details = lambda _, __: None
+def set_info_tag(*args, **kwargs): return __list_info_tag
+
 def __create_listitem(*args, **kwargs): return __listitem
 xbmcgui.ListItem = __create_listitem
 

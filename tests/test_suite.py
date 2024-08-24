@@ -41,7 +41,7 @@ def __setup_provider(a4kstreaming_api, settings={}):
     provider = a4kstreaming_api.core.cache.get_provider()
     selected = {}
     for key in provider.keys():
-        if len(key) == 8:
+        if len(key) == 7:
             selected[key] = True
     a4kstreaming_api.core.cache.save_provider(selected)
 

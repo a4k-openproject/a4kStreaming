@@ -30,12 +30,14 @@ if api_mode:
                 mod = importlib.import_module(target)
             setattr(kodi, target, mod)
 
+    set_info_tag = kodi_mock.set_info_tag
 else:
     import xbmc
     import xbmcaddon
     import xbmcplugin
     import xbmcgui
     import xbmcvfs
+    from .kodi_listitem import set_info_tag
 
 addon = xbmcaddon.Addon('plugin.video.a4kstreaming')
 addon_id = addon.getAddonInfo('id')

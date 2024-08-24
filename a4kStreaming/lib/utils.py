@@ -388,7 +388,7 @@ def generic_list_items(core, items):
         if item.get('url', None) is not None:
             url = item['url']
         else:
-            list_item.setInfo('video', {'mediatype': 'video', 'plot': item['info']})
+            core.kodi.set_info_tag(list_item, {'mediatype': 'video', 'plot': item['info']})
             url = '%s?action=%s&type=%s' % (core.url, item['action'], item['type'])
 
             params = item.get('params', {})
