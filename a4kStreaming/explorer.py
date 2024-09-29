@@ -2018,7 +2018,7 @@ def trailer(core, params):
 
     request = {
         'method': 'GET',
-        'url': 'https://www.imdb.com/_next/data/%s/video/%s.json' % (__build_id, vi),
+        'url': 'https://www.imdb.com/_next/data/%s/en-US/video/%s.json' % (__build_id, vi),
         'params': {
             'playlistId': params.id,
             'viconst': params.vi,

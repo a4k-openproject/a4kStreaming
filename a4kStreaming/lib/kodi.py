@@ -17,7 +17,7 @@ if api_mode:
 
 if api_mode:
     if api_mode.get('kodi', False):
-        from .kodi_mock import xbmc, xbmcaddon, xbmcplugin, xbmcgui, xbmcvfs
+        from .kodi_mock import xbmc, xbmcaddon, xbmcplugin, xbmcgui, xbmcvfs, set_info_tag
     else:
         from . import kodi_mock
 
@@ -30,7 +30,7 @@ if api_mode:
                 mod = importlib.import_module(target)
             setattr(kodi, target, mod)
 
-    set_info_tag = kodi_mock.set_info_tag
+        set_info_tag = kodi_mock.set_info_tag
 else:
     import xbmc
     import xbmcaddon
