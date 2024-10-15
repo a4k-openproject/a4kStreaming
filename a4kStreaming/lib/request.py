@@ -48,14 +48,6 @@ def execute(core, request, cache=True):
             response.text = ''
             response.content = core.db.get(request_hash)
             response.status_code = 200
-
-            def refresh():
-                response = session.request(verify=False, **request)
-                if response.status_code == 200:
-                    core.logger.debug('Cache refresh: %s' % request_hash)
-                    core.db.set(request_hash, response.content)
-
-            core.threading.Thread(target=refresh).start()
         else:
             if cache:
                 core.logger.debug('Cache miss: %s' % request_hash)
