@@ -22,13 +22,20 @@ def __cache_get(key):
         return {}
 
 def __cache_check(key):
-    path = __cache_key_path(key)
-    return os.path.exists(path)
+    try:
+        path = __cache_key_path(key)
+        if os.path.exists(path):
+            ttl = os.path.getmtime(path)
+            if time.time() - ttl < 5:
+                return True
+            os.remove(path)
+    except:
+        pass
 
 def __cache_cleanup():
     try:
-        # while temp dir bigger than 500MiB, remove files sorted by age (oldest first)
-        max_size = 500 * 1024 * 1024
+        # while temp dir bigger than 5MiB, remove files sorted by age (oldest first)
+        max_size = 5 * 1024 * 1024
         files = []
         size = 0
 
