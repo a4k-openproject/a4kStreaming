@@ -156,6 +156,9 @@ def __add_seasons(core, title):
     prev_rld = None
     for index, episode in enumerate(episodes):
         try:
+            if not episode['series']:
+                continue
+
             current_rld = episode['releaseDate']
             if prev_rld:
                 if current_rld['year'] <= prev_rld['year'] and current_rld['month'] <= prev_rld['month'] and current_rld['day'] <= prev_rld['day']:
