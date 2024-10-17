@@ -1,3 +1,6 @@
+* [v1.63.0](https://github.com/newt-sc/a4kStreaming/releases/tag/plugin.video.a4kstreaming%2Fplugin.video.a4kstreaming-1.63.0):
+  * Fix episode browsing for some seasons with incomplete meta
+
 * [v1.62.0](https://github.com/newt-sc/a4kStreaming/releases/tag/plugin.video.a4kstreaming%2Fplugin.video.a4kstreaming-1.62.0):
   * Reduce cache ttl to 5s and remove cache auto refresh
 
