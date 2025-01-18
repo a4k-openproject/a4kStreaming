@@ -1,3 +1,6 @@
+* [v1.65.0](https://github.com/newt-sc/a4kStreaming/releases/tag/plugin.video.a4kstreaming%2Fplugin.video.a4kstreaming-1.65.0):
+  * Update source order to prefer H265 and HDR over size
+
 * [v1.64.1](https://github.com/newt-sc/a4kStreaming/releases/tag/plugin.video.a4kstreaming%2Fplugin.video.a4kstreaming-1.64.1):
   * Fix settings label
 

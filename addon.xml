@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <addon id="plugin.video.a4kstreaming"
        name="a4kStreaming"
-       version="1.64.1"
+       version="1.65.0"
        provider-name="Unknown">
     <requires>
       <import addon="script.module.requests"/>
@@ -32,6 +32,9 @@ Designed for low-end devices and Estuary skin.
             <screenshot>screenshot-06.jpg</screenshot>
         </assets>
         <news>
+[v1.65.0]:
+  * Update source order to prefer H265 and HDR over size
+
 [v1.64.1]:
   * Fix settings label
 
