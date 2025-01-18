@@ -32,11 +32,11 @@
         <setting type="lsep" label="33401"/>
         <setting type="sep"/>
         <setting id="premiumize.apikey" type="text" label="33402" default=""/>
-        <setting type="lsep" label="33403"/>
-        <setting type="sep"/>
-        <!-- <setting id="realdebrid.apikey" type="text" label="33404" default=""/> -->
-        <!-- <setting type="lsep" label="33405"/> -->
+        <!-- <setting type="lsep" label="33403"/> -->
         <!-- <setting type="sep"/> -->
+        <!-- <setting id="realdebrid.apikey" type="text" label="33404" default=""/> -->
+        <setting type="lsep" label="33405"/>
+        <setting type="sep"/>
         <setting id="alldebrid.apikey" type="text" label="33406" default=""/>
     </category>
     <!-- IMDb -->
