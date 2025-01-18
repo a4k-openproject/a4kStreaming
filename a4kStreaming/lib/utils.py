@@ -194,7 +194,7 @@ def get_premiumize_apikey(core):
     return core.kodi.get_setting('premiumize.apikey')
 
 def get_realdebrid_apikey(core):
-    return core.kodi.get_setting('realdebrid.apikey')
+    return None  # core.kodi.get_setting('realdebrid.apikey')
 
 def get_alldebrid_apikey(core):
     return core.kodi.get_setting('alldebrid.apikey')
