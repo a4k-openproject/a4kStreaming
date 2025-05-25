@@ -785,6 +785,7 @@ def get_graphql_query(body):
         has_work = has_added
         items = left
 
+    body['variables'] = body.get('variables', {})
     body['variables'].update({
         'genresLimit': 3,
         'castLimit': 20,

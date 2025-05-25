@@ -620,10 +620,17 @@ def __add_titles(core, titles, browse, silent=False):
 def root(core):
     items = [
         {
-            'label': 'Trending',
+            'label': 'Trending Movies',
             'action': 'query',
-            'type': 'popular',
-            'info': 'IMDb\'s latest trending movie or TV series.',
+            'type': 'popularMovies',
+            'info': 'IMDb\'s latest trending movies.',
+            'subitems': True
+        },
+        {
+            'label': 'Trending TV Series',
+            'action': 'query',
+            'type': 'popularTVShows',
+            'info': 'IMDb\'s latest trending TV series.',
             'subitems': True
         },
         {
@@ -1172,7 +1179,7 @@ def cloud(core, params):
     return items
 
 def query(core, params):
-    no_auth_required_actions = ['popular', 'year', 'fan_picks', 'more_like_this', 'seasons', 'episodes', 'browse']
+    no_auth_required_actions = ['popularMovies', 'popularTVShows', 'popular', 'year', 'fan_picks', 'more_like_this', 'seasons', 'episodes', 'browse']
     bool_response_actions = ['rate', 'unrate', 'add_to_list', 'remove_from_list', 'add_to_predefined_list', 'remove_from_predefined_list']
 
     if params.type not in no_auth_required_actions and not __check_imdb_auth_config(core, params):
@@ -1215,10 +1222,66 @@ def query(core, params):
     lists_page_size = core.kodi.get_int_setting('general.lists_page_size')
 
     requests = {
+        'popularMovies': lambda: core.utils.get_graphql_query({
+            'query': '''
+                query fn($limit: Int!, $paginationToken: String, $EXTRA_PARAMS) {
+                    chartTitles(
+                        first: $limit
+                        after: $paginationToken
+                        chart: { chartType: MOST_POPULAR_MOVIES }
+                    ) {
+                        titles: edges {
+                            node {
+                                ...Title
+                            }
+                        }
+                        pageInfo {
+                            hasNextPage
+                            endCursor
+                        }
+                    }
+                }
+            ''',
+            'operationName': 'fn',
+            'variables': {
+                'limit': page_size,
+                'paginationToken': params.paginationToken
+            }
+        }),
+        'popularTVShows': lambda: core.utils.get_graphql_query({
+            'query': '''
+                query fn($limit: Int!, $paginationToken: String, $EXTRA_PARAMS) {
+                    chartTitles(
+                        first: $limit
+                        after: $paginationToken
+                        chart: { chartType: MOST_POPULAR_TV_SHOWS }
+                    ) {
+                        titles: edges {
+                            node {
+                                ...Title
+                            }
+                        }
+                        pageInfo {
+                            hasNextPage
+                            endCursor
+                        }
+                    }
+                }
+            ''',
+            'operationName': 'fn',
+            'variables': {
+                'limit': page_size,
+                'paginationToken': params.paginationToken
+            }
+        }),
         'popular': lambda: core.utils.get_graphql_query({
             'query': '''
                 query fn($limit: Int!, $paginationToken: String, $popularTitlesQueryFilter: PopularTitlesQueryFilter!, $EXTRA_PARAMS) {
-                    popularTitles(limit: $limit, paginationToken: $paginationToken, queryFilter: $popularTitlesQueryFilter) {
+                    popularTitles(
+                        limit: $limit,
+                        paginationToken: $paginationToken,
+                        queryFilter: $popularTitlesQueryFilter
+                    ) {
                         titles {
                             ...Title
                         }
@@ -1238,7 +1301,11 @@ def query(core, params):
         'year': lambda: core.utils.get_graphql_query({
             'query': '''
                 query fn($limit: Int!, $paginationToken: String, $popularTitlesQueryFilter: PopularTitlesQueryFilter!, $EXTRA_PARAMS) {
-                    popularTitles(limit: $limit, paginationToken: $paginationToken, queryFilter: $popularTitlesQueryFilter) {
+                    popularTitles(
+                        limit: $limit,
+                        paginationToken: $paginationToken,
+                        queryFilter: $popularTitlesQueryFilter
+                    ) {
                         titles {
                             ...Title
                         }
@@ -1257,19 +1324,27 @@ def query(core, params):
         }),
         'fan_picks': lambda: core.utils.get_graphql_query({
             'query': '''
-                query fn($first: Int!, $EXTRA_PARAMS) {
-                    fanPicksTitles(first: $first) {
+                query fn($first: Int!, $paginationToken: ID, $EXTRA_PARAMS) {
+                    fanPicksTitles(
+                        first: $first,
+                        after: $paginationToken
+                    ) {
                         titles: edges {
                             node {
                                 ...Title
                             }
+                        }
+                        pageInfo {
+                            hasNextPage
+                            endCursor
                         }
                     }
                 }
             ''',
             'operationName': 'fn',
             'variables': {
-                'first': 100,
+                'first': page_size,
+                'paginationToken': params.paginationToken
             }
         }),
         'more_like_this': lambda: core.utils.get_graphql_query({

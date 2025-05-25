@@ -45,8 +45,6 @@ def __setup_provider(a4kstreaming_api, settings={}):
     a4kstreaming_api.core.cache.save_provider(selected)
 
 def __invoke(a4kstreaming_api, action, params={}, settings={}, prerun=None, remove_cache=True):
-    global premiumize_apikey, realdebrid_apikey, imdb_token, trakt_apikey, trakt_username
-
     if remove_cache:
         __remove_cache(a4kstreaming_api)
 
@@ -146,6 +144,20 @@ def test_trailer():
     trailer = __invoke(a4kstreaming_api, 'trailer', { 'id': 'tt10048342', 'vi': 'vi1185857817' })
 
     assert len(trailer.results) > 0
+
+def test_popular_movies():
+    a4kstreaming_api = api.A4kStreamingApi({'kodi': True})
+
+    fn = __invoke(a4kstreaming_api, 'query', { 'type': 'popularMovies' })
+
+    assert len(fn.results) > 0
+
+def test_popular_tvshows():
+    a4kstreaming_api = api.A4kStreamingApi({'kodi': True})
+
+    fn = __invoke(a4kstreaming_api, 'query', { 'type': 'popularTVShows' })
+
+    assert len(fn.results) > 0
 
 def test_popular():
     a4kstreaming_api = api.A4kStreamingApi({'kodi': True})
