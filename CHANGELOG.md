@@ -1,3 +1,6 @@
+* [v1.66.0](https://github.com/newt-sc/a4kStreaming/releases/tag/plugin.video.a4kstreaming%2Fplugin.video.a4kstreaming-1.66.0):
+  * Browser popular Movies and TV Shows separately
+
 * [v1.65.1](https://github.com/newt-sc/a4kStreaming/releases/tag/plugin.video.a4kstreaming%2Fplugin.video.a4kstreaming-1.65.1):
   * Size should be prefered over HDR bitness info
 
