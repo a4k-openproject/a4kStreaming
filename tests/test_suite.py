@@ -159,6 +159,27 @@ def test_popular_tvshows():
 
     assert len(fn.results) > 0
 
+def test_popular_animations():
+    a4kstreaming_api = api.A4kStreamingApi({'kodi': True})
+
+    fn = __invoke(a4kstreaming_api, 'query', { 'type': 'popularAnimations' })
+
+    assert len(fn.results) > 0
+
+def test_popular_animation_tv_shows():
+    a4kstreaming_api = api.A4kStreamingApi({'kodi': True})
+
+    fn = __invoke(a4kstreaming_api, 'query', { 'type': 'popularAnimationTVShows' })
+
+    assert len(fn.results) > 0
+
+def test_popular_reality_tv_shows():
+    a4kstreaming_api = api.A4kStreamingApi({'kodi': True})
+
+    fn = __invoke(a4kstreaming_api, 'query', { 'type': 'popularRealityTVShows' })
+
+    assert len(fn.results) > 0
+
 def test_popular():
     a4kstreaming_api = api.A4kStreamingApi({'kodi': True})
 
