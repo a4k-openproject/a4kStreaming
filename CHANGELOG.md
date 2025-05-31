@@ -1,3 +1,9 @@
+* [v1.67.0](https://github.com/newt-sc/a4kStreaming/releases/tag/plugin.video.a4kstreaming%2Fplugin.video.a4kstreaming-1.67.0):
+  * New browsing options:
+    * Trending Animations
+    * Trending Animation TV Series
+    * Trending Reality TV Series
+
 * [v1.66.0](https://github.com/newt-sc/a4kStreaming/releases/tag/plugin.video.a4kstreaming%2Fplugin.video.a4kstreaming-1.66.0):
   * Browser popular Movies and TV Shows separately
 

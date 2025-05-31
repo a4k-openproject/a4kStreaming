@@ -634,6 +634,27 @@ def root(core):
             'subitems': True
         },
         {
+            'label': 'Trending Animations',
+            'action': 'query',
+            'type': 'popularAnimations',
+            'info': 'IMDb\'s latest trending animations.',
+            'subitems': True
+        },
+        {
+            'label': 'Trending Animation TV Series',
+            'action': 'query',
+            'type': 'popularAnimationTVShows',
+            'info': 'IMDb\'s latest trending animation TV series.',
+            'subitems': True
+        },
+        {
+            'label': 'Trending Reality TV Series',
+            'action': 'query',
+            'type': 'popularRealityTVShows',
+            'info': 'IMDb\'s latest trending reality TV series.',
+            'subitems': True
+        },
+        {
             'label': 'Fan Favorites',
             'action': 'query',
             'type': 'fan_picks',
@@ -1179,7 +1200,7 @@ def cloud(core, params):
     return items
 
 def query(core, params):
-    no_auth_required_actions = ['popularMovies', 'popularTVShows', 'popular', 'year', 'fan_picks', 'more_like_this', 'seasons', 'episodes', 'browse']
+    no_auth_required_actions = ['popularMovies', 'popularTVShows', 'popularAnimations', 'popularAnimationTVShows', 'popularRealityTVShows', 'popular', 'year', 'fan_picks', 'more_like_this', 'seasons', 'episodes', 'browse']
     bool_response_actions = ['rate', 'unrate', 'add_to_list', 'remove_from_list', 'add_to_predefined_list', 'remove_from_predefined_list']
 
     if params.type not in no_auth_required_actions and not __check_imdb_auth_config(core, params):
@@ -1224,15 +1245,18 @@ def query(core, params):
     requests = {
         'popularMovies': lambda: core.utils.get_graphql_query({
             'query': '''
-                query fn($limit: Int!, $paginationToken: String, $EXTRA_PARAMS) {
-                    chartTitles(
+                query fn($limit: Int!, $paginationToken: String, $endDate: Date!, $EXTRA_PARAMS) {
+                    advancedTitleSearch(
                         first: $limit
                         after: $paginationToken
-                        chart: { chartType: MOST_POPULAR_MOVIES }
+                        constraints: { genreConstraint: { allGenreIds: [], excludeGenreIds: ["Animation","Reality-TV","Game-Show"] }, releaseDateConstraint: { releaseDateRange: { end: $endDate }}, titleTypeConstraint: { anyTitleTypeIds: ["movie", "tvMovie"], excludeTitleTypeIds: [] } }
+                        sort: { sortBy: POPULARITY, sortOrder: ASC }
                     ) {
                         titles: edges {
                             node {
-                                ...Title
+                                title {
+                                    ...Title
+                                }
                             }
                         }
                         pageInfo {
@@ -1245,20 +1269,24 @@ def query(core, params):
             'operationName': 'fn',
             'variables': {
                 'limit': page_size,
-                'paginationToken': params.paginationToken
+                'paginationToken': params.paginationToken,
+                'endDate': '%s-%s-%s' % (now.year, str(now.month).zfill(2), str(now.day).zfill(2))
             }
         }),
         'popularTVShows': lambda: core.utils.get_graphql_query({
             'query': '''
-                query fn($limit: Int!, $paginationToken: String, $EXTRA_PARAMS) {
-                    chartTitles(
+                query fn($limit: Int!, $paginationToken: String, $endDate: Date!, $EXTRA_PARAMS) {
+                    advancedTitleSearch(
                         first: $limit
                         after: $paginationToken
-                        chart: { chartType: MOST_POPULAR_TV_SHOWS }
+                        constraints: { genreConstraint: { allGenreIds: [], excludeGenreIds: ["Animation","Reality-TV","Game-Show"] }, releaseDateConstraint: { releaseDateRange: { end: $endDate }}, titleTypeConstraint: { anyTitleTypeIds: ["tvSeries","tvMiniSeries"], excludeTitleTypeIds: [] } }
+                        sort: { sortBy: POPULARITY, sortOrder: ASC }
                     ) {
                         titles: edges {
                             node {
-                                ...Title
+                                title {
+                                    ...Title
+                                }
                             }
                         }
                         pageInfo {
@@ -1271,7 +1299,98 @@ def query(core, params):
             'operationName': 'fn',
             'variables': {
                 'limit': page_size,
-                'paginationToken': params.paginationToken
+                'paginationToken': params.paginationToken,
+                'endDate': '%s-%s-%s' % (now.year, str(now.month).zfill(2), str(now.day).zfill(2))
+            }
+        }),
+        'popularAnimations': lambda: core.utils.get_graphql_query({
+            'query': '''
+                query fn($limit: Int!, $paginationToken: String, $endDate: Date!, $EXTRA_PARAMS) {
+                    advancedTitleSearch(
+                        first: $limit
+                        after: $paginationToken
+                        constraints: { genreConstraint: { allGenreIds: ["Animation"], excludeGenreIds: ["Reality-TV","Game-Show"] }, releaseDateConstraint: { releaseDateRange: { end: $endDate }}, titleTypeConstraint: { anyTitleTypeIds: ["movie", "tvMovie"], excludeTitleTypeIds: [] } }
+                        sort: { sortBy: POPULARITY, sortOrder: ASC }
+                    ) {
+                        titles: edges {
+                            node {
+                                title {
+                                    ...Title
+                                }
+                            }
+                        }
+                        pageInfo {
+                            hasNextPage
+                            endCursor
+                        }
+                    }
+                }
+            ''',
+            'operationName': 'fn',
+            'variables': {
+                'limit': page_size,
+                'paginationToken': params.paginationToken,
+                'endDate': '%s-%s-%s' % (now.year, str(now.month).zfill(2), str(now.day).zfill(2))
+            }
+        }),
+        'popularAnimationTVShows': lambda: core.utils.get_graphql_query({
+            'query': '''
+                query fn($limit: Int!, $paginationToken: String, $endDate: Date!, $EXTRA_PARAMS) {
+                    advancedTitleSearch(
+                        first: $limit
+                        after: $paginationToken
+                        constraints: { genreConstraint: { allGenreIds: ["Animation"], excludeGenreIds: ["Reality-TV","Game-Show"] }, releaseDateConstraint: { releaseDateRange: { end: $endDate }}, titleTypeConstraint: { anyTitleTypeIds: ["tvSeries","tvMiniSeries"], excludeTitleTypeIds: [] } }
+                        sort: { sortBy: POPULARITY, sortOrder: ASC }
+                    ) {
+                        titles: edges {
+                            node {
+                                title {
+                                    ...Title
+                                }
+                            }
+                        }
+                        pageInfo {
+                            hasNextPage
+                            endCursor
+                        }
+                    }
+                }
+            ''',
+            'operationName': 'fn',
+            'variables': {
+                'limit': page_size,
+                'paginationToken': params.paginationToken,
+                'endDate': '%s-%s-%s' % (now.year, str(now.month).zfill(2), str(now.day).zfill(2))
+            }
+        }),
+        'popularRealityTVShows': lambda: core.utils.get_graphql_query({
+            'query': '''
+                query fn($limit: Int!, $paginationToken: String, $endDate: Date!, $EXTRA_PARAMS) {
+                    advancedTitleSearch(
+                        first: $limit
+                        after: $paginationToken
+                        constraints: { genreConstraint: { allGenreIds: ["Reality-TV","Game-Show"], excludeGenreIds: [] }, releaseDateConstraint: { releaseDateRange: { end: $endDate }}, titleTypeConstraint: { anyTitleTypeIds: ["tvSeries","tvMiniSeries"], excludeTitleTypeIds: [] } }
+                        sort: { sortBy: POPULARITY, sortOrder: ASC }
+                    ) {
+                        titles: edges {
+                            node {
+                                title {
+                                    ...Title
+                                }
+                            }
+                        }
+                        pageInfo {
+                            hasNextPage
+                            endCursor
+                        }
+                    }
+                }
+            ''',
+            'operationName': 'fn',
+            'variables': {
+                'limit': page_size,
+                'paginationToken': params.paginationToken,
+                'endDate': '%s-%s-%s' % (now.year, str(now.month).zfill(2), str(now.day).zfill(2))
             }
         }),
         'popular': lambda: core.utils.get_graphql_query({

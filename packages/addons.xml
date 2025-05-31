@@ -4,7 +4,7 @@
 <addons>
 <addon id="plugin.video.a4kstreaming"
        name="a4kStreaming"
-       version="1.66.0"
+       version="1.67.0"
        provider-name="Unknown">
     <requires>
       <import addon="script.module.requests"/>
@@ -35,6 +35,12 @@ Designed for low-end devices and Estuary skin.
             <screenshot>screenshot-06.jpg</screenshot>
         </assets>
         <news>
+[v1.67.0]:
+  * New browsing options:
+    * Trending Animations
+    * Trending Animation TV Series
+    * Trending Reality TV Series
+
 [v1.66.0]:
   * Browser popular Movies and TV Shows separately
 
