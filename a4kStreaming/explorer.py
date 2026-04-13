@@ -2174,29 +2174,6 @@ def trailer(core, params):
     if params.play == 'true':
         core.kodi.open_busy_dialog()
 
-    request = {
-        'method': 'GET',
-        'url': 'https://www.imdb.com/video/vi4240746009'
-    }
-
-    response = core.request.execute(core, request, False)
-    if response.status_code != 200:
-        core.kodi.close_busy_dialog()
-        core.utils.end_action(core, False)
-        core.logger.notice(response.text)
-        core.kodi.notification('Trailer not found')
-        return
-
-    __build_id = core.utils.re.search(r'"buildId":"(.*?)"', response.text)
-    if __build_id:
-        __build_id = __build_id.group(1).strip()
-    else:
-        core.kodi.close_busy_dialog()
-        core.utils.end_action(core, False)
-        core.logger.notice(response.text)
-        core.kodi.notification('Trailer not found')
-        return
-
     videos = params.vi.split('_')
     vi = videos[0]
 
@@ -2214,16 +2191,27 @@ def trailer(core, params):
         vi = videos[selection]
 
     request = {
-        'method': 'GET',
-        'url': 'https://www.imdb.com/_next/data/%s/en-US/video/%s.json' % (__build_id, vi),
-        'params': {
-            'playlistId': params.id,
-            'viconst': params.vi,
-        },
-        'headers': {
-            'content-type': 'application/json',
-        },
+        'method': 'POST',
+        'url': 'https://graphql.imdb.com',
+        'data': core.json.dumps({
+            'query': '''
+                query fn($videoId: ID!) {
+                    video(id: $videoId) {
+                        playbackURLs {
+                            url
+                            displayName { value }
+                            videoDefinition
+                        }
+                    }
+                }
+            ''',
+            'operationName': 'fn',
+            'variables': {
+                'videoId': vi,
+            }
+        }),
     }
+    request.update(core.utils.imdb_auth_request_props())
 
     response = core.request.execute(core, request, False)
     if response.status_code != 200:
@@ -2235,7 +2223,7 @@ def trailer(core, params):
 
     parsed_response = core.json.loads(response.content)
     try:
-        all = parsed_response['pageProps']['videoPlaybackData']['video']['playbackURLs']
+        all = parsed_response['data']['video']['playbackURLs']
         filtered = filter(lambda v: v['displayName']['value'] != 'AUTO', all)
         trailerUrl = next(iter(filtered), iter(all))['url']
     except:
