@@ -139,6 +139,18 @@ msgctxt "#33132"
 msgid "Classic"
 msgstr ""
 
+msgctxt "#33140"
+msgid "Search all providers by default"
+msgstr ""
+
+msgctxt "#33141"
+msgid "Search all providers"
+msgstr ""
+
+msgctxt "#33142"
+msgid "Show uncached sources (%s)"
+msgstr ""
+
 # Views
 msgctxt "#33200"
 msgid "Menu views"

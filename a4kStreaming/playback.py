@@ -109,6 +109,29 @@ def result_sort_key(result):
         result['release_title'],
     )
 
+def filter_keys(core, results, keys, mediatype, strict=False):
+    # the quality, movie size and Dolby Vision limits; a limit that leaves nothing is lifted with a notice, unless strict
+    def narrow(keys, keep, notice):
+        kept = [key for key in keys if keep(results[key])]
+        if kept or strict:
+            return kept
+        core.kodi.notification(notice)
+        return keys
+
+    max_quality = core.kodi.get_int_setting('general.max_quality') + 1
+    quality_list = ['4K', '1080P', '720P', 'SD']
+    excluded_quality = quality_list[:len(quality_list) - max_quality]
+    if len(excluded_quality) > 0:
+        keys = narrow(keys, lambda result: result['quality'] not in excluded_quality, 'No results for specified quality. Showing all results.')
+
+    if mediatype == 'movie':
+        max_movie_size = core.kodi.get_int_setting('general.max_movie_size')
+        keys = narrow(keys, lambda result: result['size'] <= max_movie_size, 'No results for specified movie size. Showing all results.')
+
+    if not core.kodi.get_bool_setting('general.dolby_vision_allowed'):
+        return [key for key in keys if results[key]['hdr'] != 'DV']
+    return [key for key in keys if not (results[key]['hdr'] == 'DV' and 'mkv' in results[key])]
+
 def util_filter_episodes(core, result, files, prop_name):
     season_nozfill = str(result['ref'].season)
     season_zfill = season_nozfill.zfill(2)
@@ -274,24 +297,26 @@ def play(core, params):
     provider_params.start_time = core.utils.time_ms()
 
     provider_params.refresh = params.refresh
+    provider_params.full = params.full_search or params.cache_sources
     provider = core.provider(core, provider_params)
+    mediatype = provider_params.title.mediatype
+
+    # quick sources with nothing that passes the quality and size limits: the full search takes over
+    if provider.quick and not filter_keys(core, provider.cached, list(provider.cached.keys()), mediatype, strict=True):
+        provider_params.full = True
+        provider = core.provider(core, provider_params)
 
     if params.cache_sources:
         return provider.results
 
+    uncached = dict((hash, result) for hash, result in provider.results.items() if 'PM%s' % hash not in provider.cached)
     if len(provider.cached) == 0:
-        core.kodi.notification('No sources found')
-
-        if len(provider.results) > 0 and pm_apikey:
-            confirmed = core.kodi.xbmcgui.Dialog().yesno(
-                'Uncached sources found',
-                'Found %s uncached sources. Do you want to some of them to debrid?' % len(provider.results),
-                nolabel='No',
-                yeslabel='Yes'
-            )
-
-            if confirmed:
-                cache_sources(core, params, provider.results)
+        if uncached:
+            # nothing cached: the uncached sources, to send to the debrid service
+            core.kodi.notification('No cached sources found')
+            cache_sources(core, params, uncached)
+        else:
+            core.kodi.notification('No sources found')
 
         general.last_action_time = core.utils.time_ms()
         core.cache.save_general(general)
@@ -301,29 +326,7 @@ def play(core, params):
     results = provider.cached
 
     results_keys = sorted(results.keys(), key=lambda key: result_sort_key(results[key]))
-
-    max_quality = core.kodi.get_int_setting('general.max_quality') + 1
-    quality_list = ['4K', '1080P', '720P', 'SD']
-    excluded_quality = quality_list[:len(quality_list) - max_quality]
-    if len(excluded_quality) > 0:
-        results_keys_filtered = [key for key in results_keys if results[key]['quality'] not in excluded_quality]
-        if len(results_keys_filtered) > 0:
-            results_keys = results_keys_filtered
-        else:
-            core.kodi.notification('No results for specified quality. Showing all results.')
-
-    if provider_params.title.mediatype == 'movie':
-        max_movie_size = core.kodi.get_int_setting('general.max_movie_size')
-        results_keys_filtered = [key for key in results_keys if results[key]['size'] <= max_movie_size]
-        if len(results_keys_filtered) > 0:
-            results_keys = results_keys_filtered
-        else:
-            core.kodi.notification('No results for specified movie size. Showing all results.')
-
-    if not core.kodi.get_bool_setting('general.dolby_vision_allowed'):
-        results_keys = [key for key in results_keys if results[key]['hdr'] != 'DV']
-    else:
-        results_keys = [key for key in results_keys if not (results[key]['hdr'] == 'DV' and 'mkv' in results[key])]
+    results_keys = filter_keys(core, results, results_keys, mediatype)
 
     result_style = '[LIGHT]%s[/LIGHT]'
     autoplay = core.kodi.get_bool_setting('general.autoplay') and not params.force_sourceselect
@@ -343,13 +346,21 @@ def play(core, params):
         parsed_response = core.json.loads(response.content)
         return parsed_response.get('content', [])
 
+    # the last row: the full search after quick sources, the uncached sources after a full search
+    last_row = None
+    if provider.quick:
+        last_row = core.kodi.string(33141, 'Search all providers')
+    elif uncached:
+        last_row = core.kodi.string(33142, 'Show uncached sources (%s)') % len(uncached)
+
     while True:
         if not autoplay:
             selection = sheets.select(
                 'Choose source',
-                [__action_menu_style % 'New Search'] + [result_style % results[key].get('title_with_debrid', results[key]['title']) for key in results_keys],
+                [__action_menu_style % 'New Search'] + [result_style % results[key].get('title_with_debrid', results[key]['title']) for key in results_keys]
+                + ([__action_menu_style % last_row] if last_row else []),
                 preselect=selection,
-                rows=[('New Search', '')] + [sheets.source_row(results[key]) for key in results_keys],
+                rows=[('New Search', '')] + [sheets.source_row(results[key]) for key in results_keys] + ([(last_row, '')] if last_row else []),
             )
 
         if selection == -1:
@@ -362,6 +373,15 @@ def play(core, params):
             general.last_action_time = None
             core.cache.save_general(general)
             return play(core, params)
+        elif selection == len(results_keys) + 1 and provider.quick:
+            # the full results replace the quick ones
+            params.full_search = True
+            general.last_action_time = None
+            core.cache.save_general(general)
+            return play(core, params)
+        elif selection == len(results_keys) + 1:
+            cache_sources(core, params, uncached)
+            continue
         else:
             core.cache.save_last_selected_result({ result_keys_hash: selection })
             selection -= 1

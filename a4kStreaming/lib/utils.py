@@ -165,6 +165,10 @@ def random_digit_str(length):
 def get_premiumize_apikey(core):
     return core.kodi.get_setting('premiumize.apikey')
 
+def source_link(hash):
+    # the link a debrid service resolves for a bare info hash; result_link_key is also that link's URI scheme
+    return '%s:?xt=urn:btih:%s' % (result_link_key, hash)
+
 def get_color_string(string, color):
     return '[B][COLOR %s]%s[/COLOR][/B]' % (color, string)
 

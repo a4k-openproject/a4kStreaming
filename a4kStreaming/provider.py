@@ -161,6 +161,9 @@ def __manage(core, params):
 def __search_timeout(core):
     return int(core.kodi.get_setting('general.search_timeout') or 40)
 
+# seconds the quick sources get before the full search takes over
+quick_wait = 5
+
 def __aligned(values, count, fill):
     values = list(values or [])[:count]
     return values + [fill] * (count - len(values))
@@ -177,11 +180,14 @@ def __check_pm(core, apikey, hashes):
     except:
         return { 'status': [False] * len(hashes), 'filesize': [0] * len(hashes) }
 
-def __split(core, title, raw):
+def __split(core, title, raw, quick=False):
     hashes = list(raw.keys())
-    # on the calling thread, so the check reuses its keep-alive session
+    # on the calling thread, so the check reuses its keep-alive session; quick sources list cached rows only
     apikey = core.utils.get_premiumize_apikey(core)
-    pm = __check_pm(core, apikey, hashes) if apikey and hashes else None
+    if quick:
+        pm = { 'status': [True] * len(hashes), 'filesize': [0] * len(hashes) }
+    else:
+        pm = __check_pm(core, apikey, hashes) if apikey and hashes else None
 
     results = {}
     cached = {}
@@ -207,7 +213,70 @@ def __split(core, title, raw):
             cached_result['title_with_debrid'] = 'PM  |  %s' % result['title']
             cached['PM%s' % hash] = cached_result
 
-    return core.utils.DictAsObject({ 'results': results, 'cached': cached })
+    return core.utils.DictAsObject({ 'results': results, 'cached': cached, 'quick': quick })
+
+def __call_source(core, source, title, apikeys):
+    if title.mediatype == 'movie':
+        try:
+            return source.movie(title.title, title.year, title.imdbnumber, apikeys=apikeys)
+        except Exception as e:
+            if 'movie() takes' in str(e):
+                return source.movie(title.title, title.year, apikeys=apikeys)
+            core.logger.notice(core.traceback.format_exc())
+            return []
+    simple_info = {
+        'show_title': title.tvshowtitle,
+        'show_aliases': [],
+        'year': title.year,
+        'country': title.country,
+        'episode_title': title.title,
+        'season_number': str(title.season),
+        'episode_number': str(title.episode),
+        'no_seasons': str(title.seasons[-1]),
+        'is_airing': title.is_airing
+    }
+    all_info = { 'info': { 'tvshow.imdb_id': title.tvshowid } }
+    return source.episode(simple_info, all_info, apikeys=apikeys)
+
+def __quick_sources(core):
+    # the provider package's quick sources (fast, debrid-aware, cached rows only), minus the ones switched off in
+    # Manage; older packages have no such list
+    try: names = core.importlib.import_module('providers.%s.en' % __meta(core).name).get_quick()
+    except Exception: return []
+    provider = core.cache.get_provider()
+    return [name for name in names if provider.get(name.upper(), False)]
+
+def __query_quick(core, params, names, apikey):
+    # each quick source in its own thread for at most quick_wait seconds; None when one fails or the time runs out,
+    # and a late answer lands in a dict nobody reads
+    rows = {}
+    failed = []
+
+    def get_sources(name):
+        try:
+            source = core.importlib.import_module(__sources_module_name(core) + ('.%s' % name.lower())).sources()
+            for result in __call_source(core, source, params.title, { 'pm': apikey }):
+                hash = (result.get('hash', None) or '').lower().strip('"\'\\/')
+                if hash and result.get('debrid', None):
+                    # the source's own link embeds the debrid key: play through the debrid service by hash instead
+                    result.pop('url', None)
+                    result['hash'] = hash
+                    result[core.utils.result_link_key] = core.utils.source_link(hash)
+                    rows.setdefault(hash, result)
+        except Exception:
+            failed.append(name)
+
+    threads = [core.threading.Thread(target=get_sources, args=(name,)) for name in names]
+    deadline = core.time.time() + quick_wait
+    for thread in threads:
+        thread.daemon = True
+        thread.start()
+    for thread in threads:
+        thread.join(max(0, deadline - core.time.time()))
+
+    if failed or any(thread.is_alive() for thread in threads):
+        return None
+    return dict(rows)
 
 def __query_providers(core, params):
     provider = core.cache.get_provider()
@@ -235,28 +304,7 @@ def __query_providers(core, params):
             source = sources[key]
             results = []
             try:
-                if params.title.mediatype == 'movie':
-                    try:
-                        results += source.movie(params.title.title, params.title.year, params.title.imdbnumber, apikeys={})
-                    except Exception as e:
-                        if 'movie() takes' in str(e):
-                            results += source.movie(params.title.title, params.title.year, apikeys={})
-                        else:
-                            core.logger.notice(core.traceback.format_exc())
-                else:
-                    simple_info = {
-                        'show_title': params.title.tvshowtitle,
-                        'show_aliases': [],
-                        'year': params.title.year,
-                        'country': params.title.country,
-                        'episode_title': params.title.title,
-                        'season_number': str(params.title.season),
-                        'episode_number': str(params.title.episode),
-                        'no_seasons': str(params.title.seasons[-1]),
-                        'is_airing': params.title.is_airing
-                    }
-                    all_info = { 'info': { 'tvshow.imdb_id': params.title.tvshowid } }
-                    results += source.episode(simple_info, all_info, apikeys={})
+                results += __call_source(core, source, params.title, {})
 
                 for result in results:
                     result['hash'] = (result.get('hash', None) or '').lower().strip('"\'\\/')
@@ -362,6 +410,17 @@ def __write_search_cache(core, title, raw):
     core.cache.save_last_results(cache)
 
 def __search(core, params):
+    # quick sources first unless the full search is asked for, by the caller or by the setting; nothing from them
+    # in time means the full search
+    apikey = core.utils.get_premiumize_apikey(core)
+    if apikey and not params.full and not core.kodi.get_bool_setting('general.search_all_providers'):
+        names = __quick_sources(core)
+        if names:
+            with core.kodi.busy_dialog():
+                raw = __query_quick(core, params, names, apikey)
+                if raw:
+                    return __split(core, params.title, raw, quick=True)
+
     # the slow provider search is cached, the cheap debrid split is redone on every read so cached rows never go stale
     raw = {} if params.refresh else __read_search_cache(core, params.title)
     if not raw:

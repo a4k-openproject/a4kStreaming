@@ -189,8 +189,9 @@ def test_fix_image_size(core):
     assert core.utils.fix_fanart_size({'url': None}) is None
 
 class __PlayHarness(object):
-    def __init__(self, core, monkeypatch, files_by_link, choices, autoplay=False, dead_links=(), mode='1'):
+    def __init__(self, core, monkeypatch, files_by_link, choices, autoplay=False, dead_links=(), mode='1', quick=None, uncached=None):
         self.dialogs = []
+        self.items = []
         self.probed = []
         self.notifications = []
         self.resolved = []
@@ -216,7 +217,17 @@ class __PlayHarness(object):
         monkeypatch.setattr(core.kodi.addon, 'getSetting', lambda key: settings.get(key, ''))
         monkeypatch.setattr(core, 'provider_meta', lambda core: utils.DictAsObject({'name': 'test'}))
         monkeypatch.setattr(core.cache, 'get_general', lambda: utils.DictAsObject({}))
-        monkeypatch.setattr(core, 'provider', lambda core, params: self.searches.append(params) or utils.DictAsObject({'results': results, 'cached': results}))
+        # the search's shape: every row under its hash, the cached ones again under PM<hash>
+        raw = dict((key[2:], result) for key, result in results.items())
+        raw.update(uncached or {})
+
+        def provider(core, params):
+            # quick: the quick sources' cached rows, answered until the full search is asked for
+            self.searches.append(utils.DictAsObject(dict(params)))
+            if quick is not None and not params.full:
+                return utils.DictAsObject({'results': quick, 'cached': dict(('PM%s' % key, row) for key, row in quick.items()), 'quick': True})
+            return utils.DictAsObject({'results': raw, 'cached': results})
+        monkeypatch.setattr(core, 'provider', provider)
         monkeypatch.setattr(core.cache, 'get_last_selected_result', lambda: {})
         for name in ['save_general', 'save_last_selected_result']:
             monkeypatch.setattr(core.cache, name, lambda data: None)
@@ -224,6 +235,7 @@ class __PlayHarness(object):
 
         def select(heading, items, preselect=None, **kwargs):
             self.dialogs.append((heading, preselect))
+            self.items.append(items)
             return choices.pop(0)
         dialog = lambda: None
         dialog.select = select
@@ -384,7 +396,8 @@ def __raw(name, hash, package='single', size=2048):
     return {'release_title': name, 'hash': hash, 'package': package, 'size': size}
 
 class __SearchHarness(object):
-    def __init__(self, core, monkeypatch, providers, settings=None, pm_cached=None, canceled=False, pm_content=None, cache=None, mode='1'):
+    def __init__(self, core, monkeypatch, providers, settings=None, pm_cached=None, canceled=False, pm_content=None, cache=None, mode='1',
+                 quick=(), switched_off=()):
         self.requests = []
         self.threads = []
         self.cache = {} if cache is None else cache
@@ -396,8 +409,11 @@ class __SearchHarness(object):
         all_settings = {'premiumize.apikey': 'key', 'ui.mode': mode}
         all_settings.update(settings or {})
         monkeypatch.setattr(core.kodi.addon, 'getSetting', lambda key: all_settings.get(key, ''))
-        monkeypatch.setattr(core.cache, 'get_provider', lambda: {key: True for key in providers})
+        monkeypatch.setattr(core.cache, 'get_provider', lambda: {key: key not in switched_off for key in providers})
         modules = {key.lower(): utils.DictAsObject({'sources': (lambda s: lambda: s)(s)}) for key, s in providers.items()}
+        if quick:
+            # the provider package itself (providers.<name>.en): its quick sources
+            modules['en'] = utils.DictAsObject({'get_quick': lambda: [key.lower() for key in quick]})
         monkeypatch.setattr(core, 'importlib', utils.DictAsObject({'import_module': lambda name: modules[name.rsplit('.', 1)[1]]}))
 
         def execute(core, request, cache=True):
@@ -578,6 +594,50 @@ def test_search_premiumize_answer_is_aligned_and_failure_is_uncached(core, monke
     assert sorted(search.cached.keys()) == cached
     assert sorted(search.results.keys()) == ['aa', 'bb', 'cc']  # every row stays on the uncached side
 
+class __QuickSource(object):
+    # a quick source: debrid-tagged rows only when a debrid key is passed, as the provider package documents
+    def __init__(self, rows, delay=0, fail=False):
+        self.rows, self.delay, self.fail, self.calls = rows, delay, fail, []
+
+    def movie(self, title, year, imdb, apikeys=None):
+        self.calls.append(apikeys)
+        if self.fail:
+            raise RuntimeError('source down')
+        __import__('time').sleep(self.delay)
+        return [dict(r, debrid='PM', url='https://example.com/resolve/premiumize/test-key/%s/0' % r['hash']) for r in self.rows] if apikeys else []
+
+    def cancel_operations(self):
+        pass
+
+@pytest.mark.parametrize('case,source,settings,extra,switched_off,quick', [
+    ('cached rows win the race', {}, {}, {}, (), True),
+    ('the timer fires first', {'delay': 0.5}, {}, {}, (), False),
+    ('the quick search errors', {'fail': True}, {}, {}, (), False),
+    ('nothing cached', {'rows': []}, {}, {}, (), False),
+    ('full search by default', {}, {'general.search_all_providers': 'true'}, {}, (), None),
+    ('no debrid key', {}, {'premiumize.apikey': ''}, {}, (), None),
+    ('switched off in Manage', {}, {}, {}, ('QUICK',), None),
+    ('full search asked for', {}, {}, {'full': True}, (), None),
+])
+def test_search_quick_sources_first_and_when_the_full_search_takes_over(core, monkeypatch, case, source, settings, extra, switched_off, quick):
+    # quick: True = the quick rows, False = tried and fell back, None = never tried
+    monkeypatch.setattr(importlib.import_module('a4kStreaming.provider'), 'quick_wait', 0.2)
+    fast = __QuickSource(**dict({'rows': [__raw('The.Movie.2020.1080p.WEB.x264-GRP', 'aa')]}, **source))
+    full = __FakeProvider([__raw('The.Movie.2020.2160p.WEB.x265-GRP', 'bb')])
+    h = __SearchHarness(core, monkeypatch, {'QUICK': fast, 'FULL': full}, settings=settings, pm_cached=['bb'], quick=['QUICK'], switched_off=switched_off)
+    search = h.run(**extra)
+
+    quick_calls = [apikeys for apikeys in fast.calls if apikeys]
+    assert quick_calls == ([] if quick is None else [{'pm': 'key'}])
+    assert bool(search.quick) is bool(quick)
+    if quick:
+        assert list(search.cached.keys()) == ['PMaa'] and h.requests == []  # already cached: no cache check
+        row = search.cached['PMaa']
+        assert 'url' not in row and row[core.utils.result_link_key].endswith(':?xt=urn:btih:aa')  # played by hash, not by the key-bearing link
+    else:
+        assert ('PMbb' in search.cached) == bool(settings.get('premiumize.apikey', 'key'))  # the full search's own split
+        assert 'PMaa' not in search.cached  # and no late quick answer in it
+
 def test_search_ignores_a_leftover_alldebrid_key(core, monkeypatch):
     provider = __FakeProvider([__raw('The.Movie.2020.1080p.WEB.x264-GRP', h) for h in ['aa', 'bb']])
     h = __SearchHarness(core, monkeypatch, {'ONE': provider}, settings={'premiumize.apikey': '', 'alldebrid.apikey': 'k'})
@@ -646,6 +706,38 @@ def test_search_sets_rank_guards_from_the_raw_release_name(core, monkeypatch):
     assert search.cached['PMaa']['title_mismatch'] is True
     assert search.cached['PMbb']['title_mismatch'] is False
 
+def __quick_row(core, name, size):
+    title = {'mediatype': 'movie', 'imdbnumber': 'tt0000001', 'title': 'The Movie', 'duration': 100}
+    return {'quality': '1080P', 'hdr': '', 'videocodec': 'H264', 'audiocodec': '', 'size': size, 'release_title': name, 'title': name,
+            core.utils.result_link_key: name, 'debrid': 'PM', 'package': 'single', 'seeds': 0, 'ref': core.utils.DictAsObject(title)}
+
+def test_play_quick_rows_over_the_size_limit_bring_the_full_search(core, monkeypatch):
+    h = __PlayHarness(core, monkeypatch, {'B': [__video('b')]}, choices=[2], quick={'Q': __quick_row(core, 'Q', 300.0)})
+    assert h.run() == 'http://b'
+    assert [bool(p.full) for p in h.searches] == [False, True]
+    assert len(h.items[0]) == 4  # New Search and the three full results, no last row
+
+def test_play_search_all_providers_replaces_the_quick_rows(core, monkeypatch):
+    h = __PlayHarness(core, monkeypatch, {'B': [__video('b')]}, choices=[2, 2], quick={'Q': __quick_row(core, 'Q', 10.0)})
+    assert h.run() == 'http://b'
+    assert [bool(p.full) for p in h.searches] == [False, True]
+    assert len(h.items[0]) == 3 and 'Search all providers' in h.items[0][-1]
+    assert len(h.items[1]) == 4 and not any('Q' in item for item in h.items[1])  # the full results alone
+    assert h.resolved == ['B']
+
+def test_play_full_search_keeps_uncached_rows_behind_the_last_row(core, monkeypatch):
+    h = __PlayHarness(core, monkeypatch, {}, choices=[4, -1, -1], uncached={'d': __quick_row(core, 'D', 10.0)})
+    assert h.run() is None
+    assert 'Show uncached sources (1)' in h.items[0][-1]
+    assert [heading for heading, _ in h.dialogs] == ['Choose source', 'Choose source to cache', 'Choose source']
+    assert len(h.items[1]) == 1 and 'D' in h.items[1][0]
+
+def test_play_with_nothing_cached_shows_the_uncached_rows(core, monkeypatch):
+    h = __PlayHarness(core, monkeypatch, {}, choices=[-1], uncached={'d': __quick_row(core, 'D', 10.0)})
+    monkeypatch.setattr(core, 'provider', lambda core, params: core.utils.DictAsObject({'results': {'d': __quick_row(core, 'D', 10.0)}, 'cached': {}}))
+    assert h.run() is None
+    assert [heading for heading, _ in h.dialogs] == ['Choose source to cache']
+
 def test_play_dead_link_moves_to_next_source(core, monkeypatch):
     h = __PlayHarness(core, monkeypatch, {'A': [__video('a')], 'B': [__video('b')]}, choices=[], autoplay=True, dead_links=['http://a'])
     assert h.run() == 'http://b'
@@ -687,3 +779,20 @@ def test_provider_install_takes_the_choice_as_a_string_or_int(core, monkeypatch,
     params = {'type': 'install', 'install': install, 'zip_path': zip_path}
     core.provider(core, core.utils.DictAsObject({k: v for k, v in params.items() if v is not None}))
     assert bool(dialogs) == asked and copied == ([] if asked else [zip_path])
+
+def test_logs_never_carry_a_debrid_key(core, monkeypatch):
+    logger = importlib.import_module('a4kStreaming.lib.logger')
+    logged = []
+    monkeypatch.setattr(logger.xbmc, 'log', lambda message, level: logged.append(message))
+    monkeypatch.setattr(core.kodi.addon, 'getSetting', lambda key: {'premiumize.apikey': 'test-key-1'}.get(key, ''))
+    hash = 'ab' * 20
+    core.logger.debug('POST ^ - https://www.premiumize.me/api/transfer/directdl?apikey=test-key-1')
+    core.logger.notice(RuntimeError('https://example.com/language%3Denglish%7Cpremiumize%3Dtest-key-1%7Cx/stream/movie/tt0000001.json'))
+    core.logger.notice('https://example.com/language=english|premiumize=test-key-1/stream/movie/tt0000001.json')
+    core.logger.error('https://example.com/resolve/premiumize/test-key-1/%s/null/0/Example.mkv' % hash)
+    core.logger.notice('a link of any other shape: https://example.com/play/test-key-1/%s' % hash)
+    core.logger.notice('https://example.com/api?apikey=test-key-2&id=1')  # a key no longer in the settings
+    assert len(logged) == 6
+    assert not any('test-key' in message for message in logged)
+    assert logged[3].endswith('/resolve/premiumize/***/%s/null/0/Example.mkv' % hash)
+    assert logged[5].endswith('https://example.com/api?apikey=***&id=1')

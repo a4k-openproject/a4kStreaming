@@ -111,9 +111,11 @@ def imdb(core):
 class Timer(object):
     # threading.Timer stand-in: records the delay and runs only when the test says so
     made = []
+
     def __init__(self, delay, fn, args=()):
         self.delay, self.fn, self.args, self.cancelled = delay, fn, args, False
         Timer.made.append(self)
+
     def start(self): pass
     def cancel(self): self.cancelled = True
     def fire(self): self.fn(*self.args)

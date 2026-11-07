@@ -8,6 +8,7 @@
         <setting id="general.dolby_vision_allowed"   label="33109" type="bool"   default="false"/>
         <setting id="general.autoplay"               label="33102" type="bool"   default="false"/>
         <setting id="general.search_timeout"         label="33110" type="slider" default="40" option="int" range="10,120"/>
+        <setting id="general.search_all_providers"   label="33140" type="bool"   default="false"/>
         <setting id="general.mark_as_watched_rating" label="33103" type="slider" default="7"  option="int" range="1,10"/>
         <setting id="general.page_size"              label="33104" type="slider" default="29" option="int" range="10,100"/>
         <setting id="general.lists_page_size"        label="33105" type="slider" default="29" option="int" range="10,100"/>

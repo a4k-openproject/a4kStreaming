@@ -64,6 +64,11 @@ def json_rpc(method, params, log_error=True):
     except KeyError:
         return None
 
+def string(id, default):
+    # the add-on's own string from strings.po; the English default where Kodi has none (the offline mock)
+    try: return addon.getLocalizedString(id) or default
+    except Exception: return default
+
 def get_kodi_setting(setting, log_error=True):
     return json_rpc('Settings.GetSettingValue', {"setting": setting}, log_error)
 
