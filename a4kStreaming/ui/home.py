@@ -78,10 +78,15 @@ def select(info):
     run(click_builtin(info))
 
 MORE_LIKE_THIS = 'IMDb: More like this'
+ACCOUNT = '?action=profile&'  # rating, watched, watchlist and list actions: each needs an IMDb login
 
 def menu(items, id, title):
-    # a title's context list (label, builtin) as Kodi's context menu; More like this opens the grid
-    choice = kodi.xbmcgui.Dialog().contextmenu([label for label, _ in items])
+    # a title's context list (label, builtin) as a select sheet, without the account actions when signed out (they
+    # would only answer with the missing login notification); More like this opens the grid
+    from . import sheets
+    if not kodi.get_setting('imdb.at-main'):
+        items = [item for item in items if ACCOUNT not in item[1]]
+    choice = sheets.select(title, [label for label, _ in items])
     if choice is None or choice < 0:
         return
     label, builtin = items[choice]

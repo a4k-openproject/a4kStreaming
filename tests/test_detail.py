@@ -252,14 +252,17 @@ def test_buttons_episodes_and_menu(core, detail, home, opened, calls, monkeypatc
     win.onClick(detail.PLAY)  # a series plays the open season's first episode
     win.onClick(detail.TRAILER)
     menus = []
-    monkeypatch.setattr(core.kodi.xbmcgui.Dialog(), 'contextmenu', lambda items: menus.append(items) or items.index('IMDb: Add to list'))
+    sheets = importlib.import_module('a4kStreaming.ui.sheets')
+    monkeypatch.setattr(sheets, 'select', lambda heading, items: menus.append((heading, items)) or items.index('IMDb: Cast & Crew'))
     win.onClick(detail.MORE)
     win.setFocusId(detail.WATCHLIST)
     win.onAction(Action(home.ACTION_CONTEXT_MENU))
-    add_to_list = 'RunPlugin(%s?action=profile&type=list_add&id=%s)' % (PLUGIN, SERIES)
+    cast = 'ActivateWindow(Videos,%s?action=query&type=browse&id=%s,return)' % (PLUGIN, SERIES)
     assert calls == ['PlayMedia(%s)' % episode, 'PlayMedia(%s)' % episode,
-                     'RunPlugin(%s?action=trailer&id=%s&vi=vi3510815001&play=true)' % (PLUGIN, SERIES), add_to_list, add_to_list]
-    assert menus[0] == [label for label, _ in win.vm['menu']] and win.error is None
+                     'RunPlugin(%s?action=trailer&id=%s&vi=vi3510815001&play=true)' % (PLUGIN, SERIES), cast, cast]
+    # signed out: the select sheet without the account actions
+    assert menus[0] == (win.vm['title'], [label for label, builtin in win.vm['menu'] if 'action=profile&' not in builtin])
+    assert 'IMDb: Add to list' not in menus[0][1] and win.error is None
 
 def test_movie_play_uses_the_title_play_url(core, detail, listing, opened, calls):
     detail.open(card())

@@ -374,12 +374,12 @@ def test_select_on_a_title_opens_its_detail_and_other_items_run_their_builtin(co
     assert calls == ['ActivateWindow(Videos,%s,return)' % folder] and len(grids) == 1
 
 def test_context_menu_on_rows_is_kodis_and_on_the_hero_is_ours(core, home, monkeypatch, calls):
-    settings(core, monkeypatch)
+    settings(core, monkeypatch, {'imdb.at-main': 'token'})
     menus = []
-    def contextmenu(labels):
+    def select(heading, labels):
         menus.append(labels)
         return labels.index('IMDb: Trailer')
-    monkeypatch.setattr(core.kodi.xbmcgui.Dialog(), 'contextmenu', contextmenu)
+    monkeypatch.setattr(importlib.import_module('a4kStreaming.ui.sheets'), 'select', select)
     hero = {'Container(301).ListItemAbsolute(0).Property(a4k.%s)' % key: value
             for key, value in (('type', 'movie'), ('id', 'tt7'), ('trailers', 'vi7'), ('rated', 'false'))}
     win = window(core, home, monkeypatch, 301, hero)
