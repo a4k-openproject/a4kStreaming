@@ -118,6 +118,7 @@ def select(*args, **kwargs): return None
 __dialog.select = select
 def multiselect(*args, **kwargs): return None
 __dialog.multiselect = multiselect
+__dialog.contextmenu = lambda _: -1
 def __create_dialog(*args, **kwargs): return __dialog
 xbmcgui.Dialog = __create_dialog
 
@@ -130,6 +131,47 @@ __dialogprogress.close = lambda: None
 __dialogprogress.iscanceled = lambda: False
 def __create_dialogprogress(*args, **kwargs): return __dialogprogress
 xbmcgui.DialogProgress = __create_dialogprogress
+
+# windows: properties are kept per window id, like Kodi's, so tests can read what one invocation left for the next
+_window_properties = {}
+
+class _Window(object):
+    def __init__(self, id=-1):
+        self.properties = _window_properties.setdefault(id, {})
+    def setProperty(self, key, value): self.properties[key] = value
+    def getProperty(self, key): return self.properties.get(key, '')
+    def clearProperty(self, key): self.properties.pop(key, None)
+    def clearProperties(self): self.properties.clear()
+xbmcgui.Window = _Window
+xbmcgui.getCurrentWindowId = lambda: 10025
+
+class ControlList(object):
+    def __init__(self, *args, **kwargs): self.items = []
+    def addItems(self, items): self.items.extend(items)
+    def reset(self): self.items = []
+    def size(self): return len(self.items)
+    def getSelectedPosition(self): return 0 if self.items else -1
+    def getSelectedItem(self): return self.items[0] if self.items else None
+    def selectItem(self, index): pass
+xbmcgui.ControlList = ControlList
+
+class WindowXML(_Window):
+    # doModal runs onInit once and returns, as if the user pressed Back right away
+    def __init__(self, xmlFilename, scriptPath, defaultSkin='Default', defaultRes='720p', isMedia=False):
+        self.properties = {}
+        self.controls = {}
+        self.focus_id = 0
+    def doModal(self): self.onInit()
+    def show(self): self.onInit()
+    def close(self): pass
+    def onInit(self): pass
+    def getControl(self, id): return self.controls.setdefault(id, ControlList())
+    def getFocusId(self): return self.focus_id
+    def setFocusId(self, id): self.focus_id = id
+xbmcgui.WindowXML = WindowXML
+
+class WindowXMLDialog(WindowXML): pass
+xbmcgui.WindowXMLDialog = WindowXMLDialog
 
 # xbmcvfs
 xbmcvfs = lambda: None

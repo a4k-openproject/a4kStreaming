@@ -65,6 +65,13 @@ def main(url, handle, paramstring):
     action = params.get('action', None)
 
     if action is None:
+        # the root opens the home window when the window interface is on; a widget always gets the listing
+        if params.widget != '1':
+            from .ui import app as ui_app
+            if ui_app.enabled():
+                ui_app.open_from_root(core.handle)
+                return
+
         core.viewType = kodi.get_setting('views.menu')
         core.contentType = 'videos'
         root(core)

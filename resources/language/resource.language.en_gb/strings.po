@@ -127,6 +127,18 @@ msgctxt "#33123"
 msgid "4K"
 msgstr ""
 
+msgctxt "#33130"
+msgid "Interface"
+msgstr ""
+
+msgctxt "#33131"
+msgid "Windows"
+msgstr ""
+
+msgctxt "#33132"
+msgid "Classic"
+msgstr ""
+
 # Views
 msgctxt "#33200"
 msgid "Menu views"
