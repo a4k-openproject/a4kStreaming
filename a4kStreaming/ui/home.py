@@ -103,6 +103,27 @@ class Home(kodi.xbmcgui.WindowXML):
         self.error = traceback.format_exc()
         self.close()
 
+# Kodi's ids for script windows (WINDOW_PYTHON_START..END)
+PYTHON_WINDOWS = range(13000, 13100)
+
+def window_id(window):
+    # a script window cannot ask its own id; find it by a property only this instance carries
+    token = str(id(window))
+    window.setProperty('a4k.token', token)
+    for candidate in PYTHON_WINDOWS:
+        try:
+            if kodi.xbmcgui.Window(candidate).getProperty('a4k.token') == token:
+                return candidate
+        except Exception:  # no such window
+            continue
+    return None
+
+def replace_current(window_id):
+    # Take the place of the window we were opened from (the Videos add-on list) in Kodi's window history. The history
+    # holds each window id once: with Videos under the home window, opening a listing in Videos cuts the home window out
+    # of it, and Back from the listing lands on Kodi's Home screen. Back from the home window now goes to Home, too.
+    kodi.xbmc.executebuiltin('ReplaceWindow(%s)' % window_id, True)
+
 def open():
     window = Home('a4k-home.xml', kodi.addon_path, 'Default', '1080i')
     # row URLs are set before the window opens: a row's provider fires once, at load (spike 2b)
@@ -112,6 +133,9 @@ def open():
     if kodi.get_setting('imdb.at-main'):
         window.setProperty('a4k.auth', 'true')
         window.setProperty('a4k.row.303', app.row_url('watchlist'))
+    own_id = window_id(window)
+    if own_id:
+        replace_current(own_id)  # doModal then skips its own, history-adding, activation
     try:
         window.doModal()
     finally:

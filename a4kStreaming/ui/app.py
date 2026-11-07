@@ -68,7 +68,8 @@ def run():
     if window_id:
         try:
             if kodi.xbmcgui.Window(int(window_id)).getProperty('a4k.home'):
-                return kodi.xbmc.executebuiltin('ActivateWindow(%s)' % window_id)
+                from .home import replace_current
+                return replace_current(window_id)
         except Exception:
             pass
         __home().clearProperty(OPEN_WINDOW)

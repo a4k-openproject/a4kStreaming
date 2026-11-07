@@ -14,7 +14,7 @@ from urllib.parse import unquote
 xbmc = lambda: None
 xbmc.getInfoLabel = lambda t: ''
 xbmc.executeJSONRPC = lambda _: '{ "result": { "value": [] } }'
-xbmc.executebuiltin = lambda _: None
+xbmc.executebuiltin = lambda *_: None
 xbmc.getCleanMovieTitle = lambda t: t
 xbmc.getCondVisibility = lambda _: False
 xbmc.sleep = lambda ms: time.sleep(ms / 1000)
@@ -158,7 +158,8 @@ xbmcgui.ControlList = ControlList
 class WindowXML(_Window):
     # doModal runs onInit once and returns, as if the user pressed Back right away
     def __init__(self, xmlFilename, scriptPath, defaultSkin='Default', defaultRes='720p', isMedia=False):
-        self.properties = {}
+        # registered under the first free script window id, as Kodi does
+        self.properties = _window_properties.setdefault(next(i for i in range(13000, 13100) if not _window_properties.get(i)), {})
         self.controls = {}
         self.focus_id = 0
     def doModal(self): self.onInit()

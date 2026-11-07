@@ -60,7 +60,7 @@ def settings(core, monkeypatch, values=None):
 def calls(core, monkeypatch):
     # every builtin, directory item batch and endOfDirectory a plugin call makes, in order
     log = []
-    monkeypatch.setattr(core.kodi.xbmc, 'executebuiltin', lambda builtin: log.append(builtin))
+    monkeypatch.setattr(core.kodi.xbmc, 'executebuiltin', lambda builtin, wait=False: log.append(builtin))
     monkeypatch.setattr(core.kodi.xbmcplugin, 'addDirectoryItems', lambda handle, items, count=0: log.append(('items', len(items))))
     monkeypatch.setattr(core.kodi.xbmcplugin, 'endOfDirectory', lambda handle, succeeded=True, **kwargs: log.append(('end', succeeded)), raising=False)
     monkeypatch.setattr(core.kodi.xbmc, 'sleep', lambda ms: None)
@@ -245,7 +245,8 @@ def test_run_opens_home_and_clears_its_window_id(core, app, monkeypatch, calls, 
         seen.append(core.kodi.xbmcgui.Window(10000).getProperty('a4k.ui.window'))
     monkeypatch.setattr(importlib.import_module('a4kStreaming.ui.home').Home, 'onInit', on_init)
     app.run()
-    assert seen == ['13001'] and calls == [] and errors == []
+    # the window takes the Videos window's place in Kodi's history, so a listing opened from it returns to it
+    assert seen == ['13001'] and calls == ['ReplaceWindow(13000)'] and errors == []
     assert not core.kodi.xbmcgui.Window(10000).getProperty('a4k.ui.window')
 
 def test_window_error_falls_back_to_classic(core, app, home, monkeypatch, calls, errors):
@@ -253,10 +254,11 @@ def test_window_error_falls_back_to_classic(core, app, home, monkeypatch, calls,
     def broken(*args): raise RuntimeError('no such control')
     monkeypatch.setattr(home.Home, 'getControl', broken)
     app.run()
-    assert calls == ['ActivateWindow(Videos,%s,return)' % PLUGIN]
+    classic = 'ActivateWindow(Videos,%s,return)' % PLUGIN
+    assert calls == ['ReplaceWindow(13000)', classic]
     assert failed(core) and len(errors) == 1 and 'no such control' in errors[0]
     app.run()
-    assert calls == ['ActivateWindow(Videos,%s,return)' % PLUGIN] * 2 and len(errors) == 1
+    assert calls == ['ReplaceWindow(13000)', classic, classic] and len(errors) == 1
 
 def test_open_error_falls_back_to_classic(core, app, home, monkeypatch, calls, errors):
     settings(core, monkeypatch)
@@ -276,7 +278,7 @@ def test_run_returns_to_an_open_home_window(core, app, home, monkeypatch, calls)
     core.kodi.xbmcgui.Window(13001).setProperty('a4k.home', 'true')
     monkeypatch.setattr(home, 'open', lambda: pytest.fail('opened a second home window'))
     app.run()
-    assert calls == ['ActivateWindow(13001)']
+    assert calls == ['ReplaceWindow(13001)']
 
 def test_prewarm_lists_the_public_rows(core, app, monkeypatch):
     rpc = []
