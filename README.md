@@ -11,10 +11,10 @@
 
 IMDb-based media browser addon for KODI with streaming support via external providers.
 <br/>
-Designed for low-end devices and Estuary skin.
+A TV-style interface (top shelf, rows, title detail, browse grid), with the classic Estuary listings available in settings.
 
 ## Preview
-![usage](https://media.giphy.com/media/IdUqHVT9dxgZ5YEObr/source.gif)
+![preview](preview.gif)
 
 ## Features
   * IMDb:
