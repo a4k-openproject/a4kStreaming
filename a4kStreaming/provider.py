@@ -75,9 +75,9 @@ def __install(core, params):
 
     try:
         if not params.init:
-            if params.install:
-                selection = params.install
-            else:
+            try:  # install=0/1 from a plugin URL arrives as a string
+                selection = int(params.install)
+            except (TypeError, ValueError):
                 selection = core.kodi.xbmcgui.Dialog().select(
                     'Install provider',
                     ['From File', 'From URL'],

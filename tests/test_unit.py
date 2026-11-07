@@ -668,3 +668,22 @@ def test_link_alive_makes_a_single_attempt(core, playback, monkeypatch):
     monkeypatch.setattr(urllib3.connectionpool.HTTPConnectionPool, '_make_request', make_request)
     assert getattr(playback, '__link_alive')(core, 'https://dead.invalid/file.mkv') is False
     assert len(attempts) == 1
+
+@pytest.mark.parametrize('install, zip_path, asked', [
+    ('0', '/tmp/p.zip', False),  # a plugin URL's params are strings
+    (0, '/tmp/p.zip', False),
+    (None, None, True),
+    ('x', None, True),
+])
+def test_provider_install_takes_the_choice_as_a_string_or_int(core, monkeypatch, install, zip_path, asked):
+    dialogs, copied = [], []
+    dialog = core.utils.DictAsObject({'select': lambda *a, **k: dialogs.append(a) or -1})
+    monkeypatch.setattr(core.kodi.xbmcgui, 'Dialog', lambda: dialog)
+    def copyfile(src, dst):
+        copied.append(src)
+        raise RuntimeError('stop here')
+    monkeypatch.setattr(core.utils.shutil, 'copyfile', copyfile)
+    monkeypatch.setattr(core.kodi, 'notification', lambda *a, **k: None)
+    params = {'type': 'install', 'install': install, 'zip_path': zip_path}
+    core.provider(core, core.utils.DictAsObject({k: v for k, v in params.items() if v is not None}))
+    assert bool(dialogs) == asked and copied == ([] if asked else [zip_path])
