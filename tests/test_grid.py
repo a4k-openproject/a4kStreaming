@@ -449,6 +449,18 @@ def test_turn_fades_the_text_out_before_the_next_title(core, home, labels, monke
     win.turn()
     assert win.hero == 1 and win.getProperty('a4k.hero.shown') == '' and win.getProperty('a4k.hero.label') == 'Movie 1'
 
+@pytest.mark.parametrize('name, value', [('getCurrentWindowDialogId', 10138), ('getCurrentWindowId', 13001)])
+def test_turn_keeps_the_title_when_a_window_opens_during_the_fade(core, home, labels, monkeypatch, name, value):
+    win = shelf(core, home, labels, monkeypatch)
+    win.show_hero()
+    def wait(seconds):
+        monkeypatch.setattr(core.kodi.xbmcgui, name, lambda: value)
+        return False
+    win.stopped = SimpleNamespace(wait=wait)
+    win.turn()
+    assert win.hero == 0
+    assert (win.getProperty('a4k.hero.shown'), win.getProperty('a4k.hero.label')) == ('true', 'Movie 0')
+
 @pytest.mark.parametrize('window_id, dialog_id', [(13001, 9999), (13000, 10138), (12005, 9999)])
 def test_turn_waits_under_a_dialog_or_another_window(core, home, labels, monkeypatch, window_id, dialog_id):
     win = shelf(core, home, labels, monkeypatch)

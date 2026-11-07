@@ -185,15 +185,22 @@ class Home(kodi.xbmcgui.WindowXML):
         except Exception:
             logger.debug(traceback.format_exc())
 
+    def idle(self):
+        # no dialog, detail or grid window or player is over this window
+        return kodi.xbmcgui.getCurrentWindowId() == self.own_id and kodi.xbmcgui.getCurrentWindowDialogId() == NO_DIALOG
+
     def turn(self):
         # never under a dialog, the detail or grid window or the player; only properties change, focus stays put
-        if kodi.xbmcgui.getCurrentWindowId() != self.own_id or kodi.xbmcgui.getCurrentWindowDialogId() != NO_DIALOG:
+        if not self.idle():
             return
         count = min(int(kodi.xbmc.getInfoLabel('Container(%s).NumItems' % HERO_ROW) or 0), HERO_COUNT)
         if count < 2:
             return
         self.setProperty('a4k.hero.shown', '')  # the shown title fades out first; the buttons act on it until then
         if not self.stopped.wait(HERO_FADE):
+            if not self.idle():  # something opened during the fade: keep the shown title
+                self.setProperty('a4k.hero.shown', 'true')
+                return
             self.hero = (self.hero + 1) % count
             self.show_hero()
 
