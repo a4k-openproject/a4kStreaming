@@ -209,6 +209,7 @@ class Home(kodi.xbmcgui.WindowXML):
                 self.stopped.wait(0.1)
             if not self.stopped.is_set():
                 self.show_hero()
+            self.setProperty('a4k.loading', '')  # the page fades in, with the title or after 15 s without one
             while not self.stopped.wait(HERO_TURN):
                 self.turn()
         except Exception:
@@ -312,6 +313,7 @@ def open():
     window = Home('a4k-home.xml', kodi.addon_path, 'Default', '1080i')
     # row URLs are set before the window opens: a row's provider fires once, at load (spike 2b)
     window.setProperty('a4k.home', 'true')
+    window.setProperty('a4k.loading', 'true')  # the traced D until the top shelf has its first title
     if kodi.get_setting('appearance.tabs') != 'false':
         window.setProperty('a4k.tabs', 'true')
     window.setProperty('a4k.row.301', app.row_url('popularMovies'))

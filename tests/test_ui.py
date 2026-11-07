@@ -27,6 +27,7 @@ TEXTURES = {
     'a4k/icon_gear.png': (64, 64),
     'a4k/icon_keyboard.png': (64, 64),
     'a4k/icon_space.png': (64, 64),
+    'a4k/loader_base.png': (180, 180),
     'a4k/mask_ep.png': (400, 224),
     'a4k/mask_face.png': (176, 176),
     'a4k/mask_poster.png': (264, 396),

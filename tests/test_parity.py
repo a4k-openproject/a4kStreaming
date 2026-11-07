@@ -376,3 +376,60 @@ def test_grid_zoomed_poster_stays_inside_its_slot():
     title = min(int(c.findtext('top')) for c in captions)
     captions_end = max(int(c.findtext('top')) + int(c.findtext('height')) for c in captions)
     assert zoomed_top >= 0 and zoomed_bottom <= title and captions_end <= height
+
+# the traced-D loader (dobby #405) in place of Kodi's busy dialog
+
+MEDIA = os.path.join(WINDOWS, '..', 'media')
+
+def test_loader_frames_are_small_clean_pngs():
+    import struct
+    frames = sorted(os.listdir(os.path.join(MEDIA, 'loader')))
+    assert frames == ['%02d.png' % i for i in range(32)]  # one turn per 1.6 s at 50 ms a frame
+    for name in [os.path.join('loader', f) for f in frames] + [os.path.join('a4k', 'loader_base.png')]:
+        data = open(os.path.join(MEDIA, name), 'rb').read()
+        chunks, i = [], 8
+        while i < len(data):
+            size, kind = struct.unpack('>I4s', data[i:i + 8])
+            chunks.append(kind)
+            i += 12 + size
+        assert set(chunks) == {b'IHDR', b'IDAT', b'IEND'} and struct.unpack('>II', data[16:24]) == (180, 180), name
+        assert len(data) < 8000, name
+
+@pytest.mark.parametrize('name', ['a4k-home.xml', 'a4k-grid.xml', 'a4k-search.xml', 'a4k-detail.xml'])
+def test_windows_draw_the_loader_while_the_add_on_is_busy(name):
+    root = xml(name)
+    images = [c for c in root.iter('control') if c.get('type') == 'multiimage']
+    assert images and all(c.findtext('imagepath').endswith('/resources/skins/Default/media/loader/') and c.findtext('timeperimage') == '50' for c in images)
+    busy = [c for c in root.iter('control') if c.findtext('visible') == '!String.IsEmpty(Window(Home).Property(a4k.busy))']
+    assert len(busy) == 2  # the dim layer and the loader
+    assert 'Loading…' not in open(os.path.join(WINDOWS, name)).read()
+
+def test_home_waits_behind_the_loader_until_the_top_shelf_has_a_title(core, home, monkeypatch):
+    assert opened(home, monkeypatch)['a4k.loading'] == 'true'
+    page = control(xml('a4k-home.xml'), 100)
+    assert [a.get('condition') for a in page.findall('animation')] == [
+        '!String.IsEmpty(Window.Property(a4k.loading))', 'String.IsEmpty(Window.Property(a4k.loading))']
+
+@pytest.mark.parametrize('items', ['5', '0'])  # a title, or 15 s without one: never a loader for good
+def test_the_first_top_shelf_title_ends_the_loading(core, monkeypatch, items):
+    import threading
+    module = importlib.import_module('a4kStreaming.ui.home')  # the real rotate (the home fixture stubs it)
+    win = module.Home('a4k-home.xml', '', 'Default', '1080i')
+    win.setProperty('a4k.loading', 'true')
+    win.stopped = threading.Event()
+    waits = []
+    monkeypatch.setattr(win.stopped, 'wait', lambda t: waits.append(t) or t == module.HERO_TURN)  # closes at the first turn
+    monkeypatch.setattr(core.kodi.xbmc, 'getInfoLabel', lambda label: items if label.endswith('NumItems') else 'Heat')
+    win.rotate()
+    assert win.getProperty('a4k.loading') == '' and win.getProperty('a4k.hero.label') == 'Heat'
+    assert waits == ([] if items == '5' else [0.1] * 150) + [module.HERO_TURN]  # 100 ms looks, 15 s at most
+
+@pytest.mark.parametrize('current,expected_builtin,busy', [('42', [], 'true'), ('13', ['ActivateWindow(busydialognocancel)'], '')])
+def test_busy_draws_the_windows_loader_over_an_a4k_window(core, calls, monkeypatch, current, expected_builtin, busy):
+    home_window = core.kodi.xbmcgui.Window(10000)
+    home_window.setProperty('a4k.ui.window', '42')
+    monkeypatch.setattr(core.kodi.xbmcgui, 'getCurrentWindowId', lambda: int(current))
+    core.kodi.open_busy_dialog()
+    assert calls == expected_builtin and home_window.getProperty('a4k.busy') == busy
+    core.kodi.close_busy_dialog()
+    assert home_window.getProperty('a4k.busy') == '' and calls[-1] == 'Dialog.Close(busydialognocancel)'

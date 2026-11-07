@@ -238,16 +238,32 @@
 				</control>
 			</focusedlayout>
 		</control>
-		<control type="label">
-			<left>96</left>
-			<top>560</top>
-			<width>1728</width>
-			<height>60</height>
-			<font>font30_title</font>
-			<textcolor>80FFFFFF</textcolor>
-			<align>center</align>
-			<label>Loading…</label>
+		<!-- the list is loading: the traced D (dobby #405) -->
+		<control type="group">
+			<left>870</left>
+			<top>582</top>
+			<width>180</width>
+			<height>180</height>
 			<visible>Container(620).IsUpdating + Integer.IsEqual(Container(620).NumItems,0)</visible>
+			<animation effect="fade" start="0" end="100" time="200" delay="250">Visible</animation>
+			<control type="image">
+				<left>0</left>
+				<top>0</top>
+				<width>180</width>
+				<height>180</height>
+				<texture>a4k/loader_base.png</texture>
+			</control>
+			<control type="multiimage">
+				<left>0</left>
+				<top>0</top>
+				<width>180</width>
+				<height>180</height>
+				<imagepath>special://home/addons/plugin.video.a4kstreaming/resources/skins/Default/media/loader/</imagepath>
+				<timeperimage>50</timeperimage>
+				<fadetime>0</fadetime>
+				<loop>yes</loop>
+				<randomize>false</randomize>
+			</control>
 		</control>
 		<control type="label">
 			<left>96</left>
@@ -367,6 +383,42 @@
 				</control>
 			</focusedlayout>
 			<content target="videos" sortby="programcount">$INFO[Window.Property(a4k.path)]</content>
+		</control>
+		<control type="image">
+			<left>0</left>
+			<top>0</top>
+			<width>1920</width>
+			<height>1080</height>
+			<texture colordiffuse="99000000">a4k/white.png</texture>
+			<visible>!String.IsEmpty(Window(Home).Property(a4k.busy))</visible>
+			<animation effect="fade" start="0" end="100" time="200" delay="250">Visible</animation>
+		</control>
+		<!-- the add-on's busy loader (a4k.busy), in place of Kodi's busy dialog -->
+		<control type="group">
+			<left>870</left>
+			<top>450</top>
+			<width>180</width>
+			<height>180</height>
+			<visible>!String.IsEmpty(Window(Home).Property(a4k.busy))</visible>
+			<animation effect="fade" start="0" end="100" time="200" delay="250">Visible</animation>
+			<control type="image">
+				<left>0</left>
+				<top>0</top>
+				<width>180</width>
+				<height>180</height>
+				<texture>a4k/loader_base.png</texture>
+			</control>
+			<control type="multiimage">
+				<left>0</left>
+				<top>0</top>
+				<width>180</width>
+				<height>180</height>
+				<imagepath>special://home/addons/plugin.video.a4kstreaming/resources/skins/Default/media/loader/</imagepath>
+				<timeperimage>50</timeperimage>
+				<fadetime>0</fadetime>
+				<loop>yes</loop>
+				<randomize>false</randomize>
+			</control>
 		</control>
 	</controls>
 </window>

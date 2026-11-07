@@ -74,10 +74,20 @@ def notification(text, time=3000):
     notification.t = Timer(0.5, __run)
     notification.t.start()
 
+BUSY = 'a4k.busy'  # on Kodi's Home window: the add-on's own windows draw their traced-D loader while it is set
+
 def open_busy_dialog():
-    xbmc.executebuiltin('ActivateWindow(busydialognocancel)')
+    # over one of the add-on's windows (ui/app.py OPEN_WINDOW is the one on screen), that window's loader; elsewhere
+    # Kodi's busy dialog
+    home = xbmcgui.Window(10000)
+    window = home.getProperty('a4k.ui.window')
+    if window and window == str(xbmcgui.getCurrentWindowId()):
+        home.setProperty(BUSY, 'true')
+    else:
+        xbmc.executebuiltin('ActivateWindow(busydialognocancel)')
 
 def close_busy_dialog():
+    xbmcgui.Window(10000).clearProperty(BUSY)
     xbmc.executebuiltin('Dialog.Close(busydialognocancel)')
 
 @contextmanager
