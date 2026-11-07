@@ -310,6 +310,14 @@ def test_open_window_id_returns_to_home_after_detail(core, detail, opened):
     detail.open(card())
     assert home_window.getProperty('a4k.ui.window') == '13000'
 
+@pytest.mark.parametrize('current, expected', [(13000, []), (10000, ['ReplaceWindow(13000)'])])
+def test_closing_detail_returns_to_the_home_window(core, detail, opened, calls, monkeypatch, current, expected):
+    # 10000: the user went Home and reopened the add-on into the detail window; Back must not land on Kodi's Home
+    core.kodi.xbmcgui.Window(10000).setProperty('a4k.ui.window', '13000')
+    monkeypatch.setattr(core.kodi.xbmcgui, 'getCurrentWindowId', lambda: current)
+    detail.open(card())
+    assert calls == expected
+
 # F. skin lint (the shared checks run over every window in test_ui.py)
 
 def root():

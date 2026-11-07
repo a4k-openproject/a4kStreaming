@@ -348,6 +348,10 @@ def open(info):
             window.closed = True
             if previous:
                 __home.setProperty(app.OPEN_WINDOW, previous)
+                # after the Home key and a reopen (which put this window in Videos' history slot), Kodi's history no
+                # longer has the home window under this one and Back would land on Kodi's Home screen: go back to it
+                if kodi.xbmcgui.getCurrentWindowId() != int(previous) and not kodi.xbmc.Monitor().abortRequested():
+                    home.replace_current(previous)
         error = window.error
         del window
         if error:
