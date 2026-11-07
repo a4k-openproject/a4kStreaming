@@ -224,7 +224,11 @@ def more_like_this(id, title):
     show('%s&id=%s' % (app.row_url('more_like_this'), id), title, 'More like this')
 
 def search():
-    # the classic search's history select (as a sheet) and keyboard, then the results in the grid
+    # the search window; when it fails, the classic search's history select (as a sheet) and keyboard, then the results
+    # in the grid
+    from . import search as window
+    if window.open():
+        return
     from types import SimpleNamespace
     from urllib.parse import quote_plus
     from ..lib import cache

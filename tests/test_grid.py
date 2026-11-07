@@ -273,7 +273,14 @@ def test_closing_the_grid_returns_to_the_window_below(core, grid, opened, calls,
 
 # D. search, years, known for, more like this
 
-def test_search_asks_then_shows_the_results(core, grid, shown, monkeypatch):
+def test_search_opens_the_search_window(core, grid, shown, monkeypatch):
+    opened = []
+    monkeypatch.setattr(importlib.import_module('a4kStreaming.ui.search'), 'open', lambda: opened.append(True) or True)
+    grid.search()
+    assert opened == [True] and shown == []
+
+def test_search_without_the_window_asks_then_shows_the_results(core, grid, shown, monkeypatch):
+    monkeypatch.setattr(importlib.import_module('a4kStreaming.ui.search'), 'open', lambda: False)
     imdb = importlib.import_module('a4kStreaming.imdb')
     asked = []
     answers = [('the martian', True), ('', False), (None, True)]

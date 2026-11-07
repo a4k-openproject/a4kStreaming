@@ -24,6 +24,54 @@ def __check_imdb_auth_config(core, params):
 gallery_types = ['popularMovies', 'popularTVShows', 'popularAnimations', 'popularAnimationTVShows', 'popularRealityTVShows', 'popular', 'year', 'fan_picks', 'more_like_this']
 cursor_ttl = 30 * 60
 
+# The search window's facets, as dobby's SEARCH_FACETS (15-imdb-graphql.js:570-590): each value an (id, label). A genre
+# id is IMDb's own, a country an ISO 3166 code, an era a (first year, last year) range ('' for an open end), a rating
+# the US certificates allowed at that level. Countries are in alphabetical order.
+SEARCH_TYPES = [('movies', 'Movies'), ('series', 'Series')]
+SEARCH_TITLE_TYPES = {'': ['movie', 'tvMovie', 'tvSeries', 'tvMiniSeries'], 'movies': ['movie', 'tvMovie'],
+                      'series': ['tvSeries', 'tvMiniSeries']}
+SEARCH_GENRES = [(genre, genre) for genre in ('Action', 'Adventure', 'Animation', 'Biography', 'Comedy', 'Crime',
+                 'Documentary', 'Drama', 'Family', 'Fantasy', 'History', 'Horror', 'Music', 'Mystery', 'Reality-TV',
+                 'Romance', 'Sci-Fi', 'Sport', 'Thriller', 'War', 'Western')]
+SEARCH_ERAS = [('lt1980', 'Before 1980'), ('lt1990', 'Before 1990'), ('lt2000', 'Before 2000'), ('1990s', '1990s'),
+               ('2000s', '2000s'), ('2010s', '2010s'), ('2020s', '2020s'), ('ge2000', 'After 2000'), ('ge2010', 'After 2010')]
+SEARCH_ERA_YEARS = {'lt1980': ('', 1979), 'lt1990': ('', 1989), 'lt2000': ('', 1999), '1990s': (1990, 1999),
+                    '2000s': (2000, 2009), '2010s': (2010, 2019), '2020s': (2020, 2029), 'ge2000': (2000, ''),
+                    'ge2010': (2010, '')}
+SEARCH_RATINGS = [('kids', 'Kids'), ('family', 'Family'), ('teens', 'Teens')]
+SEARCH_CERTIFICATES = {'kids': ['G', 'TV-Y', 'TV-Y7', 'TV-G']}
+SEARCH_CERTIFICATES['family'] = SEARCH_CERTIFICATES['kids'] + ['PG', 'TV-PG']
+SEARCH_CERTIFICATES['teens'] = SEARCH_CERTIFICATES['family'] + ['PG-13', 'TV-14']
+SEARCH_COUNTRIES = [('AU', 'Australia'), ('BR', 'Brazil'), ('CA', 'Canada'), ('CN', 'China'), ('DK', 'Denmark'),
+                    ('FR', 'France'), ('DE', 'Germany'), ('IN', 'India'), ('IT', 'Italy'), ('JP', 'Japan'),
+                    ('MX', 'Mexico'), ('KR', 'South Korea'), ('ES', 'Spain'), ('SE', 'Sweden'), ('TR', 'Turkey'),
+                    ('GB', 'UK'), ('US', 'US')]
+SEARCH_PAGE = 36  # the facet search's first page (six rows of six); the window asks for more as focus nears the end
+SEARCH_MAX = 250  # IMDb's largest page
+
+def search_constraints(params):
+    # advancedTitleSearch constraints for the search window's text and facets (dobby's searchFacetConstraints)
+    constraints = {'titleTypeConstraint': {'anyTitleTypeIds': SEARCH_TITLE_TYPES.get(params.title_type or '', SEARCH_TITLE_TYPES[''])}}
+    if params.query:
+        constraints['titleTextConstraint'] = {'searchTerm': params.query}
+    genres = [genre for genre in (params.genres or '').split(',') if genre]
+    if genres:
+        constraints['genreConstraint'] = {'anyGenreIds': genres}
+    start, end = SEARCH_ERA_YEARS.get(params.era or '', ('', ''))
+    if start or end:
+        span = {}
+        if start:
+            span['start'] = '%s-01-01' % start
+        if end:
+            span['end'] = '%s-12-31' % end
+        constraints['releaseDateConstraint'] = {'releaseDateRange': span}
+    if params.rating in SEARCH_CERTIFICATES:
+        constraints['certificateConstraint'] = {'anyRegionCertificateRatings': [
+            {'region': 'US', 'rating': rating} for rating in SEARCH_CERTIFICATES[params.rating]]}
+    if params.country:
+        constraints['originCountryConstraint'] = {'anyPrimaryCountries': [params.country]}
+    return constraints
+
 def __find_cursor(data):
     if isinstance(data, dict):
         for key in ['endCursor', 'paginationToken']:
@@ -183,7 +231,7 @@ def search(core, params):
     return items
 
 def query(core, params):
-    no_auth_required_actions = ['popularMovies', 'popularTVShows', 'popularAnimations', 'popularAnimationTVShows', 'popularRealityTVShows', 'popular', 'year', 'fan_picks', 'more_like_this', 'seasons', 'episodes', 'browse']
+    no_auth_required_actions = ['popularMovies', 'popularTVShows', 'popularAnimations', 'popularAnimationTVShows', 'popularRealityTVShows', 'popular', 'year', 'fan_picks', 'more_like_this', 'seasons', 'episodes', 'browse', 'find', 'facets']
     bool_response_actions = ['rate', 'unrate', 'add_to_list', 'remove_from_list', 'add_to_predefined_list', 'remove_from_predefined_list']
 
     if params.type not in no_auth_required_actions and not __check_imdb_auth_config(core, params):
@@ -422,6 +470,53 @@ def query(core, params):
                     'releaseDateRange': {'start': '%s-01-01' % params.target_year, 'end': '%s-12-31' % params.target_year }
                 },
                 'paginationToken': params.paginationToken
+            }
+        }),
+        # the search window: text alone is IMDb's own title search, one page (as dobby's searchIMDb); any facet is an
+        # advanced title search, most popular first, whose page grows as the window asks for more
+        'find': lambda: core.utils.get_graphql_query({
+            'query': '''
+                query fn($query: String!, $EXTRA_PARAMS) {
+                    mainSearch(first: 30, options: { searchTerm: $query, type: TITLE }) {
+                        titles: edges {
+                            node {
+                                entity {
+                                    ... on Title {
+                                        ...Title
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            ''',
+            'operationName': 'fn',
+            'variables': {
+                'query': params.query,
+            }
+        }),
+        'facets': lambda: core.utils.get_graphql_query({
+            'query': '''
+                query fn($first: Int!, $constraints: AdvancedTitleSearchConstraints!, $EXTRA_PARAMS) {
+                    advancedTitleSearch(
+                        first: $first
+                        constraints: $constraints
+                        sort: { sortBy: POPULARITY, sortOrder: ASC }
+                    ) {
+                        titles: edges {
+                            node {
+                                title {
+                                    ...Title
+                                }
+                            }
+                        }
+                    }
+                }
+            ''',
+            'operationName': 'fn',
+            'variables': {
+                'first': min(int(params.count or SEARCH_PAGE), SEARCH_MAX),
+                'constraints': search_constraints(params),
             }
         }),
         'fan_picks': lambda: core.utils.get_graphql_query({
@@ -897,6 +992,8 @@ def query(core, params):
     else:
         core.contentType = 'movies'
         titles = data if isinstance(data, list) else data.get('titles', [])
+        if params.type == 'find':  # a search hit that is not a title comes back as an empty entity
+            titles = [title for title in titles if isinstance(title, dict) and title.get('id', None)]
         if params.type == 'knownfor':
             title_ids = {}
             temp_titles = []
