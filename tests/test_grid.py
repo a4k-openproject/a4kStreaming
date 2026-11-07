@@ -145,18 +145,19 @@ def opened(core, grid, monkeypatch):
     return windows
 
 class Panel(object):
-    # the grid's panel as Python sees a provider list: a position, and selectItem calls
-    def __init__(self, position=0): self.position, self.selected = position, []
-    def getSelectedPosition(self): return self.position
+    # the grid's panel as Python sees a provider list: no position (getSelectedPosition is -1), selectItem works
+    def __init__(self): self.selected = []
+    def getSelectedPosition(self): return -1
     def selectItem(self, index): self.selected.append(index)
 
 def window(grid, opened, monkeypatch, path=PLUGIN + '?action=query&type=fan_picks&widget=1', title='Fan Favorites',
-           kicker='Browse', position=0):
+           kicker='Browse'):
     assert grid.open(path, title, kicker) is True
     win = opened[0]
     win.closed = False  # the mock doModal has returned
-    panel = Panel(position)
+    panel = Panel()
     monkeypatch.setattr(win, 'getControl', lambda id: panel if id == grid.PANEL else pytest.fail(id))
+    monkeypatch.setattr(win, 'refocus', lambda: None)  # test_focus_comes_back_* drives it
     win.setFocusId(grid.PANEL)
     return win, panel
 
@@ -171,12 +172,12 @@ def test_grid_paints_its_header_and_listing(core, grid, opened):
 def test_next_item_pages_forward_and_back_walks_back(core, grid, opened, labels, monkeypatch):
     closed = []
     monkeypatch.setattr(grid.Grid, 'close', lambda self: closed.append(True))
-    win, panel = window(grid, opened, monkeypatch, position=29)
-    labels.update({'Container(500).ListItem.FolderPath': NEXT})
+    win, panel = window(grid, opened, monkeypatch)
+    labels.update({'Container(500).ListItem.FolderPath': NEXT, 'Container(500).CurrentItem': '30'})
     win.onAction(Action(7))
     assert win.getProperty('a4k.path') == NEXT + '&widget=1' and win.getProperty('a4k.page') == 'Page 2'
     assert win.getProperty('a4k.title') == 'Fan Favorites' and panel.selected == [0]  # the new page starts at the top
-    panel.position = 4
+    labels['Container(500).CurrentItem'] = '5'
     win.onAction(Action(92))
     assert win.getProperty('a4k.path') == PLUGIN + '?action=query&type=fan_picks&widget=1' and win.getProperty('a4k.page') == ''
     assert panel.selected == [0, 29] and closed == []  # back on the Next item it came from
@@ -184,9 +185,10 @@ def test_next_item_pages_forward_and_back_walks_back(core, grid, opened, labels,
     assert closed == [True] and win.error is None
 
 def test_a_list_opens_in_place_with_its_name(core, grid, opened, labels, monkeypatch):
-    win, panel = window(grid, opened, monkeypatch, PLUGIN + '?action=query&type=lists&widget=1', 'Lists', '', 2)
+    win, panel = window(grid, opened, monkeypatch, PLUGIN + '?action=query&type=lists&widget=1', 'Lists', '')
     path = PLUGIN + '?action=query&type=list&id=ls1'
-    labels.update({'Container(500).ListItem.FolderPath': path, 'Container(500).ListItem.Label': 'Weekend'})
+    labels.update({'Container(500).ListItem.FolderPath': path, 'Container(500).ListItem.Label': 'Weekend',
+                   'Container(500).CurrentItem': '3'})
     win.onAction(Action(7))
     assert (win.getProperty('a4k.title'), win.getProperty('a4k.kicker'), win.getProperty('a4k.path')) == ('Weekend', '', path + '&widget=1')
     assert win.steps == [(PLUGIN + '?action=query&type=lists&widget=1', 'Lists', '', 2)]
@@ -211,14 +213,31 @@ def test_select_routes_titles_people_and_episodes(core, grid, home, opened, labe
 def test_focus_near_the_end_prefetches_the_next_page_once(core, grid, opened, labels, monkeypatch):
     rpc = []
     monkeypatch.setattr(core.kodi, 'json_rpc', lambda method, params, log_error=True: rpc.append((method, params['directory'])))
-    win, panel = window(grid, opened, monkeypatch, position=5)
-    labels.update({'Container(500).NumItems': '31', 'Container(500).ListItemAbsolute(30).FolderPath': NEXT})
+    win, panel = window(grid, opened, monkeypatch)
+    labels.update({'Container(500).NumItems': '31', 'Container(500).ListItemAbsolute(30).FolderPath': NEXT,
+                   'Container(500).CurrentItem': '6'})
     win.onAction(Action(4))
     assert rpc == []
-    panel.position = 19  # two rows of six from the Next item
+    labels['Container(500).CurrentItem'] = '20'  # two rows of six from the Next item
     win.onAction(Action(4))
     win.onAction(Action(3))
     assert rpc == [('Files.GetDirectory', NEXT + '&widget=1')] and win.error is None
+
+@pytest.mark.parametrize('counts, focused', [
+    (['0', '0', '30'], [500]),  # back from an empty page: Kodi dropped focus, the items come, the panel gets it
+    (['30'], [500]),            # the panel is the only focusable control: focusing it again moves nothing
+    (['0'] * 200, []),          # still empty after 15 s: give up
+])
+def test_focus_comes_back_when_items_come(core, grid, opened, labels, monkeypatch, counts, focused):
+    win, panel = window(grid, opened, monkeypatch)
+    sleeps, calls = [], []
+    monkeypatch.setattr(core.kodi.xbmc, 'sleep', lambda ms: sleeps.append(ms))
+    monkeypatch.setattr(core.kodi.xbmc, 'getInfoLabel', lambda label: counts.pop(0) if label == 'Container(500).NumItems' else '')
+    monkeypatch.setattr(win, 'setFocusId', calls.append)
+    win.wait_and_focus(win.path)
+    assert calls == focused and len(sleeps) <= 150
+    win.wait_and_focus('another page')  # a later step owns the focus now
+    assert calls == focused
 
 def test_moves_outside_the_panel_are_ignored(core, grid, opened, monkeypatch):
     win, panel = window(grid, opened, monkeypatch)
@@ -437,3 +456,13 @@ def test_grid_posters_use_the_poster_mask_at_its_aspect():
     for poster in posters:
         assert poster.find('texture').get('diffuse') == 'a4k/mask_poster.png'
         assert int(poster.findtext('width')) * 396 == int(poster.findtext('height')) * 264
+
+def test_tiles_and_posters_switch_per_item():
+    # an itemlayout's condition is checked once for the whole panel (every item was drawn as a tile on the rig), so the
+    # Next item and the lists are told apart by <visible> inside the one layout
+    tile = 'String.IsEmpty(ListItem.Property(a4k.type))'
+    panel = root().find(".//control[@id='500']")
+    layouts = panel.findall('itemlayout') + panel.findall('focusedlayout')
+    assert len(layouts) == 2 and all(layout.get('condition') is None for layout in layouts)
+    for layout in layouts:
+        assert sorted(group.findtext('visible') for group in layout.findall('control')) == ['!' + tile, tile]

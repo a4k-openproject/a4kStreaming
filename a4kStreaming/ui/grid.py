@@ -99,12 +99,16 @@ class Grid(kodi.xbmcgui.WindowXML):
         elif path:  # one of the user's lists
             self.step(path, info['Label'], self.kicker)
 
+    def position(self):
+        # the focused index; Python's getSelectedPosition() answers -1 for items a provider added (seen live)
+        return int(kodi.xbmc.getInfoLabel('Container(%s).CurrentItem' % PANEL) or 1) - 1
+
     def step(self, path, title, kicker):
         # forward to the next page, a list or a person: the new listing keeps the selected index, so start it at the top
-        control = self.getControl(PANEL)
-        self.steps.append((self.path, self.title, self.kicker, control.getSelectedPosition()))
-        control.selectItem(0)
+        self.steps.append((self.path, self.title, self.kicker, self.position()))
+        self.getControl(PANEL).selectItem(0)
         self.go(path, title, kicker)
+        self.refocus()
 
     def back(self):
         if not self.steps:
@@ -112,11 +116,35 @@ class Grid(kodi.xbmcgui.WindowXML):
         path, title, kicker, position = self.steps.pop()
         self.getControl(PANEL).selectItem(position)  # kept by the listing that comes back
         self.go(path, title, kicker)
+        self.refocus()
+
+    def refocus(self):
+        threading.Thread(target=self.wait_and_focus, args=(self.path,)).start()
+
+    def wait_and_focus(self, path):
+        # An empty listing cannot keep focus: Kodi drops it (and logs that it cannot focus the panel), and nothing gives
+        # it back when Back or Next brings items again. Wait for them (100 ms looks, 15 s at most), then focus the panel.
+        # ponytail: a poll, as for the home's top shelf; Kodi sends a script window no event when a list fills.
+        try:
+            for _ in range(150):
+                if self.closed or path != self.path:
+                    return
+                if kodi.xbmc.getInfoLabel('Container(%s).NumItems' % PANEL) not in ('', '0'):
+                    break
+                kodi.xbmc.sleep(100)
+            else:
+                return
+            if not self.closed:
+                # unconditionally: getFocusId() still answers 500 after Kodi dropped the focus (seen live), and the
+                # panel is the only control that takes focus, so this never moves it anywhere else
+                self.setFocusId(PANEL)
+        except Exception:
+            logger.debug(traceback.format_exc())
 
     def moved(self):
         self.dwell()
         count = int(kodi.xbmc.getInfoLabel('Container(%s).NumItems' % PANEL) or 0)
-        if count - self.getControl(PANEL).getSelectedPosition() > NEAR_END:
+        if count - self.position() > NEAR_END:
             return
         last = kodi.xbmc.getInfoLabel('Container(%s).ListItemAbsolute(%s).FolderPath' % (PANEL, count - 1))
         if 'paginationToken=' in last and last != self.prefetched:
