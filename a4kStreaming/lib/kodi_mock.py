@@ -157,6 +157,7 @@ class ControlList(object):
     def getSelectedPosition(self): return 0 if self.items else -1
     def getSelectedItem(self): return self.items[0] if self.items else None
     def getListItem(self, index): return self.items[index]
+    def controlDown(self, control): self.down = control
     def selectItem(self, index): pass
     def setPercent(self, percent): self.percent = percent
 xbmcgui.ControlList = ControlList

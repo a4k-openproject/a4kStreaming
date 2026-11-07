@@ -206,8 +206,8 @@
 						<focusedcolor>FF0C0D12</focusedcolor>
 						<texturefocus border="20" colordiffuse="FFF5F6FA">a4k/rr20.png</texturefocus>
 						<texturenofocus border="20" colordiffuse="29FFFFFF">a4k/rr20.png</texturenofocus>
-						<animation effect="zoom" start="100" end="106" time="220" tween="cubic" easing="out" center="auto" reversible="false">Focus</animation>
-						<animation effect="zoom" start="106" end="100" time="220" tween="cubic" easing="out" center="auto" reversible="false">Unfocus</animation>
+						<animation effect="zoom" start="100" end="108" time="220" tween="cubic" easing="out" center="auto" reversible="false">Focus</animation>
+						<animation effect="zoom" start="108" end="100" time="220" tween="cubic" easing="out" center="auto" reversible="false">Unfocus</animation>
 					</control>
 					<control type="button" id="502">
 						<left>0</left>
@@ -222,8 +222,8 @@
 						<focusedcolor>FF0C0D12</focusedcolor>
 						<texturefocus border="20" colordiffuse="FFF5F6FA">a4k/rr20.png</texturefocus>
 						<texturenofocus border="20" colordiffuse="29FFFFFF">a4k/rr20.png</texturenofocus>
-						<animation effect="zoom" start="100" end="106" time="220" tween="cubic" easing="out" center="auto" reversible="false">Focus</animation>
-						<animation effect="zoom" start="106" end="100" time="220" tween="cubic" easing="out" center="auto" reversible="false">Unfocus</animation>
+						<animation effect="zoom" start="100" end="108" time="220" tween="cubic" easing="out" center="auto" reversible="false">Focus</animation>
+						<animation effect="zoom" start="108" end="100" time="220" tween="cubic" easing="out" center="auto" reversible="false">Unfocus</animation>
 						<visible>!String.IsEmpty(Window.Property(a4k.trailer))</visible>
 					</control>
 					<control type="button" id="503">
@@ -239,8 +239,8 @@
 						<focusedcolor>FF0C0D12</focusedcolor>
 						<texturefocus border="20" colordiffuse="FFF5F6FA">a4k/rr20.png</texturefocus>
 						<texturenofocus border="20" colordiffuse="29FFFFFF">a4k/rr20.png</texturenofocus>
-						<animation effect="zoom" start="100" end="106" time="220" tween="cubic" easing="out" center="auto" reversible="false">Focus</animation>
-						<animation effect="zoom" start="106" end="100" time="220" tween="cubic" easing="out" center="auto" reversible="false">Unfocus</animation>
+						<animation effect="zoom" start="100" end="108" time="220" tween="cubic" easing="out" center="auto" reversible="false">Focus</animation>
+						<animation effect="zoom" start="108" end="100" time="220" tween="cubic" easing="out" center="auto" reversible="false">Unfocus</animation>
 						<visible>!String.IsEmpty(Window.Property(a4k.auth))</visible>
 					</control>
 					<control type="button" id="504">
@@ -256,8 +256,8 @@
 						<focusedcolor>FF0C0D12</focusedcolor>
 						<texturefocus border="20" colordiffuse="FFF5F6FA">a4k/rr20.png</texturefocus>
 						<texturenofocus border="20" colordiffuse="29FFFFFF">a4k/rr20.png</texturenofocus>
-						<animation effect="zoom" start="100" end="106" time="220" tween="cubic" easing="out" center="auto" reversible="false">Focus</animation>
-						<animation effect="zoom" start="106" end="100" time="220" tween="cubic" easing="out" center="auto" reversible="false">Unfocus</animation>
+						<animation effect="zoom" start="100" end="108" time="220" tween="cubic" easing="out" center="auto" reversible="false">Focus</animation>
+						<animation effect="zoom" start="108" end="100" time="220" tween="cubic" easing="out" center="auto" reversible="false">Unfocus</animation>
 					</control>
 				</control>
 			</control>

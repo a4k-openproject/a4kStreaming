@@ -117,8 +117,10 @@ def test_tiles_open_the_grid_and_debrid_keeps_its_directory(core, grid, home, la
         assert (tile is None) == (onclick is not None), label  # a tile either opens the grid or runs its own onclick
         if tile and tile not in ('search', 'years'):
             expected.append((PLUGIN + '?action=query&type=%s&widget=1' % tile, label, ''))
-    assert flows == ['search', 'years'] and shown == expected and calls == [] and win.error is None
-    assert [label for label, _, _ in tiles()][:5] == ['Search', 'Watchlist', 'Recommended', 'Lists', 'By Year']
+    assert flows == ['years'] and shown == expected and calls == [] and win.error is None
+    # Search and Settings are in the top menu, as on dobby
+    assert [label for label, _, _ in tiles()][:4] == ['Watchlist', 'Recommended', 'Lists', 'By Year']
+    assert not {'Search', 'Settings'} & {label for label, _, _ in tiles()}
     assert dict((label, tile) for label, tile, _ in tiles())['Lists'] == 'lists'
     assert 'action=cloud' in dict((label, onclick) for label, _, onclick in tiles())['Debrid']
 
@@ -130,6 +132,7 @@ def test_tile_listing_types_are_queries_the_plugin_knows(core):
 def test_home_row_next_item_opens_the_rest_of_the_row(core, home, labels, shown):
     labels.update({'Container(301).ListItem.FolderPath': NEXT})
     win = home.Home('a4k-home.xml', '', 'Default', '1080i')
+    win.setProperty('a4k.title.301', 'Trending Movies')  # the slot's title, as apply() sets it
     win.setFocusId(301)
     win.onAction(Action(home.ACTION_SELECT_ITEM))
     assert shown == [(NEXT, 'Trending Movies', '')]
@@ -419,7 +422,7 @@ def test_rotation_paints_when_the_row_is_in_then_turns_every_15_seconds(core, ho
                            'Container(301).ListItemAbsolute(1).Label': 'Movie 1'})
         return len(polls) >= 8
     painted = []
-    monkeypatch.setattr(win, 'show_hero', lambda: painted.append(win.hero))
+    monkeypatch.setattr(win, 'show_hero', lambda items=None: painted.append(win.hero))
     win.stopped = SimpleNamespace(is_set=lambda: False, wait=wait)  # the window closes at the eighth wait
     win.rotate()
     turn = [home.HERO_TURN, home.HERO_FADE]  # each turn waits for the text's fade-out

@@ -173,8 +173,8 @@
 					<left>0</left>
 					<top>0</top>
 					<visible>String.IsEmpty(ListItem.Property(a4k.type))</visible>
-					<animation effect="zoom" start="100" end="106" time="220" tween="cubic" easing="out" center="148,200" reversible="false">Focus</animation>
-					<animation effect="zoom" start="106" end="100" time="220" tween="cubic" easing="out" center="148,200" reversible="false">Unfocus</animation>
+					<animation effect="zoom" start="100" end="108" time="220" tween="cubic" easing="out" center="148,200" reversible="false">Focus</animation>
+					<animation effect="zoom" start="108" end="100" time="220" tween="cubic" easing="out" center="148,200" reversible="false">Unfocus</animation>
 						<control type="image">
 							<left>32</left>
 							<top>26</top>

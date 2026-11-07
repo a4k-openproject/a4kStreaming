@@ -244,3 +244,92 @@ msgstr ""
 msgctxt "#33606"
 msgid "Migrate Collections"
 msgstr ""
+
+# Appearance
+msgctxt "#33007"
+msgid "Appearance"
+msgstr ""
+
+msgctxt "#33701"
+msgid "Browse row"
+msgstr ""
+
+msgctxt "#33702"
+msgid "Trending Movies"
+msgstr ""
+
+msgctxt "#33703"
+msgid "Trending TV Shows"
+msgstr ""
+
+msgctxt "#33704"
+msgid "Reality TV"
+msgstr ""
+
+msgctxt "#33705"
+msgid "Animations"
+msgstr ""
+
+msgctxt "#33706"
+msgid "Animated TV"
+msgstr ""
+
+msgctxt "#33707"
+msgid "Watchlist"
+msgstr ""
+
+msgctxt "#33708"
+msgid "My List (one of your IMDb lists as a row)"
+msgstr ""
+
+msgctxt "#33709"
+msgid "Category tabs"
+msgstr ""
+
+msgctxt "#33710"
+msgid "Hero rotation"
+msgstr ""
+
+msgctxt "#33711"
+msgid "Hero shows"
+msgstr ""
+
+msgctxt "#33712"
+msgid "Home order"
+msgstr ""
+
+msgctxt "#33720"
+msgid "10 s"
+msgstr ""
+
+msgctxt "#33721"
+msgid "15 s"
+msgstr ""
+
+msgctxt "#33722"
+msgid "20 s"
+msgstr ""
+
+msgctxt "#33723"
+msgid "30 s"
+msgstr ""
+
+msgctxt "#33724"
+msgid "Off"
+msgstr ""
+
+msgctxt "#33725"
+msgid "Trending Movies"
+msgstr ""
+
+msgctxt "#33726"
+msgid "Trending TV"
+msgstr ""
+
+msgctxt "#33727"
+msgid "Movies and TV"
+msgstr ""
+
+msgctxt "#33728"
+msgid "My home sections"
+msgstr ""

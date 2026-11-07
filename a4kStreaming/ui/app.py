@@ -17,9 +17,6 @@ VIDEOS_WINDOW = 10025
 FAILED = 'a4k.ui.failed'
 OPEN_WINDOW = 'a4k.ui.window'
 
-# rows the service keeps warm: the public ones, the same URLs the home window loads
-PREWARM_ROWS = ['popularMovies', 'popularTVShows']
-
 def row_url(type):
     return '%s?action=query&type=%s&widget=1' % (PLUGIN, type)
 
@@ -82,9 +79,10 @@ def run():
         classic()
 
 def prewarm():
-    # service side: list the public home rows through Kodi, the same code path and cache keys the window uses, so the
-    # first home open after start (or after the gallery cache TTL) reads warm cache
+    # service side: list the public home rows that are on (Appearance) through Kodi, the same code path and cache keys
+    # the window uses, so the first home open after start (or after the gallery cache TTL) reads warm cache
     if not windows_mode():
         return
-    for type in PREWARM_ROWS:
+    from .appearance import public_types
+    for type in public_types():
         kodi.json_rpc('Files.GetDirectory', {'directory': row_url(type), 'media': 'files'}, log_error=False)

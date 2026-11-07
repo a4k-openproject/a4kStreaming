@@ -14,6 +14,23 @@
         <setting id="general.season_title_template"  label="33106" type="enum"   default="0" lvalues='33111|33112|33113|33114'/>
         <setting id="general.episode_title_template" label="33107" type="enum"   default="1" lvalues='33115|33116|33117|33118|33119'/>
     </category>
+    <!-- Appearance: dobby's Apple TV skin options and defaults (a4kStreaming/ui/appearance.py) -->
+    <category label="33007">
+        <setting id="appearance.browse"          label="33701" type="bool"   default="true"/>
+        <setting id="appearance.trending_movies" label="33702" type="bool"   default="true"/>
+        <setting id="appearance.trending_tv"     label="33703" type="bool"   default="true"/>
+        <setting id="appearance.reality"         label="33704" type="bool"   default="false"/>
+        <setting id="appearance.animations"      label="33705" type="bool"   default="false"/>
+        <setting id="appearance.animation_tv"    label="33706" type="bool"   default="false"/>
+        <setting id="appearance.watchlist"       label="33707" type="bool"   default="true"/>
+        <setting id="appearance.my_list_pick"    label="33708" type="action" action="RunScript(plugin.video.a4kstreaming,my_list)"/>
+        <setting id="appearance.my_list"         type="text" default="" visible="false"/>
+        <setting id="appearance.tabs"            label="33709" type="bool"   default="true"/>
+        <setting id="appearance.hero_turn"       label="33710" type="enum"   default="1" lvalues="33720|33721|33722|33723|33724"/>
+        <setting id="appearance.hero_source"     label="33711" type="enum"   default="0" lvalues="33725|33726|33727|33728"/>
+        <setting id="appearance.order_pick"      label="33712" type="action" action="RunScript(plugin.video.a4kstreaming,order)"/>
+        <setting id="appearance.order"           type="text" default="" visible="false"/>
+    </category>
     <!-- Views -->
     <category label="33002">
         <setting id="views.menu"     type="enum" label="33200" lvalues='33211|33212|33213|33214|33215|33216' default="4"/>

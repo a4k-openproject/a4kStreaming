@@ -74,7 +74,7 @@ def test_menu_is_in_the_xml_and_navigates_like_dobby(home):
     for id in (home.WATCH_NOW, home.SEARCH, home.SETTINGS):
         assert control(root, id).find('visible') is None
 
-@pytest.mark.parametrize('value,shown', [('', 'true'), ('true', 'true'), ('false', None)])
+@pytest.mark.parametrize('value,shown', [('', 'true'), ('true', 'true'), ('false', '')])
 def test_category_tabs_follow_the_setting(core, home, monkeypatch, value, shown):
     settings(core, monkeypatch, {'appearance.tabs': value})
     assert opened(home, monkeypatch).get('a4k.tabs') == shown
@@ -435,3 +435,220 @@ def test_busy_draws_the_windows_loader_over_an_a4k_window(core, calls, monkeypat
     assert calls == expected_builtin and home_window.getProperty('a4k.busy') == busy
     core.kodi.close_busy_dialog()
     assert home_window.getProperty('a4k.busy') == '' and calls[-1] == 'Dialog.Close(busydialognocancel)'
+
+# 6. appearance settings (dobby's skin.json options and defaults)
+
+def url(type):
+    return PLUGIN + '?action=query&type=%s&widget=1' % type
+
+def slots(properties):
+    return [(properties['a4k.title.%s' % slot], properties['a4k.row.%s' % slot]) for slot in range(301, 308)]
+
+def test_appearance_defaults_are_dobbys(core, home, monkeypatch):
+    settings(core, monkeypatch, {'imdb.at-main': 'token'})
+    shown = opened(home, monkeypatch)
+    assert slots(shown) == [('Trending Movies', url('popularMovies')), ('Trending TV Shows', url('popularTVShows')),
+                            ('Watchlist', url('watchlist'))] + [('', '')] * 4
+    assert (shown['a4k.browse'], shown['a4k.tabs'], shown['a4k.auth']) == ('true', 'true', 'true')
+    settings(core, monkeypatch, {})  # signed out: no Watchlist
+    assert [title for title, _ in slots(opened(home, monkeypatch))][:3] == ['Trending Movies', 'Trending TV Shows', '']
+
+def test_settings_xml_defaults_match_the_code(core):
+    appearance = importlib.import_module('a4kStreaming.ui.appearance')
+    text = open(os.path.join(WINDOWS, '..', '..', '..', 'settings.xml')).read().replace('&', '&amp;')  # Kodi takes a bare &
+    nodes = {n.get('id')[len('appearance.'):]: n for n in ElementTree.fromstring(text).iter('setting')
+             if (n.get('id') or '').startswith('appearance.')}
+    toggles = {key: n.get('default') for key, n in nodes.items() if n.get('type') == 'bool'}
+    assert toggles == {key: 'true' if key in appearance.ON else 'false' for key in
+                       ['browse', 'tabs'] + [key for key in appearance.ROWS if key != 'my_list']}
+    assert appearance.HERO_TURNS[int(nodes['hero_turn'].get('default'))] == 15
+    assert len(nodes['hero_turn'].get('lvalues').split('|')) == len(appearance.HERO_TURNS)
+    assert appearance.HERO_SOURCES[int(nodes['hero_source'].get('default'))] == 'movies'
+    assert len(nodes['hero_source'].get('lvalues').split('|')) == len(appearance.HERO_SOURCES)
+    assert nodes['order'].get('visible') == 'false' and nodes['my_list'].get('visible') == 'false'
+
+def test_row_toggles_and_order_fill_the_slots_in_order(core, home, monkeypatch):
+    settings(core, monkeypatch, {'imdb.at-main': 'token', 'appearance.trending_tv': 'false', 'appearance.reality': 'true',
+                                 'appearance.animations': 'true', 'appearance.browse': 'false', 'appearance.tabs': 'false',
+                                 'appearance.order': 'watchlist,reality,gone,trending_movies'})
+    shown = opened(home, monkeypatch)
+    # the saved order first (an unknown key dropped), then the others in the default order
+    assert slots(shown) == [('Watchlist', url('watchlist')), ('Reality TV', url('popularRealityTVShows')),
+                            ('Trending Movies', url('popularMovies')), ('Animations', url('popularAnimations'))] + [('', '')] * 3
+    assert (shown['a4k.browse'], shown['a4k.tabs']) == ('', '')
+
+def test_my_list_is_a_row_with_its_name_when_signed_in(core, home, monkeypatch):
+    values = {'imdb.at-main': 'token', 'appearance.my_list': 'ls0042 Weekend Picks', 'appearance.watchlist': 'false'}
+    settings(core, monkeypatch, values)
+    assert slots(opened(home, monkeypatch))[2] == ('Weekend Picks', url('list') + '&id=ls0042')
+    settings(core, monkeypatch, dict(values, **{'imdb.at-main': ''}))
+    assert slots(opened(home, monkeypatch))[2] == ('', '')
+
+def test_next_item_of_a_slot_opens_the_grid_under_that_rows_title(core, home, monkeypatch):
+    shown = []
+    monkeypatch.setattr(importlib.import_module('a4kStreaming.ui.grid'), 'show', lambda path, title: shown.append(title))
+    settings(core, monkeypatch, {'appearance.order': 'reality', 'appearance.reality': 'true'})
+    window = home.Home('a4k-home.xml', '', 'Default', '1080i')
+    home.apply(window)
+    path = url('popularRealityTVShows') + '&paginationToken=abc'
+    monkeypatch.setattr(core.kodi.xbmc, 'getInfoLabel', lambda label: path if label == 'Container(301).ListItem.FolderPath' else '')
+    window.setFocusId(301)
+    window.onAction(type('Action', (), {'getId': lambda self: home.ACTION_SELECT_ITEM})())
+    assert shown == ['Reality TV'] and window.error is None
+
+@pytest.mark.parametrize('values,sources,lists', [
+    ({}, [(301, 'TRENDING NOW')], ('', '')),
+    ({'appearance.trending_movies': 'false'}, [(291, 'TRENDING NOW')], (url('popularMovies'), '')),
+    ({'appearance.hero_source': '1'}, [(302, 'TRENDING NOW')], ('', '')),
+    ({'appearance.hero_source': '2', 'appearance.trending_tv': 'false'}, [(301, 'TRENDING NOW'), (292, 'TRENDING NOW')],
+     ('', url('popularTVShows'))),
+    # My home sections: every row that is on but the Watchlist, each with its own kicker
+    ({'appearance.hero_source': '3', 'appearance.reality': 'true', 'appearance.trending_tv': 'false', 'imdb.at-main': 't',
+      'appearance.my_list': 'ls7 Weekend Picks'}, [(301, 'TRENDING NOW'), (302, 'REALITY'), (303, 'WEEKEND PICKS')], ('', '')),
+    ({'appearance.hero_source': '3', 'appearance.trending_movies': 'false', 'appearance.trending_tv': 'false'},
+     [(291, 'TRENDING NOW')], (url('popularMovies'), '')),  # nothing on: the trending movies
+])
+def test_hero_source_follows_the_setting(core, home, monkeypatch, values, sources, lists):
+    settings(core, monkeypatch, values)
+    window = home.Home('a4k-home.xml', '', 'Default', '1080i')
+    home.apply(window)
+    assert list(window.sources) == sources
+    assert (window.getProperty('a4k.row.291'), window.getProperty('a4k.row.292')) == lists
+
+@pytest.mark.parametrize('value,turn', [('', 15), ('0', 10), ('1', 15), ('2', 20), ('3', 30), ('4', 0)])
+def test_hero_rotation_follows_the_setting(core, home, monkeypatch, value, turn):
+    settings(core, monkeypatch, {'appearance.hero_turn': value})
+    window = home.Home('a4k-home.xml', '', 'Default', '1080i')
+    home.apply(window)
+    assert window.hero_turn == turn
+
+def test_hero_rotation_off_never_turns(core, monkeypatch):
+    import threading
+    module = importlib.import_module('a4kStreaming.ui.home')
+    win = module.Home('a4k-home.xml', '', 'Default', '1080i')
+    win.hero_turn = 0
+    win.stopped = threading.Event()
+    waits, turns = [], []
+    monkeypatch.setattr(win.stopped, 'wait', lambda t: waits.append(t) or len(waits) > 3)
+    monkeypatch.setattr(win, 'turn', lambda: turns.append(1))
+    monkeypatch.setattr(core.kodi.xbmc, 'getInfoLabel', lambda label: '5' if label.endswith('NumItems') else 'Heat')
+    win.rotate()
+    assert waits == [module.HERO_IDLE] * 4 and turns == []
+
+def test_hero_takes_one_title_of_each_source_in_turn_without_repeats(core, home, monkeypatch):
+    ids = {(301, 0): 'tt1', (301, 1): 'tt2', (302, 0): 'tt2', (302, 1): 'tt3', (302, 2): 'tt4'}
+    def label(text):
+        if text.endswith('NumItems'):
+            return {'Container(301).NumItems': '2', 'Container(302).NumItems': '3'}[text]
+        for (container, index), id in ids.items():
+            if text == 'Container(%s).ListItemAbsolute(%s).Property(a4k.id)' % (container, index):
+                return id
+        return ''
+    monkeypatch.setattr(core.kodi.xbmc, 'getInfoLabel', label)
+    window = home.Home('a4k-home.xml', '', 'Default', '1080i')
+    window.sources = ((301, 'A'), (302, 'B'))
+    assert window.hero_items() == [(301, 0, 'A'), (302, 0, 'B'), (302, 1, 'B'), (302, 2, 'B')]  # tt2 once
+
+def test_hero_series_reads_go_to_show_and_opens_its_detail(core, home, monkeypatch, calls):
+    item = 'Container(302).ListItemAbsolute(0).'
+    values = {'Container(302).NumItems': '1', item + 'Property(a4k.type)': 'tvSeries', item + 'Property(a4k.id)': 'tt5',
+              item + 'Label': 'A Show'}
+    monkeypatch.setattr(core.kodi.xbmc, 'getInfoLabel', lambda label: values.get(label, ''))
+    opened_detail = []
+    monkeypatch.setattr(importlib.import_module('a4kStreaming.ui.detail'), 'open', lambda info: opened_detail.append(info) or True)
+    window = home.Home('a4k-home.xml', '', 'Default', '1080i')
+    window.sources = ((302, 'TRENDING NOW'),)
+    window.show_hero()
+    assert (window.getProperty('a4k.hero.act'), window.getProperty('a4k.hero.kicker')) == ('Go to Show', 'TRENDING NOW')
+    window.onClick(home.HERO_PLAY)
+    assert [info['Property(a4k.id)'] for info in opened_detail] == ['tt5'] and calls == []
+
+def test_settings_gear_applies_the_new_appearance_once_the_dialog_closes(core, home, monkeypatch, calls):
+    import threading
+    values = {}
+    settings(core, monkeypatch, values)
+    looks = iter([False, True, True, False])  # not up yet, up (the user changes two settings), closed
+    def active(condition):
+        assert condition == 'Window.IsActive(addonsettings)'
+        up = next(looks)
+        if up:
+            values.update({'appearance.hero_source': '1', 'appearance.reality': 'true'})
+        return up
+    monkeypatch.setattr(core.kodi.xbmc, 'getCondVisibility', active, raising=False)
+    threads, timers = [], []
+    monkeypatch.setattr(home.threading, 'Thread', lambda target: SimpleTimer(threads, target))
+    monkeypatch.setattr(home.threading, 'Timer', lambda seconds, target, args=(): SimpleTimer(timers, (target, args)))
+    window = home.Home('a4k-home.xml', '', 'Default', '1080i')
+    window.stopped = threading.Event()
+    monkeypatch.setattr(window.stopped, 'wait', lambda seconds: False)
+    home.apply(window)
+    window.hero = 3
+    window.onClick(home.SETTINGS)
+    # opened without waiting (a blocking builtin holds Python's lock), watched from a thread
+    assert calls == ['Addon.OpenSettings(plugin.video.a4kstreaming)'] and threads == [window.settings_closed]
+    assert window.getProperty('a4k.title.303') == ''
+    window.settings_closed()
+    assert window.getProperty('a4k.title.303') == 'Reality TV' and list(window.sources) == [(302, 'TRENDING NOW')]
+    # every slot with a listing shows for FRESH_TIME (a hidden list never loads), then the shelf starts over
+    assert window.getProperty('a4k.fresh') == 'true' and timers == [(window.setProperty, ('a4k.fresh', '')), (window.turn, ())]
+    assert window.hero == -1 and window.error is None
+
+def test_settings_watch_stops_looking_for_the_dialog_after_two_seconds(core, home, monkeypatch):
+    import threading
+    looks = []
+    monkeypatch.setattr(core.kodi.xbmc, 'getCondVisibility', lambda condition: looks.append(1) and False, raising=False)
+    window = home.Home('a4k-home.xml', '', 'Default', '1080i')
+    window.stopped = threading.Event()
+    monkeypatch.setattr(window.stopped, 'wait', lambda seconds: False)
+    reapplied = []
+    monkeypatch.setattr(window, 'reapply', lambda: reapplied.append(1))
+    window.settings_closed()
+    assert len(looks) == home.SETTINGS_OPEN + 2 and reapplied == [1]
+    monkeypatch.setattr(window.stopped, 'wait', lambda seconds: seconds == home.SETTINGS_SETTLE)  # closes meanwhile
+    window.settings_closed()
+    assert reapplied == [1]
+
+class SimpleTimer(object):
+    def __init__(self, log, target): self.log, self.target = log, target
+    def start(self): self.log.append(self.target)
+
+def test_home_order_moves_the_picked_row_up_until_back(core, monkeypatch):
+    appearance = importlib.import_module('a4kStreaming.ui.appearance')
+    sheets = importlib.import_module('a4kStreaming.ui.sheets')
+    picks = iter([2, 1, 3, -1])  # Reality TV up twice, then Animations up once, then Back
+    asked = []
+    monkeypatch.setattr(sheets, 'select', lambda heading, labels, preselect=-1: asked.append((labels[:5], preselect)) or next(picks))
+    saved = {}
+    monkeypatch.setattr(core.kodi.addon, 'setSetting', lambda key, value: saved.update({key: value}), raising=False)
+    appearance.edit_order()
+    assert saved == {'appearance.order': 'reality,trending_movies,animations,trending_tv,animation_tv,my_list,watchlist'}
+    assert [preselect for _, preselect in asked] == [0, 1, 0, 2]  # the picked row stays picked at its new place
+
+def test_my_list_picker_offers_the_title_lists(core, monkeypatch):
+    import json
+    appearance = importlib.import_module('a4kStreaming.ui.appearance')
+    sheets = importlib.import_module('a4kStreaming.ui.sheets')
+    settings(core, monkeypatch, {'imdb.at-main': 'token', 'appearance.my_list': 'ls2 Favoritos'})
+    files = [{'file': PLUGIN + '?action=query&type=list&id=ls1', 'label': 'Weekend Picks', 'plot': 'Movie or TV Series from Weekend Picks'},
+             {'file': PLUGIN + '?action=query&type=list&id=ls9', 'label': 'Actors', 'plot': 'Stars, Directors or Writers from Actors'},
+             {'file': PLUGIN + '?action=query&type=list&id=ls2', 'label': 'Favoritos', 'plot': 'Movie or TV Series from Favoritos'}]
+    monkeypatch.setattr(core.kodi.xbmc, 'executeJSONRPC', lambda request: json.dumps({'result': {'files': files}}))
+    asked = []
+    monkeypatch.setattr(sheets, 'select', lambda heading, labels, preselect=-1: asked.append((labels, preselect)) or 1)
+    saved = {}
+    monkeypatch.setattr(core.kodi.addon, 'setSetting', lambda key, value: saved.update({key: value}), raising=False)
+    appearance.pick_my_list()
+    assert asked == [(['None', 'Weekend Picks', 'Favoritos'], 2)] and saved == {'appearance.my_list': 'ls1 Weekend Picks'}
+
+def test_down_on_the_last_shown_row_stays_there(core, home, monkeypatch):
+    values = {}
+    settings(core, monkeypatch, values)
+    window = home.Home('a4k-home.xml', '', 'Default', '1080i')
+    home.apply(window)
+    window.wire()
+    row = window.getControl
+    assert row(301).down is row(320) and row(302).down is row(302)  # signed out: two rows
+    values['appearance.reality'] = 'true'  # a third row: the second goes down to it again
+    home.apply(window)
+    window.wire()
+    assert row(302).down is row(330) and row(303).down is row(303)

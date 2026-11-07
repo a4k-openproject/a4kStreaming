@@ -146,7 +146,7 @@ def test_window_uses_no_includes_or_named_colours(path):
     colours += [node.get('colordiffuse') for node in root.iter() if node.get('colordiffuse')]
     assert colours and all(re.fullmatch(r'[0-9A-F]{8}', colour) for colour in colours)
 
-@pytest.mark.parametrize('name,count', [('a4k-home.xml', 3), ('a4k-detail.xml', 1), ('a4k-grid.xml', 1), ('a4k-search.xml', 1)])
+@pytest.mark.parametrize('name,count', [('a4k-home.xml', 9), ('a4k-detail.xml', 1), ('a4k-grid.xml', 1), ('a4k-search.xml', 1)])
 def test_rows_do_not_reload_on_play_or_stop(name, count):
     # Kodi reloads every unsorted <content> on each OnPlay/OnStop (DirectoryProvider::Announce). The reloads start new
     # Python interpreters next to the playing plugin call, and two starting at once crash Kodi 21 (seen live with the
@@ -168,8 +168,10 @@ def test_focusable_controls_navigate_explicitly():
     root = ElementTree.parse(os.path.join(WINDOWS, 'a4k-home.xml')).getroot()
     page = [c for c in root.iter('control') if c.get('id') == '100'][0]
     groups = {c.get('id') for c in page.findall('control')}
-    focusable = [c for c in root.iter('control') if c.get('type') in ('list', 'panel') or c.get('id') == '210']
-    assert len(focusable) == 5
+    hidden = {'291', '292'}  # the top shelf's own lists: never drawn, never in the navigation
+    focusable = [c for c in root.iter('control') if (c.get('type') in ('list', 'panel') or c.get('id') == '210')
+                 and c.get('id') not in hidden]
+    assert len(focusable) == 9
     for control in focusable:
         assert {'onleft', 'onright', 'ondown'} <= {child.tag for child in control}
         targets = [control.findtext(tag) for tag in ('onup', 'ondown') if control.findtext(tag) not in (None, 'noop')]
@@ -204,9 +206,9 @@ def test_every_row_property_the_xml_reads_is_set(core, home, monkeypatch):
     monkeypatch.setattr(home.Home, 'doModal', lambda self: opened.update(self.properties))
     home.open()
     xml = open(os.path.join(WINDOWS, 'a4k-home.xml')).read()
-    hero = {'a4k.hero.' + key for key in list(home.HERO_FIELDS) + ['shown']}  # set by the rotation once the row is in
+    hero = {'a4k.hero.' + key for key in list(home.HERO_FIELDS) + ['shown', 'kicker']}  # set once a title is in
     read = set(re.findall(r'Window\.Property\(([\w.]+)\)', xml))
-    assert read - hero <= set(opened) and read & hero == hero
+    assert read - hero - {home.FRESH} <= set(opened) and read & hero == hero  # a4k.fresh: after the settings
     assert opened['a4k.row.301'] == PLUGIN + '?action=query&type=popularMovies&widget=1'
     assert opened['a4k.row.303'] == PLUGIN + '?action=query&type=watchlist&widget=1'
 
@@ -215,7 +217,7 @@ def test_watchlist_row_needs_an_imdb_login(core, home, monkeypatch):
     opened = {}
     monkeypatch.setattr(home.Home, 'doModal', lambda self: opened.update(self.properties))
     home.open()
-    assert 'a4k.row.303' not in opened and 'a4k.auth' not in opened
+    assert opened['a4k.row.303'] == '' and opened['a4k.auth'] == ''
     assert opened['a4k.row.302'] == PLUGIN + '?action=query&type=popularTVShows&widget=1'
 
 # B. root routing
@@ -372,6 +374,7 @@ def test_select_on_a_title_opens_its_detail_and_other_items_run_their_builtin(co
     grids = []
     monkeypatch.setattr(importlib.import_module('a4kStreaming.ui.grid'), 'show', lambda path, title: grids.append((path, title)))
     win = window(core, home, monkeypatch, 302, {'Container(302).ListItem.FolderPath': path})
+    win.setProperty('a4k.title.302', 'Trending TV Shows')
     win.onAction(Action(home.ACTION_SELECT_ITEM))  # the row's Next item: the rest of the row in the grid
     assert grids == [(path, 'Trending TV Shows')] and calls == [] and len(opened) == 1
     folder = PLUGIN + '?action=query&type=lists'
