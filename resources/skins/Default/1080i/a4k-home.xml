@@ -263,16 +263,16 @@
 						</control>
 						<control type="label">
 							<left>96</left>
-							<top>452</top>
+							<top>466</top>
 							<width>264</width>
-							<height>34</height>
+							<height>32</height>
 							<font>font12</font>
 							<textcolor>80FFFFFF</textcolor>
 							<label>$INFO[ListItem.Label]</label>
 						</control>
 						<control type="label">
 							<left>96</left>
-							<top>486</top>
+							<top>498</top>
 							<width>264</width>
 							<height>30</height>
 							<font>font10</font>
@@ -307,7 +307,6 @@
 								<width>264</width>
 								<height>396</height>
 								<aspectratio scalediffuse="false">scale</aspectratio>
-								<fadetime>200</fadetime>
 								<texture background="true" diffuse="a4k/mask_poster.png">$INFO[ListItem.Art(poster)]</texture>
 							</control>
 							<control type="image">
@@ -318,24 +317,24 @@
 								<texture border="40">a4k/ring.png</texture>
 								<visible>Control.HasFocus(301)</visible>
 							</control>
-							<control type="label">
-								<left>96</left>
-								<top>452</top>
-								<width>264</width>
-								<height>34</height>
-								<font>font12</font>
-								<textcolor>FFFFFFFF</textcolor>
-								<label>$INFO[ListItem.Label]</label>
-							</control>
-							<control type="label">
-								<left>96</left>
-								<top>486</top>
-								<width>264</width>
-								<height>30</height>
-								<font>font10</font>
-								<textcolor>B3FFFFFF</textcolor>
-								<label>$INFO[ListItem.Year]$INFO[ListItem.Rating,  ·  IMDb ,]</label>
-							</control>
+						</control>
+						<control type="label">
+							<left>96</left>
+							<top>466</top>
+							<width>264</width>
+							<height>32</height>
+							<font>font12</font>
+							<textcolor>FFFFFFFF</textcolor>
+							<label>$INFO[ListItem.Label]</label>
+						</control>
+						<control type="label">
+							<left>96</left>
+							<top>498</top>
+							<width>264</width>
+							<height>30</height>
+							<font>font10</font>
+							<textcolor>B3FFFFFF</textcolor>
+							<label>$INFO[ListItem.Year]$INFO[ListItem.Rating,  ·  IMDb ,]</label>
 						</control>
 					</focusedlayout>
 					<content target="videos" sortby="programcount">$INFO[Window.Property(a4k.row.301)]</content>
@@ -389,16 +388,16 @@
 						</control>
 						<control type="label">
 							<left>96</left>
-							<top>452</top>
+							<top>466</top>
 							<width>264</width>
-							<height>34</height>
+							<height>32</height>
 							<font>font12</font>
 							<textcolor>80FFFFFF</textcolor>
 							<label>$INFO[ListItem.Label]</label>
 						</control>
 						<control type="label">
 							<left>96</left>
-							<top>486</top>
+							<top>498</top>
 							<width>264</width>
 							<height>30</height>
 							<font>font10</font>
@@ -433,7 +432,6 @@
 								<width>264</width>
 								<height>396</height>
 								<aspectratio scalediffuse="false">scale</aspectratio>
-								<fadetime>200</fadetime>
 								<texture background="true" diffuse="a4k/mask_poster.png">$INFO[ListItem.Art(poster)]</texture>
 							</control>
 							<control type="image">
@@ -444,24 +442,24 @@
 								<texture border="40">a4k/ring.png</texture>
 								<visible>Control.HasFocus(302)</visible>
 							</control>
-							<control type="label">
-								<left>96</left>
-								<top>452</top>
-								<width>264</width>
-								<height>34</height>
-								<font>font12</font>
-								<textcolor>FFFFFFFF</textcolor>
-								<label>$INFO[ListItem.Label]</label>
-							</control>
-							<control type="label">
-								<left>96</left>
-								<top>486</top>
-								<width>264</width>
-								<height>30</height>
-								<font>font10</font>
-								<textcolor>B3FFFFFF</textcolor>
-								<label>$INFO[ListItem.Year]$INFO[ListItem.Rating,  ·  IMDb ,]</label>
-							</control>
+						</control>
+						<control type="label">
+							<left>96</left>
+							<top>466</top>
+							<width>264</width>
+							<height>32</height>
+							<font>font12</font>
+							<textcolor>FFFFFFFF</textcolor>
+							<label>$INFO[ListItem.Label]</label>
+						</control>
+						<control type="label">
+							<left>96</left>
+							<top>498</top>
+							<width>264</width>
+							<height>30</height>
+							<font>font10</font>
+							<textcolor>B3FFFFFF</textcolor>
+							<label>$INFO[ListItem.Year]$INFO[ListItem.Rating,  ·  IMDb ,]</label>
 						</control>
 					</focusedlayout>
 					<content target="videos" sortby="programcount">$INFO[Window.Property(a4k.row.302)]</content>
@@ -515,16 +513,16 @@
 						</control>
 						<control type="label">
 							<left>96</left>
-							<top>452</top>
+							<top>466</top>
 							<width>264</width>
-							<height>34</height>
+							<height>32</height>
 							<font>font12</font>
 							<textcolor>80FFFFFF</textcolor>
 							<label>$INFO[ListItem.Label]</label>
 						</control>
 						<control type="label">
 							<left>96</left>
-							<top>486</top>
+							<top>498</top>
 							<width>264</width>
 							<height>30</height>
 							<font>font10</font>
@@ -559,7 +557,6 @@
 								<width>264</width>
 								<height>396</height>
 								<aspectratio scalediffuse="false">scale</aspectratio>
-								<fadetime>200</fadetime>
 								<texture background="true" diffuse="a4k/mask_poster.png">$INFO[ListItem.Art(poster)]</texture>
 							</control>
 							<control type="image">
@@ -570,24 +567,24 @@
 								<texture border="40">a4k/ring.png</texture>
 								<visible>Control.HasFocus(303)</visible>
 							</control>
-							<control type="label">
-								<left>96</left>
-								<top>452</top>
-								<width>264</width>
-								<height>34</height>
-								<font>font12</font>
-								<textcolor>FFFFFFFF</textcolor>
-								<label>$INFO[ListItem.Label]</label>
-							</control>
-							<control type="label">
-								<left>96</left>
-								<top>486</top>
-								<width>264</width>
-								<height>30</height>
-								<font>font10</font>
-								<textcolor>B3FFFFFF</textcolor>
-								<label>$INFO[ListItem.Year]$INFO[ListItem.Rating,  ·  IMDb ,]</label>
-							</control>
+						</control>
+						<control type="label">
+							<left>96</left>
+							<top>466</top>
+							<width>264</width>
+							<height>32</height>
+							<font>font12</font>
+							<textcolor>FFFFFFFF</textcolor>
+							<label>$INFO[ListItem.Label]</label>
+						</control>
+						<control type="label">
+							<left>96</left>
+							<top>498</top>
+							<width>264</width>
+							<height>30</height>
+							<font>font10</font>
+							<textcolor>B3FFFFFF</textcolor>
+							<label>$INFO[ListItem.Year]$INFO[ListItem.Rating,  ·  IMDb ,]</label>
 						</control>
 					</focusedlayout>
 					<content target="videos" sortby="programcount">$INFO[Window.Property(a4k.row.303)]</content>

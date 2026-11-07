@@ -350,3 +350,29 @@ def test_category_query_sends_the_years_dates(core, imdb, monkeypatch):
     assert bodies[0]['variables']['startDate'] == '2019-01-01' and bodies[0]['variables']['endDate'] == '2019-12-31'
     assert bodies[1]['variables']['startDate'] is None
     assert 'releaseDateRange: { start: $startDate, end: $endDate }' in bodies[0]['query']
+
+# operator bugs: the focused poster's flicker, captions under the zoom
+
+@pytest.mark.parametrize('name', ['a4k-home.xml', 'a4k-grid.xml', 'a4k-detail.xml', 'a4k-search.xml'])
+def test_focused_art_shows_at_once_and_only_the_art_zooms(name):
+    for layout in xml(name).iter('focusedlayout'):
+        # the focused layout's art is the texture the unfocused layout already holds: a fade would start it from black
+        assert layout.find('.//fadetime') is None
+        zooms = [g for g in layout.iter('control') if g.get('type') == 'group' and g.find("animation[@effect='zoom']") is not None]
+        art = [g for g in zooms if any('ListItem.Art(' in (t.text or '') for t in g.iter('texture'))]
+        for group in art:  # captions keep their baseline: no label zooms with the art
+            assert not [c for c in group.iter('control') if c.get('type') == 'label'], name
+
+def test_grid_zoomed_poster_stays_inside_its_slot():
+    # 1.08 about the poster's centre, plus the 9 px ring: clear of the row above and of the captions below
+    panel = control(xml('a4k-grid.xml'), 500)
+    focused = panel.find('focusedlayout')
+    height = int(focused.get('height'))
+    poster = [c for c in focused.iter('control') if (c.findtext('texture') or '') == '$INFO[ListItem.Art(poster)]'][0]
+    top, size = int(poster.findtext('top')), int(poster.findtext('height'))
+    centre = top + size / 2.0
+    zoomed_top, zoomed_bottom = centre - size / 2.0 * 1.08 - 9, centre + size / 2.0 * 1.08 + 9
+    captions = [c for c in focused.iter('control') if c.get('type') == 'label' and int(c.findtext('top')) > centre]
+    title = min(int(c.findtext('top')) for c in captions)
+    captions_end = max(int(c.findtext('top')) + int(c.findtext('height')) for c in captions)
+    assert zoomed_top >= 0 and zoomed_bottom <= title and captions_end <= height
