@@ -46,10 +46,20 @@ viewType = None
 contentType = 'videos'
 
 from .explorer import root, query, profile, trailer, years, play, search, cloud, cache_sources
+from .imdb import gallery_types
 from .provider import provider, provider_meta
 from .trakt import trakt
 
 provider(core, core.utils.DictAsObject({ 'type': 'install', 'init': True }))
+
+# listings Kodi may keep on disk and show again on Back: the menus and public IMDb pages. Personal ones (watchlist,
+# lists, recommended), search results and debrid folders run again on every visit.
+public_queries = set(gallery_types + ['seasons', 'episodes', 'browse', 'knownfor'])
+
+def cache_to_disc(action, type):
+    if action in (None, 'years'):
+        return True
+    return action == 'query' and type in public_queries
 
 def not_supported():
     kodi.notification('Not supported yet')
@@ -131,8 +141,7 @@ def main(url, handle, paramstring):
     else:
         not_supported()
 
-    kodi.xbmcplugin.setContent(core.handle, core.contentType)
-    kodi.xbmcplugin.endOfDirectory(core.handle)
+    kodi.xbmcplugin.endOfDirectory(core.handle, cacheToDisc=cache_to_disc(action, params.type))
 
     # a skin widget (widget=1) has no view of its own to switch, so it skips the wait and the view mode
     if params.widget != '1':

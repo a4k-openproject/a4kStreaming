@@ -152,7 +152,7 @@ def __add_lists(core, data):
         })
 
     list_items = core.utils.generic_list_items(core, items)
-    core.kodi.xbmcplugin.addDirectoryItems(core.handle, list_items, len(list_items))
+    core.utils.add_directory_items(core, list_items)
     core.kodi.xbmcplugin.addSortMethod(core.handle, core.kodi.xbmcplugin.SORT_METHOD_LABEL_IGNORE_THE)
 
 def group_seasons(core, episodes):
@@ -304,7 +304,7 @@ def __add_seasons(core, title):
         list_item.setContentLookup(False)
         list_items.append((url, list_item, True))
 
-    core.kodi.xbmcplugin.addDirectoryItems(core.handle, list_items, len(list_items))
+    core.utils.add_directory_items(core, list_items)
 
 def __add_episodes(core, title, season):
     seasons = []
@@ -639,7 +639,7 @@ def __add_titles(core, titles, browse, silent=False):
         __set_title_contextmenu(core, title, list_item, autoplay)
         list_items.append((url, list_item, action != 'play'))
 
-    core.kodi.xbmcplugin.addDirectoryItems(core.handle, list_items, len(list_items))
+    core.utils.add_directory_items(core, list_items)
 
 def root(core):
     items = [
@@ -730,7 +730,7 @@ def root(core):
     ]
 
     list_items = core.utils.generic_list_items(core, items)
-    core.kodi.xbmcplugin.addDirectoryItems(core.handle, list_items, len(list_items))
+    core.utils.add_directory_items(core, list_items)
 
 def years(core, params):
     items = []
@@ -771,4 +771,4 @@ def years(core, params):
 
     items.reverse()
     list_items = core.utils.generic_list_items(core, items)
-    core.kodi.xbmcplugin.addDirectoryItems(core.handle, list_items, len(list_items))
+    core.utils.add_directory_items(core, list_items)

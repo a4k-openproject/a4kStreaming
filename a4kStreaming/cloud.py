@@ -168,5 +168,5 @@ def cloud(core, params):
         return
 
     list_items = core.utils.generic_list_items(core, items)
-    core.kodi.xbmcplugin.addDirectoryItems(core.handle, list_items, len(list_items))
+    core.utils.add_directory_items(core, list_items)
     return items

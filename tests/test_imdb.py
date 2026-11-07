@@ -344,7 +344,7 @@ def test_main_refreshes_stale_pages_after_the_listing_is_shown(core, request_mod
     sent = fake_session(request_module, monkeypatch, [lambda kwargs: events.append('fetch') or __page()])
     __popular(core)
     mem_db.ages[__keys(mem_db)[0]] = 2 * 60 * 60
-    monkeypatch.setattr(core.kodi.xbmcplugin, 'endOfDirectory', lambda handle: events.append('end'), raising=False)
+    monkeypatch.setattr(core.kodi.xbmcplugin, 'endOfDirectory', lambda handle, **kwargs: events.append('end'), raising=False)
     monkeypatch.setattr(core.kodi.xbmc, 'sleep', lambda ms: None)
     monkeypatch.setattr(core.db, 'cleanup', lambda: events.append('cleanup'))
     core.main('plugin://plugin.video.a4kstreaming/', 1, 'action=query&type=popularMovies')
@@ -457,9 +457,44 @@ def test_widget_skips_the_wait_and_the_view_mode(core, request_module, monkeypat
     settings(core, monkeypatch, {'views.titles': '0'})
     fake_session(request_module, monkeypatch, [__page()])
     calls = []
-    monkeypatch.setattr(core.kodi.xbmcplugin, 'endOfDirectory', lambda handle: None, raising=False)
+    monkeypatch.setattr(core.kodi.xbmcplugin, 'endOfDirectory', lambda handle, **kwargs: None, raising=False)
     monkeypatch.setattr(core.kodi.xbmc, 'sleep', lambda ms: calls.append('sleep'))
     monkeypatch.setattr(core.kodi.xbmc, 'executebuiltin', lambda builtin: calls.append(builtin.split('(')[0]))
     monkeypatch.setattr(core.db, 'cleanup', lambda: None)
     core.main('plugin://plugin.video.a4kstreaming/', 1, 'action=query&type=popularMovies' + ('&widget=1' if widget else ''))
     assert calls == ([] if widget else ['sleep', 'Container.SetViewMode'])
+
+# H. listing flags: the content type before the items, and which listings Kodi may keep on disk
+
+@pytest.mark.parametrize('paramstring, action, cached', [
+    ('widget=1', 'root', True),
+    ('action=years&type=root', 'years', True),
+    ('action=years&type=2020', 'years', True),
+    ('action=query&type=popularMovies', 'query', True),
+    ('action=query&type=fan_picks', 'query', True),
+    ('action=query&type=year&target_year=2020', 'query', True),
+    ('action=query&type=more_like_this&id=tt1', 'query', True),
+    ('action=query&type=seasons&id=tt1', 'query', True),
+    ('action=query&type=episodes&id=tt1&season=1', 'query', True),
+    ('action=query&type=browse&id=tt1', 'query', True),
+    ('action=query&type=knownfor&id=nm1', 'query', True),
+    ('action=query&type=watchlist', 'query', False),
+    ('action=query&type=top_picks', 'query', False),
+    ('action=query&type=lists', 'query', False),
+    ('action=query&type=list&id=ls1', 'query', False),
+    ('action=search&type=input', 'search', False),
+    ('action=search&query=dune', 'search', False),
+    ('action=cloud&type=root', 'cloud', False),
+])
+def test_listing_sets_its_content_first_and_caches_only_public_pages(core, monkeypatch, paramstring, action, cached):
+    events = []
+    monkeypatch.setattr(core, action, lambda core, params=None: core.utils.add_directory_items(core, [('url', None, True)]))
+    monkeypatch.setattr(core.kodi.xbmcplugin, 'setContent', lambda handle, content: events.append('content'))
+    monkeypatch.setattr(core.kodi.xbmcplugin, 'addDirectoryItems', lambda handle, items, count: events.append('items'))
+    monkeypatch.setattr(core.kodi.xbmcplugin, 'endOfDirectory', lambda handle, **kwargs: events.append(kwargs), raising=False)
+    monkeypatch.setattr(core.kodi.xbmc, 'sleep', lambda ms: None)
+    monkeypatch.setattr(core.kodi.xbmc, 'executebuiltin', lambda builtin: None)
+    monkeypatch.setattr(core.request, 'revalidate', lambda core: None)
+    monkeypatch.setattr(core.db, 'cleanup', lambda: None)
+    core.main('plugin://plugin.video.a4kstreaming/', 1, paramstring + ('' if 'widget' in paramstring else '&widget=1'))
+    assert events == ['content', 'items', {'cacheToDisc': cached}]

@@ -357,6 +357,11 @@ def end_action(core, success, item=None):
         item = core.kodi.xbmcgui.ListItem(offscreen=True)
     core.kodi.xbmcplugin.setResolvedUrl(core.handle, success, item)
 
+def add_directory_items(core, list_items):
+    # the content type goes in before the items, then the whole batch at once
+    core.kodi.xbmcplugin.setContent(core.handle, core.contentType)
+    core.kodi.xbmcplugin.addDirectoryItems(core.handle, list_items, len(list_items))
+
 def generic_list_items(core, items):
     list_items = []
     for item in items:
