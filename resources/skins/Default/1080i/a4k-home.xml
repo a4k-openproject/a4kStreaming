@@ -75,71 +75,75 @@
 					<height>840</height>
 					<texture>a4k/scrim_left.png</texture>
 				</control>
-				<control type="label">
+				<!-- Bottom-aligned stack: a one-line title leaves no gap, a long one grows upwards; the buttons stay put. -->
+				<control type="grouplist">
 					<left>96</left>
-					<top>196</top>
-					<width>1000</width>
-					<height>34</height>
-					<font>font25_title</font>
-					<textcolor>B8FFFFFF</textcolor>
-					<label>TRENDING MOVIE</label>
-					<visible>!String.IsEmpty(Container(301).ListItemAbsolute(0).Label)</visible>
-				</control>
-				<control type="textbox">
-					<left>96</left>
-					<top>234</top>
+					<top>110</top>
 					<width>1100</width>
-					<height>150</height>
-					<font>font52_title</font>
-					<textcolor>FFFFFFFF</textcolor>
-					<aligny>bottom</aligny>
-					<label>$INFO[Container(301).ListItemAbsolute(0).Label]</label>
-				</control>
-				<control type="grouplist" id="230">
-					<left>96</left>
-					<top>394</top>
-					<width>1000</width>
-					<height>40</height>
-					<orientation>horizontal</orientation>
-					<itemgap>16</itemgap>
+					<height>418</height>
+					<orientation>vertical</orientation>
+					<align>bottom</align>
+					<itemgap>6</itemgap>
 					<usecontrolcoords>true</usecontrolcoords>
 					<control type="label">
-						<width>auto</width>
+						<width>1000</width>
+						<height>34</height>
+						<font>font25_title</font>
+						<textcolor>B8FFFFFF</textcolor>
+						<label>TRENDING MOVIE</label>
+						<visible>!String.IsEmpty(Container(301).ListItemAbsolute(0).Label)</visible>
+					</control>
+					<control type="textbox">
+						<width>1100</width>
+						<height max="160">auto</height>
+						<font>font52_title</font>
+						<textcolor>FFFFFFFF</textcolor>
+						<label>$INFO[Container(301).ListItemAbsolute(0).Label]</label>
+					</control>
+					<control type="grouplist" id="230">
+						<top>6</top>
+						<width>1000</width>
 						<height>40</height>
+						<orientation>horizontal</orientation>
+						<itemgap>16</itemgap>
+						<usecontrolcoords>true</usecontrolcoords>
+						<control type="label">
+							<width>auto</width>
+							<height>40</height>
+							<font>font27</font>
+							<textcolor>B8FFFFFF</textcolor>
+							<label>$INFO[Container(301).ListItemAbsolute(0).Year]</label>
+						</control>
+						<control type="image">
+							<top>7</top>
+							<width>26</width>
+							<height>26</height>
+							<texture colordiffuse="FFFFD166">a4k/star.png</texture>
+							<visible>!String.IsEmpty(Container(301).ListItemAbsolute(0).Rating)</visible>
+						</control>
+						<control type="label">
+							<width>auto</width>
+							<height>40</height>
+							<font>font27</font>
+							<textcolor>B8FFFFFF</textcolor>
+							<label>$INFO[Container(301).ListItemAbsolute(0).Rating]</label>
+						</control>
+						<control type="label">
+							<width>auto</width>
+							<height>40</height>
+							<font>font27</font>
+							<textcolor>B8FFFFFF</textcolor>
+							<label>$INFO[Container(301).ListItemAbsolute(0).MPAA]</label>
+						</control>
+					</control>
+					<control type="textbox">
+						<top>6</top>
+						<width>860</width>
+						<height>76</height>
 						<font>font27</font>
 						<textcolor>B8FFFFFF</textcolor>
-						<label>$INFO[Container(301).ListItemAbsolute(0).Year]</label>
+						<label>$INFO[Container(301).ListItemAbsolute(0).Plot]</label>
 					</control>
-					<control type="image">
-						<top>7</top>
-						<width>26</width>
-						<height>26</height>
-						<texture colordiffuse="FFFFD166">a4k/star.png</texture>
-						<visible>!String.IsEmpty(Container(301).ListItemAbsolute(0).Rating)</visible>
-					</control>
-					<control type="label">
-						<width>auto</width>
-						<height>40</height>
-						<font>font27</font>
-						<textcolor>B8FFFFFF</textcolor>
-						<label>$INFO[Container(301).ListItemAbsolute(0).Rating]</label>
-					</control>
-					<control type="label">
-						<width>auto</width>
-						<height>40</height>
-						<font>font27</font>
-						<textcolor>B8FFFFFF</textcolor>
-						<label>$INFO[Container(301).ListItemAbsolute(0).MPAA]</label>
-					</control>
-				</control>
-				<control type="textbox">
-					<left>96</left>
-					<top>446</top>
-					<width>860</width>
-					<height>80</height>
-					<font>font27</font>
-					<textcolor>B8FFFFFF</textcolor>
-					<label>$INFO[Container(301).ListItemAbsolute(0).Plot]</label>
 				</control>
 				<control type="grouplist" id="210">
 					<ondown>310</ondown>
