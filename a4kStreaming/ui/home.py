@@ -59,7 +59,8 @@ class Home(kodi.xbmcgui.WindowXML):
     def onInit(self):
         # runs again on every return to the window (after playback, after a listing): no network, nothing to undo
         try:
-            self.getControl(100)  # raises when the XML did not load
+            # raises when the XML did not load; a grouplist would raise anyway (Python cannot wrap that type)
+            self.getControl(HERO_PLAY)
             kodi.xbmcgui.Window(app.HOME_WINDOW).setProperty(app.OPEN_WINDOW, str(kodi.xbmcgui.getCurrentWindowId()))
         except Exception:
             self.__fail()

@@ -135,6 +135,21 @@ def test_python_control_ids_exist_in_the_xml(home):
     xml_containers = {int(n) for n in re.findall(r'Container\((\d+)\)', open(os.path.join(WINDOWS, 'a4k-home.xml')).read())}
     assert xml_containers <= ids
 
+# control types Kodi's Python getControl can wrap (interfaces/legacy/Window.cpp); anything else raises
+PYTHON_CONTROL_TYPES = {'button', 'label', 'fadelabel', 'textbox', 'image', 'list', 'wraplist', 'fixedlist', 'panel',
+                        'progress', 'radiobutton', 'slider', 'edit', 'group', 'spincontrolex'}
+
+def test_python_only_gets_controls_kodi_can_wrap(core, home, monkeypatch):
+    root = ElementTree.parse(os.path.join(WINDOWS, 'a4k-home.xml')).getroot()
+    types = {int(c.get('id')): c.get('type') for c in root.iter('control') if c.get('id')}
+    asked = []
+    original = home.Home.getControl
+    monkeypatch.setattr(home.Home, 'getControl', lambda self, id: asked.append(id) or original(self, id))
+    window = home.Home('a4k-home.xml', '', 'Default', '1080i')
+    window.onInit()
+    assert asked and window.error is None
+    assert all(types[id] in PYTHON_CONTROL_TYPES for id in asked)
+
 def test_every_row_property_the_xml_reads_is_set(core, home, monkeypatch):
     settings(core, monkeypatch, {'imdb.at-main': 'token'})
     opened = {}
