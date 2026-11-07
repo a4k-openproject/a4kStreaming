@@ -14,6 +14,9 @@
   through the links the grouplist gave it. A container or grouplist with no onleft/onright/ondown wraps around at its
   edge, so the edges say noop.
 
+  The active skin's Defaults.xml fills in every tag a control leaves out (Confluence gives a textbox left 330, top 333),
+  so every control sets left and top itself.
+
   Rows sort by programcount (0 on every plugin item, stable sort, so the listing order stays): Kodi reloads an unsorted
   <content> on every play and stop, and those parallel reloads next to a running plugin call crash Kodi 21.
 -->
@@ -42,6 +45,7 @@
 
 			<!-- Top shelf: the first trending movie. Its art runs on under the first rows and scrolls away with the page. -->
 			<control type="group" id="200">
+				<top>0</top>
 				<left>0</left>
 				<width>1920</width>
 				<height>680</height>
@@ -89,6 +93,8 @@
 					<itemgap>6</itemgap>
 					<usecontrolcoords>true</usecontrolcoords>
 					<control type="label">
+						<left>0</left>
+						<top>0</top>
 						<width>1000</width>
 						<height>34</height>
 						<font>font25_title</font>
@@ -97,6 +103,8 @@
 						<visible>!String.IsEmpty(Container(301).ListItemAbsolute(0).Label)</visible>
 					</control>
 					<control type="textbox">
+						<left>0</left>
+						<top>0</top>
 						<width>1100</width>
 						<height max="160">auto</height>
 						<font>font52_title</font>
@@ -104,6 +112,7 @@
 						<label>$INFO[Container(301).ListItemAbsolute(0).Label]</label>
 					</control>
 					<control type="grouplist" id="230">
+						<left>0</left>
 						<top>6</top>
 						<width>1000</width>
 						<height>40</height>
@@ -111,6 +120,8 @@
 						<itemgap>16</itemgap>
 						<usecontrolcoords>true</usecontrolcoords>
 						<control type="label">
+							<left>0</left>
+							<top>0</top>
 							<width>auto</width>
 							<height>40</height>
 							<font>font27</font>
@@ -118,6 +129,7 @@
 							<label>$INFO[Container(301).ListItemAbsolute(0).Year]</label>
 						</control>
 						<control type="image">
+							<left>0</left>
 							<top>7</top>
 							<width>26</width>
 							<height>26</height>
@@ -125,6 +137,8 @@
 							<visible>!String.IsEmpty(Container(301).ListItemAbsolute(0).Rating)</visible>
 						</control>
 						<control type="label">
+							<left>0</left>
+							<top>0</top>
 							<width>auto</width>
 							<height>40</height>
 							<font>font27</font>
@@ -132,6 +146,8 @@
 							<label>$INFO[Container(301).ListItemAbsolute(0).Rating]</label>
 						</control>
 						<control type="label">
+							<left>0</left>
+							<top>0</top>
 							<width>auto</width>
 							<height>40</height>
 							<font>font27</font>
@@ -140,6 +156,7 @@
 						</control>
 					</control>
 					<control type="textbox">
+						<left>0</left>
 						<top>6</top>
 						<width>860</width>
 						<height>76</height>
@@ -159,6 +176,8 @@
 					<orientation>horizontal</orientation>
 					<itemgap>24</itemgap>
 					<control type="button" id="201">
+						<left>0</left>
+						<top>0</top>
 						<width>220</width>
 						<height>76</height>
 						<font>font30_title</font>
@@ -173,6 +192,8 @@
 						<animation effect="zoom" start="108" end="100" time="220" tween="cubic" easing="out" center="auto" reversible="false">Unfocus</animation>
 					</control>
 					<control type="button" id="202">
+						<left>0</left>
+						<top>0</top>
 						<width>280</width>
 						<height>76</height>
 						<font>font30_title</font>
@@ -192,6 +213,7 @@
 			<!-- Rows. 304 x 536 slots: the art (264 x 396 at 96,40) overflows its slot to the right, so the first card
 			     sits on the 96 px margin while the list spans the screen and nothing clips the lift, ring or shadow. -->
 			<control type="group" id="310">
+				<top>0</top>
 				<left>0</left>
 				<width>1920</width>
 				<height>586</height>
@@ -256,6 +278,8 @@
 					</itemlayout>
 					<focusedlayout width="304" height="536">
 						<control type="group">
+							<left>0</left>
+							<top>0</top>
 							<animation effect="zoom" start="100" end="108" time="220" tween="cubic" easing="out" center="228,238" reversible="false">Focus</animation>
 							<animation effect="zoom" start="108" end="100" time="220" tween="cubic" easing="out" center="228,238" reversible="false">Unfocus</animation>
 							<control type="image">
@@ -315,6 +339,7 @@
 			</control>
 
 			<control type="group" id="320">
+				<top>0</top>
 				<left>0</left>
 				<width>1920</width>
 				<height>586</height>
@@ -379,6 +404,8 @@
 					</itemlayout>
 					<focusedlayout width="304" height="536">
 						<control type="group">
+							<left>0</left>
+							<top>0</top>
 							<animation effect="zoom" start="100" end="108" time="220" tween="cubic" easing="out" center="228,238" reversible="false">Focus</animation>
 							<animation effect="zoom" start="108" end="100" time="220" tween="cubic" easing="out" center="228,238" reversible="false">Unfocus</animation>
 							<control type="image">
@@ -438,6 +465,7 @@
 			</control>
 
 			<control type="group" id="330">
+				<top>0</top>
 				<left>0</left>
 				<width>1920</width>
 				<height>586</height>
@@ -502,6 +530,8 @@
 					</itemlayout>
 					<focusedlayout width="304" height="536">
 						<control type="group">
+							<left>0</left>
+							<top>0</top>
 							<animation effect="zoom" start="100" end="108" time="220" tween="cubic" easing="out" center="228,238" reversible="false">Focus</animation>
 							<animation effect="zoom" start="108" end="100" time="220" tween="cubic" easing="out" center="228,238" reversible="false">Unfocus</animation>
 							<control type="image">
@@ -562,6 +592,7 @@
 
 			<!-- Browse: today's directories, opened on top of the home window (Back returns here). Four tiles a row. -->
 			<control type="group" id="410">
+				<top>0</top>
 				<left>0</left>
 				<width>1920</width>
 				<height>590</height>
@@ -606,6 +637,8 @@
 					</itemlayout>
 					<focusedlayout width="432" height="160">
 						<control type="group">
+							<left>0</left>
+							<top>0</top>
 							<animation effect="zoom" start="100" end="106" time="220" tween="cubic" easing="out" center="296,80" reversible="false">Focus</animation>
 							<animation effect="zoom" start="106" end="100" time="220" tween="cubic" easing="out" center="296,80" reversible="false">Unfocus</animation>
 							<control type="image">

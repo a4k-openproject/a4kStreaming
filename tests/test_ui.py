@@ -134,6 +134,14 @@ def test_rows_do_not_reload_on_play_or_stop():
     rows = [node for node in root.iter('content') if (node.text or '').strip()]
     assert len(rows) == 3 and all(node.get('sortby') == 'programcount' for node in rows)
 
+def test_controls_place_themselves():
+    # the active skin's Defaults.xml fills in any tag a control leaves out: under Confluence a textbox without left/top
+    # landed at 330,333 and pushed the hero's meta line and plot out of view (seen live)
+    for path in windows():
+        root = ElementTree.parse(path).getroot()
+        loose = [node.get('type') for node in root.iter('control') if node.find('left') is None or node.find('top') is None]
+        assert loose == [], path
+
 def test_focusable_controls_navigate_explicitly():
     # the page grouplist links only its groups, and a container with no edge action wraps around
     root = ElementTree.parse(os.path.join(WINDOWS, 'a4k-home.xml')).getroot()
