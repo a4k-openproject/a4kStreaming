@@ -155,6 +155,53 @@ def sheet():
     img.putalpha(rounded((w, h), 44).getchannel('A'))
     return img
 
+def tabbar():
+    # home top menu pill (dobby .atv-tabs: rgba(44,44,48,.94), inset 1u top highlight rgba(255,255,255,.14)), 46u tall
+    # (92px) and fully round; 9-sliced with border 46
+    w, h = 256, 92
+    img = Image.new('RGBA', (w, h), (44, 44, 48, 240))
+    ImageDraw.Draw(img).line((0, 1, w, 1), fill=(77, 77, 81, 240), width=2)
+    img.putalpha(Image.eval(rounded((w, h), 46).getchannel('A'), lambda a: a * 240 // 255))
+    return img
+
+def icon(draw_fn, size=64):
+    # a white glyph on transparent, tinted at draw time (B8FFFFFF at rest, FF0C0D12 on the white focus fill)
+    img = Image.new('RGBA', (size * SS, size * SS), (0, 0, 0, 0))
+    draw_fn(ImageDraw.Draw(img), size * SS)
+    return img.resize((size, size), Image.LANCZOS)
+
+def gear(draw, s):
+    import math
+    cx = cy = s / 2
+    points = []
+    for i in range(48):  # eight teeth: each tooth spans 3 of every 6 steps
+        a = 2 * math.pi * i / 48
+        r = s * (.46 if (i + 1) % 6 < 3 else .36)
+        points.append((cx + r * math.cos(a), cy + r * math.sin(a)))
+    draw.polygon(points, fill=(255, 255, 255, 255))
+    hole = s * .15
+    draw.ellipse((cx - hole, cy - hole, cx + hole, cy + hole), fill=(0, 0, 0, 0))
+
+def backspace(draw, s):
+    # the delete key: a left-pointing tag with an x in it
+    u, w = s / 64, int(s / 64 * 5)
+    draw.polygon([(6 * u, 32 * u), (22 * u, 14 * u), (58 * u, 14 * u), (58 * u, 50 * u), (22 * u, 50 * u)], outline=(255, 255, 255, 255), width=w)
+    draw.line((31 * u, 23 * u, 47 * u, 41 * u), fill=(255, 255, 255, 255), width=w)
+    draw.line((47 * u, 23 * u, 31 * u, 41 * u), fill=(255, 255, 255, 255), width=w)
+
+def space(draw, s):
+    u, w = s / 64, int(s / 64 * 5)
+    draw.line([(8 * u, 28 * u), (8 * u, 44 * u), (56 * u, 44 * u), (56 * u, 28 * u)], fill=(255, 255, 255, 255), width=w, joint='curve')
+
+def keyboard(draw, s):
+    # the Type key (Kodi's own keyboard): a keyboard outline, three dot rows and a space bar
+    u, w = s / 64, int(s / 64 * 4)
+    draw.rounded_rectangle((4 * u, 14 * u, 60 * u, 50 * u), 6 * u, outline=(255, 255, 255, 255), width=w)
+    for y in (23, 31):
+        for x in range(13, 53, 8):
+            draw.rectangle(((x - 2) * u, (y - 2) * u, (x + 2) * u, (y + 2) * u), fill=(255, 255, 255, 255))
+    draw.rectangle((20 * u, 38 * u, 44 * u, 42 * u), fill=(255, 255, 255, 255))
+
 def main():
     os.makedirs(OUT, exist_ok=True)
     save(rounded((64, 64), 20), 'rr20.png')
@@ -179,6 +226,12 @@ def main():
     save(Image.new('RGBA', (8, 8), (255, 255, 255, 255)), 'white.png')
     save(sheet(), 'sheet.png')
     save(rounded((8, 8), 4), 'rr4.png')
+    # home top menu and the search keyboard
+    save(tabbar(), 'tabbar.png')
+    save(icon(gear), 'icon_gear.png')
+    save(icon(backspace), 'icon_delete.png')
+    save(icon(space), 'icon_space.png')
+    save(icon(keyboard), 'icon_keyboard.png')
 
 if __name__ == '__main__':
     main()

@@ -169,6 +169,7 @@
 					</control>
 				</control>
 				<control type="grouplist" id="210">
+					<onup>161</onup>
 					<ondown>310</ondown>
 					<onleft>noop</onleft>
 					<onright>noop</onright>
@@ -734,6 +735,198 @@
 							<onclick>Addon.OpenSettings(plugin.video.a4kstreaming)</onclick>
 						</item>
 					</content>
+				</control>
+			</control>
+		</control>
+		<!-- Top menu (dobby's tab bar): one centred pill of tabs, shown only while it holds focus. Up from the top shelf
+		     reaches it, Down always lands on Play. It hides by a conditional slide and fade, never by <visible>: a hidden
+		     control cannot take focus. The category tabs follow the Category tabs setting (a4k.tabs); the pill has one
+		     width for each case: the tabs' fixed widths, the gaps and the padding. -->
+		<control type="group" id="150">
+			<left>0</left>
+			<top>36</top>
+			<width>1920</width>
+			<height>92</height>
+			<animation effect="slide" start="0,0" end="0,-180" time="260" tween="cubic" easing="out" condition="!ControlGroup(160).HasFocus()">Conditional</animation>
+			<animation effect="fade" start="100" end="0" time="260" tween="cubic" easing="out" condition="!ControlGroup(160).HasFocus()">Conditional</animation>
+			<control type="image">
+				<left>226</left>
+				<top>0</top>
+				<width>1468</width>
+				<height>92</height>
+				<texture border="46">a4k/tabbar.png</texture>
+				<visible>!String.IsEmpty(Window.Property(a4k.tabs))</visible>
+			</control>
+			<control type="image">
+				<left>717</left>
+				<top>0</top>
+				<width>486</width>
+				<height>92</height>
+				<texture border="46">a4k/tabbar.png</texture>
+				<visible>String.IsEmpty(Window.Property(a4k.tabs))</visible>
+			</control>
+			<control type="grouplist" id="160">
+				<onup>noop</onup>
+				<ondown>201</ondown>
+				<onleft>noop</onleft>
+				<onright>noop</onright>
+				<left>0</left>
+				<top>12</top>
+				<width>1920</width>
+				<height>68</height>
+				<orientation>horizontal</orientation>
+				<align>center</align>
+				<itemgap>6</itemgap>
+				<control type="button" id="161">
+					<left>0</left>
+					<top>0</top>
+					<width>220</width>
+					<height>68</height>
+					<font>font30_title</font>
+					<label>Watch Now</label>
+					<align>center</align>
+					<aligny>center</aligny>
+					<textcolor>FFFFFFFF</textcolor>
+					<focusedcolor>FF0C0D12</focusedcolor>
+					<texturefocus border="32" colordiffuse="FFF5F6FA">a4k/pill.png</texturefocus>
+					<texturenofocus border="32" colordiffuse="29FFFFFF">a4k/pill.png</texturenofocus>
+					<animation effect="zoom" start="100" end="106" time="220" tween="cubic" easing="out" center="auto" reversible="false">Focus</animation>
+					<animation effect="zoom" start="106" end="100" time="220" tween="cubic" easing="out" center="auto" reversible="false">Unfocus</animation>
+				</control>
+				<control type="button" id="162">
+					<left>0</left>
+					<top>0</top>
+					<width>152</width>
+					<height>68</height>
+					<font>font30_title</font>
+					<label>Movies</label>
+					<align>center</align>
+					<aligny>center</aligny>
+					<textcolor>B8FFFFFF</textcolor>
+					<focusedcolor>FF0C0D12</focusedcolor>
+					<texturefocus border="32" colordiffuse="FFF5F6FA">a4k/pill.png</texturefocus>
+					<texturenofocus border="32" colordiffuse="00FFFFFF">a4k/pill.png</texturenofocus>
+					<animation effect="zoom" start="100" end="106" time="220" tween="cubic" easing="out" center="auto" reversible="false">Focus</animation>
+					<animation effect="zoom" start="106" end="100" time="220" tween="cubic" easing="out" center="auto" reversible="false">Unfocus</animation>
+					<visible>!String.IsEmpty(Window.Property(a4k.tabs))</visible>
+				</control>
+				<control type="button" id="163">
+					<left>0</left>
+					<top>0</top>
+					<width>190</width>
+					<height>68</height>
+					<font>font30_title</font>
+					<label>TV Shows</label>
+					<align>center</align>
+					<aligny>center</aligny>
+					<textcolor>B8FFFFFF</textcolor>
+					<focusedcolor>FF0C0D12</focusedcolor>
+					<texturefocus border="32" colordiffuse="FFF5F6FA">a4k/pill.png</texturefocus>
+					<texturenofocus border="32" colordiffuse="00FFFFFF">a4k/pill.png</texturenofocus>
+					<animation effect="zoom" start="100" end="106" time="220" tween="cubic" easing="out" center="auto" reversible="false">Focus</animation>
+					<animation effect="zoom" start="106" end="100" time="220" tween="cubic" easing="out" center="auto" reversible="false">Unfocus</animation>
+					<visible>!String.IsEmpty(Window.Property(a4k.tabs))</visible>
+				</control>
+				<control type="button" id="164">
+					<left>0</left>
+					<top>0</top>
+					<width>220</width>
+					<height>68</height>
+					<font>font30_title</font>
+					<label>Animations</label>
+					<align>center</align>
+					<aligny>center</aligny>
+					<textcolor>B8FFFFFF</textcolor>
+					<focusedcolor>FF0C0D12</focusedcolor>
+					<texturefocus border="32" colordiffuse="FFF5F6FA">a4k/pill.png</texturefocus>
+					<texturenofocus border="32" colordiffuse="00FFFFFF">a4k/pill.png</texturenofocus>
+					<animation effect="zoom" start="100" end="106" time="220" tween="cubic" easing="out" center="auto" reversible="false">Focus</animation>
+					<animation effect="zoom" start="106" end="100" time="220" tween="cubic" easing="out" center="auto" reversible="false">Unfocus</animation>
+					<visible>!String.IsEmpty(Window.Property(a4k.tabs))</visible>
+				</control>
+				<control type="button" id="165">
+					<left>0</left>
+					<top>0</top>
+					<width>240</width>
+					<height>68</height>
+					<font>font30_title</font>
+					<label>Animated TV</label>
+					<align>center</align>
+					<aligny>center</aligny>
+					<textcolor>B8FFFFFF</textcolor>
+					<focusedcolor>FF0C0D12</focusedcolor>
+					<texturefocus border="32" colordiffuse="FFF5F6FA">a4k/pill.png</texturefocus>
+					<texturenofocus border="32" colordiffuse="00FFFFFF">a4k/pill.png</texturenofocus>
+					<animation effect="zoom" start="100" end="106" time="220" tween="cubic" easing="out" center="auto" reversible="false">Focus</animation>
+					<animation effect="zoom" start="106" end="100" time="220" tween="cubic" easing="out" center="auto" reversible="false">Unfocus</animation>
+					<visible>!String.IsEmpty(Window.Property(a4k.tabs))</visible>
+				</control>
+				<control type="button" id="166">
+					<left>0</left>
+					<top>0</top>
+					<width>150</width>
+					<height>68</height>
+					<font>font30_title</font>
+					<label>Reality</label>
+					<align>center</align>
+					<aligny>center</aligny>
+					<textcolor>B8FFFFFF</textcolor>
+					<focusedcolor>FF0C0D12</focusedcolor>
+					<texturefocus border="32" colordiffuse="FFF5F6FA">a4k/pill.png</texturefocus>
+					<texturenofocus border="32" colordiffuse="00FFFFFF">a4k/pill.png</texturenofocus>
+					<animation effect="zoom" start="100" end="106" time="220" tween="cubic" easing="out" center="auto" reversible="false">Focus</animation>
+					<animation effect="zoom" start="106" end="100" time="220" tween="cubic" easing="out" center="auto" reversible="false">Unfocus</animation>
+					<visible>!String.IsEmpty(Window.Property(a4k.tabs))</visible>
+				</control>
+				<control type="button" id="167">
+					<left>0</left>
+					<top>0</top>
+					<width>150</width>
+					<height>68</height>
+					<font>font30_title</font>
+					<label>Search</label>
+					<align>center</align>
+					<aligny>center</aligny>
+					<textcolor>B8FFFFFF</textcolor>
+					<focusedcolor>FF0C0D12</focusedcolor>
+					<texturefocus border="32" colordiffuse="FFF5F6FA">a4k/pill.png</texturefocus>
+					<texturenofocus border="32" colordiffuse="00FFFFFF">a4k/pill.png</texturenofocus>
+					<animation effect="zoom" start="100" end="106" time="220" tween="cubic" easing="out" center="auto" reversible="false">Focus</animation>
+					<animation effect="zoom" start="106" end="100" time="220" tween="cubic" easing="out" center="auto" reversible="false">Unfocus</animation>
+				</control>
+				<!-- Settings: the gear, white at rest and dark on the focus fill -->
+				<control type="group" id="170">
+					<left>0</left>
+					<top>0</top>
+					<width>72</width>
+					<height>68</height>
+					<animation effect="zoom" start="100" end="106" time="220" tween="cubic" easing="out" center="36,34" condition="Control.HasFocus(168)">Conditional</animation>
+					<control type="button" id="168">
+						<left>0</left>
+						<top>0</top>
+						<width>72</width>
+						<height>68</height>
+						<font>font30_title</font>
+						<label></label>
+						<texturefocus border="32" colordiffuse="FFF5F6FA">a4k/pill.png</texturefocus>
+						<texturenofocus border="32" colordiffuse="00FFFFFF">a4k/pill.png</texturenofocus>
+					</control>
+					<control type="image">
+						<left>18</left>
+						<top>16</top>
+						<width>36</width>
+						<height>36</height>
+						<texture colordiffuse="B8FFFFFF">a4k/icon_gear.png</texture>
+						<visible>!Control.HasFocus(168)</visible>
+					</control>
+					<control type="image">
+						<left>18</left>
+						<top>16</top>
+						<width>36</width>
+						<height>36</height>
+						<texture colordiffuse="FF0C0D12">a4k/icon_gear.png</texture>
+						<visible>Control.HasFocus(168)</visible>
+					</control>
 				</control>
 			</control>
 		</control>

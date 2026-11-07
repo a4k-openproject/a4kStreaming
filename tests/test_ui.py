@@ -23,6 +23,10 @@ FONTS = {'font10', 'font12', 'font13', 'font14', 'font27', 'font32', 'font37', '
 TEXTURES = {
     'a4k/bg_home.png': (960, 540),
     'a4k/fade_bottom.png': (8, 256),
+    'a4k/icon_delete.png': (64, 64),
+    'a4k/icon_gear.png': (64, 64),
+    'a4k/icon_keyboard.png': (64, 64),
+    'a4k/icon_space.png': (64, 64),
     'a4k/mask_ep.png': (400, 224),
     'a4k/mask_face.png': (176, 176),
     'a4k/mask_poster.png': (264, 396),
@@ -40,6 +44,7 @@ TEXTURES = {
     'a4k/shadow.png': (256, 256),
     'a4k/sheet.png': (128, 128),
     'a4k/star.png': (64, 64),
+    'a4k/tabbar.png': (256, 92),
     'a4k/white.png': (8, 8),
 }
 
@@ -167,7 +172,7 @@ def test_focusable_controls_navigate_explicitly():
     for control in focusable:
         assert {'onleft', 'onright', 'ondown'} <= {child.tag for child in control}
         targets = [control.findtext(tag) for tag in ('onup', 'ondown') if control.findtext(tag) not in (None, 'noop')]
-        assert targets and set(targets) <= groups
+        assert targets and set(targets) <= groups | {'161'}  # the top shelf's buttons go up to the top menu
 
 def test_python_control_ids_exist_in_the_xml(home):
     root = ElementTree.parse(os.path.join(WINDOWS, 'a4k-home.xml')).getroot()
@@ -401,13 +406,19 @@ def test_hero_buttons(core, home, monkeypatch, calls):
     assert calls == ['PlayMedia(%s?action=play&type=&id=tt7)' % PLUGIN]
     assert [i['Property(a4k.id)'] for i in opened] == ['tt7']
 
-def test_back_closes_and_errors_close_with_the_traceback(core, home, monkeypatch):
+def test_back_walks_up_to_the_menu_then_closes_and_errors_close_with_the_traceback(core, home, monkeypatch):
+    # as dobby: a row goes to the top shelf's Play, the top shelf to Watch Now, the top menu closes the window
     closed = []
     monkeypatch.setattr(home.Home, 'close', lambda self: closed.append(True))
     win = window(core, home, monkeypatch, 301, {})
     win.onAction(Action(home.ACTION_NAV_BACK))
+    assert win.getFocusId() == home.HERO_PLAY and closed == []
+    win.onAction(Action(home.ACTION_NAV_BACK))
+    assert win.getFocusId() == home.WATCH_NOW and closed == []
+    win.onAction(Action(home.ACTION_NAV_BACK))
     assert closed == [True] and win.error is None
     monkeypatch.setattr(home, 'labels', lambda item: 1 / 0)
+    win.setFocusId(301)
     win.onAction(Action(home.ACTION_SELECT_ITEM))
     assert closed == [True, True] and 'ZeroDivisionError' in win.error
 

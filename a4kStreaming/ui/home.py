@@ -17,6 +17,15 @@ HERO_INFO = 202
 HERO_ROW = 301
 TILES = 400
 
+# the top menu (a4k-home.xml 160): Watch Now, the category tabs (the Category tabs setting), Search and the Settings gear
+WATCH_NOW = 161
+TABS = {162: ('popularMovies', 'Trending Movies'), 163: ('popularTVShows', 'Trending TV Shows'),
+        164: ('popularAnimations', 'Animations'), 165: ('popularAnimationTVShows', 'Animated TV'),
+        166: ('popularRealityTVShows', 'Reality TV')}
+SEARCH = 167
+SETTINGS = 168
+MENU = (WATCH_NOW, SEARCH, SETTINGS) + tuple(TABS)
+
 # the top shelf turns to the next of the first HERO_COUNT trending movies every HERO_TURN seconds
 HERO_TURN = 15
 HERO_COUNT = 6
@@ -128,11 +137,11 @@ class Home(kodi.xbmcgui.WindowXML):
     def onAction(self, action):
         try:
             action_id = action.getId()
+            focus = self.getFocusId()
             if action_id in (ACTION_PREVIOUS_MENU, ACTION_NAV_BACK):
-                return self.close()
+                return self.back(focus)
             if action_id in ACTION_MOVES:
                 return self.dwell()
-            focus = self.getFocusId()
             selected = action_id in (ACTION_SELECT_ITEM, ACTION_MOUSE_LEFT_CLICK)
             if selected and focus in ROWS:
                 info = labels('Container(%s).ListItem' % focus)
@@ -151,8 +160,16 @@ class Home(kodi.xbmcgui.WindowXML):
         except Exception:
             self.__fail()
 
+    def back(self, focus):
+        # as dobby: Back on a row goes to the top shelf's Play, on the top shelf to Watch Now, on the top menu it leaves
+        if focus in MENU:
+            return self.close()
+        self.setFocusId(WATCH_NOW if focus in (HERO_PLAY, HERO_INFO) else HERO_PLAY)
+
     def onClick(self, control_id):
         try:
+            if control_id in MENU:
+                return self.tab(control_id)
             info = labels(self.hero_item())
             if control_id == HERO_PLAY:
                 run(click_builtin(info))
@@ -160,6 +177,18 @@ class Home(kodi.xbmcgui.WindowXML):
                 select(info)
         except Exception:
             self.__fail()
+
+    def tab(self, control_id):
+        if control_id == WATCH_NOW:
+            self.setFocusId(HERO_PLAY)
+        elif control_id == SEARCH:
+            from . import grid
+            grid.search()
+        elif control_id == SETTINGS:
+            run('Addon.OpenSettings(%s)' % kodi.addon_id)
+        else:
+            from . import grid
+            grid.show(app.row_url(TABS[control_id][0]), TABS[control_id][1])
 
     def hero_item(self):
         return 'Container(%s).ListItemAbsolute(%s)' % (HERO_ROW, self.hero)
@@ -283,6 +312,8 @@ def open():
     window = Home('a4k-home.xml', kodi.addon_path, 'Default', '1080i')
     # row URLs are set before the window opens: a row's provider fires once, at load (spike 2b)
     window.setProperty('a4k.home', 'true')
+    if kodi.get_setting('appearance.tabs') != 'false':
+        window.setProperty('a4k.tabs', 'true')
     window.setProperty('a4k.row.301', app.row_url('popularMovies'))
     window.setProperty('a4k.row.302', app.row_url('popularTVShows'))
     if kodi.get_setting('imdb.at-main'):
