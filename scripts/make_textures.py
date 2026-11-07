@@ -42,7 +42,7 @@ def shadow():
     out.putalpha(alpha)
     return out
 
-def placeholder(size, radius):
+def placeholder(size, radius, a=(44, 44, 48), b=(26, 26, 30)):
     # card placeholder: dobby linear-gradient(160deg, #2c2c30, #1a1a1e), rounded
     w, h = size
     grad = Image.new('RGBA', size)
@@ -51,7 +51,6 @@ def placeholder(size, radius):
     dx, dy = -0.342, 0.940
     lo = min(0, dx * w) + min(0, dy * h)
     hi = max(0, dx * w) + max(0, dy * h)
-    a, b = (44, 44, 48), (26, 26, 30)
     for y in range(h):
         for x in range(w):
             t = ((x * dx + y * dy) - lo) / (hi - lo)
@@ -131,6 +130,15 @@ def star():
     ImageDraw.Draw(img).polygon(points, fill=(255, 255, 255, 255))
     return img.resize((64, 64), Image.LANCZOS)
 
+def ring_face():
+    # face focus ring (dobby .atvd-person focused: 3u #f5f6fa around the 88u face), drawn 6px outside the 176px face
+    size = 188
+    img = Image.new('RGBA', (size * SS, size * SS), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(img)
+    draw.ellipse((0, 0, size * SS - 1, size * SS - 1), fill=(245, 246, 250, 255))
+    draw.ellipse((6 * SS, 6 * SS, (size - 6) * SS - 1, (size - 6) * SS - 1), fill=(0, 0, 0, 0))
+    return img.resize((size, size), Image.LANCZOS)
+
 def main():
     os.makedirs(OUT, exist_ok=True)
     save(rounded((64, 64), 20), 'rr20.png')
@@ -144,6 +152,13 @@ def main():
     save(fade_bottom(), 'fade_bottom.png')
     save(bg_home(), 'bg_home.png')
     save(star(), 'star.png')
+    # detail window: season pills, episode stills, cast faces
+    save(rounded((128, 64), 32), 'pill.png')
+    save(rounded((400, 224), 24), 'mask_ep.png')
+    save(placeholder((400, 224), 24), 'placeholder_ep.png')
+    save(rounded((176, 176), 88), 'mask_face.png')
+    save(placeholder((176, 176), 88, (58, 58, 62), (31, 31, 35)), 'placeholder_face.png')
+    save(ring_face(), 'ring_face.png')
 
 if __name__ == '__main__':
     main()

@@ -1,0 +1,600 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  a4kStreaming title detail (tvOS-like). The same rules as a4k-home.xml: 1080p pixels = dobby units x2, no includes and
+  no named colours, Estuary font names, every control places itself (left/top), every focusable control names its
+  neighbours and says noop at its edges, and the one <content> row sorts by programcount so play and stop do not reload
+  it.
+
+  The text is window properties: painted from the selected card before the window opens, then from the title's own
+  request. The season pills and the cast are filled from Python; the episodes shelf is the plugin's episodes listing for
+  the open season (a4k.episodes, set once a pill keeps focus). The blurred backdrop (the 64x36 still, stretched) fades
+  in once focus leaves the buttons, as dobby's glass does.
+-->
+<window>
+	<defaultcontrol>501</defaultcontrol>
+	<backgroundcolor>FF07080C</backgroundcolor>
+	<animation effect="fade" start="0" end="100" time="200">WindowOpen</animation>
+	<animation effect="fade" start="100" end="0" time="150">WindowClose</animation>
+	<controls>
+		<control type="image">
+			<left>0</left>
+			<top>0</top>
+			<width>1920</width>
+			<height>1080</height>
+			<aspectratio aligny="top">scale</aspectratio>
+			<fadetime>700</fadetime>
+			<texture background="true">$INFO[Window.Property(a4k.fanart)]</texture>
+		</control>
+		<control type="image">
+			<left>0</left>
+			<top>0</top>
+			<width>1920</width>
+			<height>1080</height>
+			<aspectratio>scale</aspectratio>
+			<fadetime>300</fadetime>
+			<texture background="true" colordiffuse="FFCCCCCC">$INFO[Window.Property(a4k.blur)]</texture>
+			<visible>!ControlGroup(500).HasFocus</visible>
+			<animation effect="fade" time="300">VisibleChange</animation>
+		</control>
+		<control type="image">
+			<left>0</left>
+			<top>0</top>
+			<width>1920</width>
+			<height>1080</height>
+			<texture>a4k/scrim_left.png</texture>
+		</control>
+		<control type="image">
+			<left>0</left>
+			<top>0</top>
+			<width>1920</width>
+			<height>1080</height>
+			<texture>a4k/scrim_bottom.png</texture>
+		</control>
+		<control type="grouplist" id="100">
+			<left>0</left>
+			<top>0</top>
+			<width>1920</width>
+			<height>1080</height>
+			<orientation>vertical</orientation>
+			<itemgap>0</itemgap>
+			<scrolltime tween="cubic" easing="out">320</scrolltime>
+			<usecontrolcoords>true</usecontrolcoords>
+
+			<!-- The info, bottom-aligned above the buttons at y 644: a one-line title leaves no gap. -->
+			<control type="group" id="200">
+				<left>0</left>
+				<top>0</top>
+				<width>1920</width>
+				<height>752</height>
+				<defaultcontrol>500</defaultcontrol>
+				<control type="grouplist">
+					<left>96</left>
+					<top>160</top>
+					<width>1100</width>
+					<height>448</height>
+					<orientation>vertical</orientation>
+					<align>bottom</align>
+					<itemgap>6</itemgap>
+					<usecontrolcoords>true</usecontrolcoords>
+					<control type="label">
+						<left>0</left>
+						<top>0</top>
+						<width>1000</width>
+						<height>34</height>
+						<font>font25_title</font>
+						<textcolor>B8FFFFFF</textcolor>
+						<label>$INFO[Window.Property(a4k.kicker)]</label>
+					</control>
+					<control type="textbox">
+						<left>0</left>
+						<top>0</top>
+						<width>1100</width>
+						<height max="180">auto</height>
+						<font>font52_title</font>
+						<textcolor>FFFFFFFF</textcolor>
+						<label>$INFO[Window.Property(a4k.title)]</label>
+					</control>
+					<control type="grouplist">
+						<left>0</left>
+						<top>6</top>
+						<width>1000</width>
+						<height>40</height>
+						<orientation>horizontal</orientation>
+						<itemgap>16</itemgap>
+						<usecontrolcoords>true</usecontrolcoords>
+						<control type="image">
+							<left>0</left>
+							<top>7</top>
+							<width>26</width>
+							<height>26</height>
+							<texture colordiffuse="FFFFD166">a4k/star.png</texture>
+							<visible>!String.IsEmpty(Window.Property(a4k.rating))</visible>
+						</control>
+						<control type="label">
+							<left>-8</left>
+							<top>0</top>
+							<width>auto</width>
+							<height>40</height>
+							<font>font30_title</font>
+							<textcolor>FFFFD166</textcolor>
+							<label>$INFO[Window.Property(a4k.rating)]</label>
+							<visible>!String.IsEmpty(Window.Property(a4k.rating))</visible>
+						</control>
+						<control type="label">
+							<left>0</left>
+							<top>0</top>
+							<width>auto</width>
+							<height>40</height>
+							<font>font27</font>
+							<textcolor>B8FFFFFF</textcolor>
+							<label>$INFO[Window.Property(a4k.year)]</label>
+							<visible>!String.IsEmpty(Window.Property(a4k.year))</visible>
+						</control>
+						<control type="label">
+							<left>0</left>
+							<top>0</top>
+							<width>auto</width>
+							<height>40</height>
+							<font>font27</font>
+							<textcolor>B8FFFFFF</textcolor>
+							<label>$INFO[Window.Property(a4k.runtime)]</label>
+							<visible>!String.IsEmpty(Window.Property(a4k.runtime))</visible>
+						</control>
+						<control type="label">
+							<left>0</left>
+							<top>0</top>
+							<width>auto</width>
+							<height>40</height>
+							<font>font27</font>
+							<textcolor>B8FFFFFF</textcolor>
+							<label>$INFO[Window.Property(a4k.certificate)]</label>
+							<visible>!String.IsEmpty(Window.Property(a4k.certificate))</visible>
+						</control>
+					</control>
+					<control type="textbox">
+						<left>0</left>
+						<top>6</top>
+						<width>940</width>
+						<height>114</height>
+						<font>font27</font>
+						<textcolor>CCFFFFFF</textcolor>
+						<label>$INFO[Window.Property(a4k.plot)]</label>
+					</control>
+				</control>
+				<control type="grouplist" id="500">
+					<onup>noop</onup>
+					<ondown>320</ondown>
+					<onleft>noop</onleft>
+					<onright>noop</onright>
+					<left>96</left>
+					<top>644</top>
+					<width>1400</width>
+					<height>76</height>
+					<orientation>horizontal</orientation>
+					<itemgap>24</itemgap>
+					<control type="button" id="501">
+						<left>0</left>
+						<top>0</top>
+						<width>220</width>
+						<height>76</height>
+						<font>font30_title</font>
+						<label>Play</label>
+						<align>center</align>
+						<aligny>center</aligny>
+						<textcolor>FFFFFFFF</textcolor>
+						<focusedcolor>FF0C0D12</focusedcolor>
+						<texturefocus border="20" colordiffuse="FFF5F6FA">a4k/rr20.png</texturefocus>
+						<texturenofocus border="20" colordiffuse="29FFFFFF">a4k/rr20.png</texturenofocus>
+						<animation effect="zoom" start="100" end="106" time="220" tween="cubic" easing="out" center="auto" reversible="false">Focus</animation>
+						<animation effect="zoom" start="106" end="100" time="220" tween="cubic" easing="out" center="auto" reversible="false">Unfocus</animation>
+					</control>
+					<control type="button" id="502">
+						<left>0</left>
+						<top>0</top>
+						<width>240</width>
+						<height>76</height>
+						<font>font30_title</font>
+						<label>Trailer</label>
+						<align>center</align>
+						<aligny>center</aligny>
+						<textcolor>FFFFFFFF</textcolor>
+						<focusedcolor>FF0C0D12</focusedcolor>
+						<texturefocus border="20" colordiffuse="FFF5F6FA">a4k/rr20.png</texturefocus>
+						<texturenofocus border="20" colordiffuse="29FFFFFF">a4k/rr20.png</texturenofocus>
+						<animation effect="zoom" start="100" end="106" time="220" tween="cubic" easing="out" center="auto" reversible="false">Focus</animation>
+						<animation effect="zoom" start="106" end="100" time="220" tween="cubic" easing="out" center="auto" reversible="false">Unfocus</animation>
+						<visible>!String.IsEmpty(Window.Property(a4k.trailer))</visible>
+					</control>
+					<control type="button" id="503">
+						<left>0</left>
+						<top>0</top>
+						<width>290</width>
+						<height>76</height>
+						<font>font30_title</font>
+						<label>+  Watchlist</label>
+						<align>center</align>
+						<aligny>center</aligny>
+						<textcolor>FFFFFFFF</textcolor>
+						<focusedcolor>FF0C0D12</focusedcolor>
+						<texturefocus border="20" colordiffuse="FFF5F6FA">a4k/rr20.png</texturefocus>
+						<texturenofocus border="20" colordiffuse="29FFFFFF">a4k/rr20.png</texturenofocus>
+						<animation effect="zoom" start="100" end="106" time="220" tween="cubic" easing="out" center="auto" reversible="false">Focus</animation>
+						<animation effect="zoom" start="106" end="100" time="220" tween="cubic" easing="out" center="auto" reversible="false">Unfocus</animation>
+						<visible>!String.IsEmpty(Window.Property(a4k.auth))</visible>
+					</control>
+					<control type="button" id="504">
+						<left>0</left>
+						<top>0</top>
+						<width>120</width>
+						<height>76</height>
+						<font>font30_title</font>
+						<label>•••</label>
+						<align>center</align>
+						<aligny>center</aligny>
+						<textcolor>FFFFFFFF</textcolor>
+						<focusedcolor>FF0C0D12</focusedcolor>
+						<texturefocus border="20" colordiffuse="FFF5F6FA">a4k/rr20.png</texturefocus>
+						<texturenofocus border="20" colordiffuse="29FFFFFF">a4k/rr20.png</texturenofocus>
+						<animation effect="zoom" start="100" end="106" time="220" tween="cubic" easing="out" center="auto" reversible="false">Focus</animation>
+						<animation effect="zoom" start="106" end="100" time="220" tween="cubic" easing="out" center="auto" reversible="false">Unfocus</animation>
+					</control>
+				</control>
+			</control>
+
+			<!-- Season pills (series): 192 x 64 at a 208 pitch; the open season is lighter. -->
+			<control type="group" id="320">
+				<left>0</left>
+				<top>0</top>
+				<width>1920</width>
+				<height>104</height>
+				<visible>Integer.IsGreater(Container(520).NumItems,0)</visible>
+				<control type="list" id="520">
+					<onup>200</onup>
+					<ondown>330</ondown>
+					<onleft>noop</onleft>
+					<onright>noop</onright>
+					<left>0</left>
+					<top>0</top>
+					<width>1920</width>
+					<height>104</height>
+					<orientation>horizontal</orientation>
+					<scrolltime tween="cubic" easing="out">320</scrolltime>
+					<itemlayout width="208" height="104">
+						<control type="image">
+							<left>96</left>
+							<top>20</top>
+							<width>192</width>
+							<height>64</height>
+							<texture border="32" colordiffuse="1AFFFFFF">a4k/pill.png</texture>
+							<visible>!String.IsEqual(ListItem.Property(url),Window.Property(a4k.episodes))</visible>
+						</control>
+						<control type="image">
+							<left>96</left>
+							<top>20</top>
+							<width>192</width>
+							<height>64</height>
+							<texture border="32" colordiffuse="47FFFFFF">a4k/pill.png</texture>
+							<visible>String.IsEqual(ListItem.Property(url),Window.Property(a4k.episodes))</visible>
+						</control>
+						<control type="label">
+							<left>96</left>
+							<top>20</top>
+							<width>192</width>
+							<height>64</height>
+							<font>font25_title</font>
+							<align>center</align>
+							<aligny>center</aligny>
+							<textcolor>B8FFFFFF</textcolor>
+							<label>$INFO[ListItem.Label]</label>
+						</control>
+					</itemlayout>
+					<focusedlayout width="208" height="104">
+						<control type="group">
+							<left>0</left>
+							<top>0</top>
+							<animation effect="zoom" start="100" end="106" time="220" tween="cubic" easing="out" center="192,52" reversible="false">Focus</animation>
+							<animation effect="zoom" start="106" end="100" time="220" tween="cubic" easing="out" center="192,52" reversible="false">Unfocus</animation>
+							<control type="image">
+								<left>96</left>
+								<top>20</top>
+								<width>192</width>
+								<height>64</height>
+								<texture border="32" colordiffuse="FFF5F6FA">a4k/pill.png</texture>
+								<visible>Control.HasFocus(520)</visible>
+							</control>
+							<control type="image">
+								<left>96</left>
+								<top>20</top>
+								<width>192</width>
+								<height>64</height>
+								<texture border="32" colordiffuse="47FFFFFF">a4k/pill.png</texture>
+								<visible>!Control.HasFocus(520) + String.IsEqual(ListItem.Property(url),Window.Property(a4k.episodes))</visible>
+							</control>
+							<control type="image">
+								<left>96</left>
+								<top>20</top>
+								<width>192</width>
+								<height>64</height>
+								<texture border="32" colordiffuse="1AFFFFFF">a4k/pill.png</texture>
+								<visible>!Control.HasFocus(520) + !String.IsEqual(ListItem.Property(url),Window.Property(a4k.episodes))</visible>
+							</control>
+							<control type="label">
+								<left>96</left>
+								<top>20</top>
+								<width>192</width>
+								<height>64</height>
+								<font>font25_title</font>
+								<align>center</align>
+								<aligny>center</aligny>
+								<textcolor>FF0C0D12</textcolor>
+								<label>$INFO[ListItem.Label]</label>
+								<visible>Control.HasFocus(520)</visible>
+							</control>
+							<control type="label">
+								<left>96</left>
+								<top>20</top>
+								<width>192</width>
+								<height>64</height>
+								<font>font25_title</font>
+								<align>center</align>
+								<aligny>center</aligny>
+								<textcolor>FFFFFFFF</textcolor>
+								<label>$INFO[ListItem.Label]</label>
+								<visible>!Control.HasFocus(520)</visible>
+							</control>
+						</control>
+					</focusedlayout>
+				</control>
+			</control>
+
+			<!-- Episodes of the open season: stills 400 x 224 at a 424 pitch. A provider row: a no-op onclick, Python
+			     plays the item (spike 2c); an unreleased episode keeps the classic listing's red italic label. -->
+			<control type="group" id="330">
+				<left>0</left>
+				<top>0</top>
+				<width>1920</width>
+				<height>400</height>
+				<visible>!String.IsEmpty(Window.Property(a4k.episodes)) + [Integer.IsGreater(Container(530).NumItems,0) | Container(530).IsUpdating]</visible>
+				<control type="label">
+					<left>96</left>
+					<top>0</top>
+					<width>1600</width>
+					<height>50</height>
+					<font>font32_title</font>
+					<textcolor>FFFFFFFF</textcolor>
+					<label>$INFO[Window.Property(a4k.season)]</label>
+				</control>
+				<control type="list" id="530">
+					<onup>320</onup>
+					<ondown>340</ondown>
+					<onleft>noop</onleft>
+					<onright>noop</onright>
+					<left>0</left>
+					<top>50</top>
+					<width>1920</width>
+					<height>350</height>
+					<orientation>horizontal</orientation>
+					<scrolltime tween="cubic" easing="out">320</scrolltime>
+					<preloaditems>2</preloaditems>
+					<onclick>SetProperty(a4k.click,530)</onclick>
+					<itemlayout width="424" height="350">
+						<control type="image">
+							<left>96</left>
+							<top>24</top>
+							<width>400</width>
+							<height>224</height>
+							<texture>a4k/placeholder_ep.png</texture>
+						</control>
+						<control type="image">
+							<left>96</left>
+							<top>24</top>
+							<width>400</width>
+							<height>224</height>
+							<aspectratio scalediffuse="false">scale</aspectratio>
+							<fadetime>200</fadetime>
+							<texture background="true" diffuse="a4k/mask_ep.png">$INFO[ListItem.Art(thumb)]</texture>
+						</control>
+						<control type="label">
+							<left>96</left>
+							<top>264</top>
+							<width>400</width>
+							<height>34</height>
+							<font>font12</font>
+							<textcolor>80FFFFFF</textcolor>
+							<label>$INFO[ListItem.Label]</label>
+						</control>
+						<control type="label">
+							<left>96</left>
+							<top>298</top>
+							<width>400</width>
+							<height>30</height>
+							<font>font10</font>
+							<textcolor>59FFFFFF</textcolor>
+							<label>$INFO[ListItem.Premiered]$INFO[ListItem.Rating,  ·  IMDb ,]</label>
+						</control>
+					</itemlayout>
+					<focusedlayout width="424" height="350">
+						<control type="group">
+							<left>0</left>
+							<top>0</top>
+							<animation effect="zoom" start="100" end="108" time="220" tween="cubic" easing="out" center="296,136" reversible="false">Focus</animation>
+							<animation effect="zoom" start="108" end="100" time="220" tween="cubic" easing="out" center="296,136" reversible="false">Unfocus</animation>
+							<control type="image">
+								<left>24</left>
+								<top>-20</top>
+								<width>544</width>
+								<height>368</height>
+								<texture border="96" colordiffuse="BFFFFFFF">a4k/shadow.png</texture>
+								<visible>Control.HasFocus(530)</visible>
+							</control>
+							<control type="image">
+								<left>96</left>
+								<top>24</top>
+								<width>400</width>
+								<height>224</height>
+								<texture>a4k/placeholder_ep.png</texture>
+							</control>
+							<control type="image">
+								<left>96</left>
+								<top>24</top>
+								<width>400</width>
+								<height>224</height>
+								<aspectratio scalediffuse="false">scale</aspectratio>
+								<fadetime>200</fadetime>
+								<texture background="true" diffuse="a4k/mask_ep.png">$INFO[ListItem.Art(thumb)]</texture>
+							</control>
+							<control type="image">
+								<left>87</left>
+								<top>15</top>
+								<width>418</width>
+								<height>242</height>
+								<texture border="40">a4k/ring.png</texture>
+								<visible>Control.HasFocus(530)</visible>
+							</control>
+							<control type="label">
+								<left>96</left>
+								<top>264</top>
+								<width>400</width>
+								<height>34</height>
+								<font>font12</font>
+								<textcolor>FFFFFFFF</textcolor>
+								<label>$INFO[ListItem.Label]</label>
+							</control>
+							<control type="label">
+								<left>96</left>
+								<top>298</top>
+								<width>400</width>
+								<height>30</height>
+								<font>font10</font>
+								<textcolor>B3FFFFFF</textcolor>
+								<label>$INFO[ListItem.Premiered]$INFO[ListItem.Rating,  ·  IMDb ,]</label>
+							</control>
+						</control>
+					</focusedlayout>
+					<content target="videos" sortby="programcount">$INFO[Window.Property(a4k.episodes)]</content>
+				</control>
+			</control>
+
+			<!-- Cast & Crew: faces 176 at a 216 pitch, name and role centred under them. -->
+			<control type="group" id="340">
+				<left>0</left>
+				<top>0</top>
+				<width>1920</width>
+				<height>350</height>
+				<visible>Integer.IsGreater(Container(540).NumItems,0)</visible>
+				<control type="label">
+					<left>96</left>
+					<top>0</top>
+					<width>1600</width>
+					<height>50</height>
+					<font>font32_title</font>
+					<textcolor>FFFFFFFF</textcolor>
+					<label>Cast &amp; Crew</label>
+				</control>
+				<control type="list" id="540">
+					<onup>330</onup>
+					<ondown>noop</ondown>
+					<onleft>noop</onleft>
+					<onright>noop</onright>
+					<left>0</left>
+					<top>50</top>
+					<width>1920</width>
+					<height>300</height>
+					<orientation>horizontal</orientation>
+					<scrolltime tween="cubic" easing="out">320</scrolltime>
+					<preloaditems>2</preloaditems>
+					<itemlayout width="216" height="300">
+						<control type="image">
+							<left>96</left>
+							<top>20</top>
+							<width>176</width>
+							<height>176</height>
+							<texture>a4k/placeholder_face.png</texture>
+						</control>
+						<control type="image">
+							<left>96</left>
+							<top>20</top>
+							<width>176</width>
+							<height>176</height>
+							<aspectratio aligny="top" scalediffuse="false">scale</aspectratio>
+							<fadetime>200</fadetime>
+							<texture background="true" diffuse="a4k/mask_face.png">$INFO[ListItem.Art(thumb)]</texture>
+						</control>
+						<control type="label">
+							<left>80</left>
+							<top>212</top>
+							<width>208</width>
+							<height>34</height>
+							<font>font12</font>
+							<align>center</align>
+							<textcolor>B8FFFFFF</textcolor>
+							<label>$INFO[ListItem.Label]</label>
+						</control>
+						<control type="label">
+							<left>80</left>
+							<top>246</top>
+							<width>208</width>
+							<height>30</height>
+							<font>font10</font>
+							<align>center</align>
+							<textcolor>8CFFFFFF</textcolor>
+							<label>$INFO[ListItem.Label2]</label>
+						</control>
+					</itemlayout>
+					<focusedlayout width="216" height="300">
+						<control type="group">
+							<left>0</left>
+							<top>0</top>
+							<animation effect="zoom" start="100" end="108" time="220" tween="cubic" easing="out" center="184,108" reversible="false">Focus</animation>
+							<animation effect="zoom" start="108" end="100" time="220" tween="cubic" easing="out" center="184,108" reversible="false">Unfocus</animation>
+							<control type="image">
+								<left>96</left>
+								<top>20</top>
+								<width>176</width>
+								<height>176</height>
+								<texture>a4k/placeholder_face.png</texture>
+							</control>
+							<control type="image">
+								<left>96</left>
+								<top>20</top>
+								<width>176</width>
+								<height>176</height>
+								<aspectratio aligny="top" scalediffuse="false">scale</aspectratio>
+								<fadetime>200</fadetime>
+								<texture background="true" diffuse="a4k/mask_face.png">$INFO[ListItem.Art(thumb)]</texture>
+							</control>
+							<control type="image">
+								<left>90</left>
+								<top>14</top>
+								<width>188</width>
+								<height>188</height>
+								<texture>a4k/ring_face.png</texture>
+								<visible>Control.HasFocus(540)</visible>
+							</control>
+							<control type="label">
+								<left>80</left>
+								<top>212</top>
+								<width>208</width>
+								<height>34</height>
+								<font>font12</font>
+								<align>center</align>
+								<textcolor>FFFFFFFF</textcolor>
+								<label>$INFO[ListItem.Label]</label>
+							</control>
+							<control type="label">
+								<left>80</left>
+								<top>246</top>
+								<width>208</width>
+								<height>30</height>
+								<font>font10</font>
+								<align>center</align>
+								<textcolor>B3FFFFFF</textcolor>
+								<label>$INFO[ListItem.Label2]</label>
+							</control>
+						</control>
+					</focusedlayout>
+				</control>
+			</control>
+		</control>
+	</controls>
+</window>

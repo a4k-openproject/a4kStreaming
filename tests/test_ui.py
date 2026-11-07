@@ -23,9 +23,15 @@ FONTS = {'font10', 'font12', 'font13', 'font14', 'font27', 'font32', 'font37', '
 TEXTURES = {
     'a4k/bg_home.png': (960, 540),
     'a4k/fade_bottom.png': (8, 256),
+    'a4k/mask_ep.png': (400, 224),
+    'a4k/mask_face.png': (176, 176),
     'a4k/mask_poster.png': (264, 396),
+    'a4k/pill.png': (128, 64),
+    'a4k/placeholder_ep.png': (400, 224),
+    'a4k/placeholder_face.png': (176, 176),
     'a4k/placeholder_poster.png': (264, 396),
     'a4k/ring.png': (128, 128),
+    'a4k/ring_face.png': (188, 188),
     'a4k/rr20.png': (64, 64),
     'a4k/rr24.png': (64, 64),
     'a4k/scrim_bottom.png': (1, 512),
@@ -88,8 +94,8 @@ def png_size(path):
     assert head[:8] == b'\x89PNG\r\n\x1a\n' and head[12:16] == b'IHDR', path
     return struct.unpack('>II', head[16:24])
 
-def test_skin_has_the_home_window():
-    assert [os.path.basename(path) for path in windows()] == ['a4k-home.xml']
+def test_skin_has_the_home_and_detail_windows():
+    assert [os.path.basename(path) for path in windows()] == ['a4k-detail.xml', 'a4k-home.xml']
 
 @pytest.mark.parametrize('path', windows())
 def test_window_xml_parses_with_unique_control_ids(path):
@@ -126,13 +132,14 @@ def test_window_uses_no_includes_or_named_colours(path):
     colours += [node.get('colordiffuse') for node in root.iter() if node.get('colordiffuse')]
     assert colours and all(re.fullmatch(r'[0-9A-F]{8}', colour) for colour in colours)
 
-def test_rows_do_not_reload_on_play_or_stop():
+@pytest.mark.parametrize('name,count', [('a4k-home.xml', 3), ('a4k-detail.xml', 1)])
+def test_rows_do_not_reload_on_play_or_stop(name, count):
     # Kodi reloads every unsorted <content> on each OnPlay/OnStop (DirectoryProvider::Announce). The reloads start new
     # Python interpreters next to the playing plugin call, and two starting at once crash Kodi 21 (seen live with the
     # trailer). programcount is 0 on every plugin item, and the sort is stable, so the listing order stays.
-    root = ElementTree.parse(os.path.join(WINDOWS, 'a4k-home.xml')).getroot()
+    root = ElementTree.parse(os.path.join(WINDOWS, name)).getroot()
     rows = [node for node in root.iter('content') if (node.text or '').strip()]
-    assert len(rows) == 3 and all(node.get('sortby') == 'programcount' for node in rows)
+    assert len(rows) == count and all(node.get('sortby') == 'programcount' for node in rows)
 
 def test_controls_place_themselves():
     # the active skin's Defaults.xml fills in any tag a control leaves out: under Confluence a textbox without left/top
@@ -336,15 +343,20 @@ def window(core, home, monkeypatch, focus, labels):
     win.setFocusId(focus)
     return win
 
-def test_select_on_a_row_runs_the_items_builtin(core, home, monkeypatch, calls):
-    path = PLUGIN + '?action=query&type=seasons&id=tt5'
+def test_select_on_a_title_opens_its_detail_and_other_items_run_their_builtin(core, home, monkeypatch, calls):
+    opened = []
+    monkeypatch.setattr(importlib.import_module('a4kStreaming.ui.detail'), 'open', lambda info: opened.append(info) or True)
     win = window(core, home, monkeypatch, 302, {
         'Container(302).ListItem.Property(a4k.type)': 'tvSeries',
         'Container(302).ListItem.Property(a4k.id)': 'tt5',
-        'Container(302).ListItem.FolderPath': path,
+        'Container(302).ListItem.Label': 'A Show',
     })
     win.onAction(Action(home.ACTION_SELECT_ITEM))
-    assert calls == ['ActivateWindow(Videos,%s,return)' % path] and win.error is None
+    assert [(i['Property(a4k.id)'], i['Label']) for i in opened] == [('tt5', 'A Show')] and calls == [] and win.error is None
+    path = PLUGIN + '?action=query&type=popularTVShows&paginationToken=abc&page=2'
+    win = window(core, home, monkeypatch, 302, {'Container(302).ListItem.FolderPath': path})
+    win.onAction(Action(home.ACTION_SELECT_ITEM))
+    assert calls == ['ActivateWindow(Videos,%s,return)' % path] and len(opened) == 1
 
 def test_context_menu_on_rows_is_kodis_and_on_the_hero_is_ours(core, home, monkeypatch, calls):
     settings(core, monkeypatch)
@@ -364,13 +376,15 @@ def test_context_menu_on_rows_is_kodis_and_on_the_hero_is_ours(core, home, monke
     assert calls == ['RunPlugin(%s?action=trailer&id=tt7&vi=vi7&play=true)' % PLUGIN]
 
 def test_hero_buttons(core, home, monkeypatch, calls):
+    opened = []
+    monkeypatch.setattr(importlib.import_module('a4kStreaming.ui.detail'), 'open', lambda info: opened.append(info) or True)
     hero = {'Container(301).ListItemAbsolute(0).Property(a4k.type)': 'movie',
             'Container(301).ListItemAbsolute(0).Property(a4k.id)': 'tt7'}
     win = window(core, home, monkeypatch, home.HERO_PLAY, hero)
     win.onClick(home.HERO_PLAY)
     win.onClick(home.HERO_INFO)
-    assert calls == ['PlayMedia(%s?action=play&type=&id=tt7)' % PLUGIN,
-                     'ActivateWindow(Videos,%s?action=query&type=browse&id=tt7,return)' % PLUGIN]
+    assert calls == ['PlayMedia(%s?action=play&type=&id=tt7)' % PLUGIN]
+    assert [i['Property(a4k.id)'] for i in opened] == ['tt7']
 
 def test_back_closes_and_errors_close_with_the_traceback(core, home, monkeypatch):
     closed = []

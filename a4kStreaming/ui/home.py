@@ -19,7 +19,9 @@ ACTION_SELECT_ITEM = 7
 ACTION_MOUSE_LEFT_CLICK = 100
 ACTION_CONTEXT_MENU = 117
 
-INFO = ('FolderPath', 'Property(a4k.id)', 'Property(a4k.type)', 'Property(a4k.rated)', 'Property(a4k.trailers)')
+INFO = ('FolderPath', 'Property(a4k.id)', 'Property(a4k.type)', 'Property(a4k.rated)', 'Property(a4k.trailers)',
+        # what the detail window paints before its own request lands
+        'Label', 'Plot', 'Year', 'Rating', 'MPAA', 'Genre', 'Duration(secs)', 'Art(fanart)', 'Art(blur)', 'Art(poster)')
 
 def labels(item):
     # read before any dialog opens: Container(id) resolves against the topmost dialog first
@@ -53,6 +55,15 @@ def run(builtin):
     if builtin:
         kodi.xbmc.executebuiltin(builtin)
 
+def select(info):
+    # movies and series open the detail window; when it fails, the title's classic listing
+    if info.get('Property(a4k.type)', '') in ('movie', 'tvSeries'):
+        from . import detail
+        if not detail.open(info):
+            run(detail.classic(info))
+        return
+    run(click_builtin(info))
+
 class Home(kodi.xbmcgui.WindowXML):
     error = None
 
@@ -72,7 +83,7 @@ class Home(kodi.xbmcgui.WindowXML):
                 return self.close()
             focus = self.getFocusId()
             if action_id in (ACTION_SELECT_ITEM, ACTION_MOUSE_LEFT_CLICK) and focus in ROWS:
-                run(click_builtin(labels('Container(%s).ListItem' % focus)))
+                select(labels('Container(%s).ListItem' % focus))
             elif action_id == ACTION_CONTEXT_MENU and focus in (HERO_PLAY, HERO_INFO):
                 # rows get Kodi's own menu with the listing's items; the hero buttons are not list items
                 self.hero_menu()
@@ -85,7 +96,7 @@ class Home(kodi.xbmcgui.WindowXML):
             if control_id == HERO_PLAY:
                 run(click_builtin(info))
             elif control_id == HERO_INFO and info['Property(a4k.id)']:
-                run('ActivateWindow(Videos,%s?action=query&type=browse&id=%s,return)' % (app.PLUGIN, info['Property(a4k.id)']))
+                select(info)
         except Exception:
             self.__fail()
 
