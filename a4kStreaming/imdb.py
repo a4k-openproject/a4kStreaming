@@ -866,6 +866,9 @@ def query(core, params):
 
         data['episodes']['episodes'] = episodes
 
+        # raw: the title with every episode, unlisted (the detail window builds its own view of it)
+        if params.raw:
+            return data
         if params.silent:
             return data['episodes']['episodes']
 
@@ -875,6 +878,8 @@ def query(core, params):
         core.contentType = 'episodes'
         __add_episodes(core, data, int(params.season))
     elif params.type == 'browse':
+        if params.raw:
+            return data
         if data['titleType'] in ['tvEpisode']:
             core.viewType = core.kodi.get_setting('views.episode')
         if data['titleType'] in ['movie', 'tvMovie', 'tvEpisode', 'video']:

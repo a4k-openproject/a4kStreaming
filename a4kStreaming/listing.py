@@ -155,10 +155,11 @@ def __add_lists(core, data):
     core.kodi.xbmcplugin.addDirectoryItems(core.handle, list_items, len(list_items))
     core.kodi.xbmcplugin.addSortMethod(core.handle, core.kodi.xbmcplugin.SORT_METHOD_LABEL_IGNORE_THE)
 
-def __add_seasons(core, title):
+def group_seasons(core, episodes):
+    # {season number: season} in first-aired order, each with its episode count and ids and the release-date window
+    # its episodes query asks for (season_url). The directory and the detail window share it. Mutates the release dates.
     seasons = {}
 
-    episodes = title['episodes']['episodes']
     episodes = list(filter(lambda ep: ep['releaseDate'], episodes))
 
     prev_rld = None
@@ -242,6 +243,17 @@ def __add_seasons(core, title):
         except:
             pass
 
+    return seasons
+
+def season_url(core, title_id, key, season):
+    url = '%s?action=query&type=episodes&id=%s&season=%s' % (core.url, title_id, key)
+    for param in ('year', 'month', 'day', 'year_end', 'month_end', 'day_end'):
+        if season[param]:
+            url += '&%s=%s' % (param, season[param])
+    return url
+
+def __add_seasons(core, title):
+    seasons = group_seasons(core, title['episodes']['episodes'])
     list_items = []
     season_template = core.kodi.get_setting('general.season_title_template')
     poster = core.utils.fix_poster_size(title['primaryImage'])
@@ -271,19 +283,7 @@ def __add_seasons(core, title):
         }
         core.kodi.set_info_tag(list_item, video_meta)
 
-        url = '%s?action=query&type=episodes&id=%s&season=%s' % (core.url, title['id'], key)
-        if season.year:
-            url += '&year=%s' % season.year
-        if season.month:
-            url += '&month=%s' % season.month
-        if season.day:
-            url += '&day=%s' % season.day
-        if season.year_end:
-            url += '&year_end=%s' % season.year_end
-        if season.month_end:
-            url += '&month_end=%s' % season.month_end
-        if season.day_end:
-            url += '&day_end=%s' % season.day_end
+        url = season_url(core, title['id'], key, season)
 
         context_menu_items = []
         last_episode_has_rating = season.last_episode and season.last_episode.get('userRating', None) is not None
