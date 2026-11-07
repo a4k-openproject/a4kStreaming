@@ -2,10 +2,11 @@
 # Home window: the top shelf (first trending movie), the rows and the Browse tiles of a4k-home.xml.
 # The rows are the plugin's own listings loaded by Kodi (<content>), so this file only routes clicks and the hero menu.
 
+import threading
 import traceback
 from types import SimpleNamespace
 
-from ..lib import kodi
+from ..lib import kodi, logger
 from . import app
 
 ROWS = (301, 302, 303)
@@ -18,6 +19,8 @@ ACTION_NAV_BACK = 92
 ACTION_SELECT_ITEM = 7
 ACTION_MOUSE_LEFT_CLICK = 100
 ACTION_CONTEXT_MENU = 117
+ACTION_MOVES = (1, 2, 3, 4)
+PREFETCH_DWELL = 0.4
 
 INFO = ('FolderPath', 'Property(a4k.id)', 'Property(a4k.type)', 'Property(a4k.rated)', 'Property(a4k.trailers)',
         # what the detail window paints before its own request lands
@@ -66,6 +69,7 @@ def select(info):
 
 class Home(kodi.xbmcgui.WindowXML):
     error = None
+    timer = None
 
     def onInit(self):
         # runs again on every return to the window (after playback, after a listing): no network, nothing to undo
@@ -81,6 +85,8 @@ class Home(kodi.xbmcgui.WindowXML):
             action_id = action.getId()
             if action_id in (ACTION_PREVIOUS_MENU, ACTION_NAV_BACK):
                 return self.close()
+            if action_id in ACTION_MOVES:
+                return self.dwell()
             focus = self.getFocusId()
             if action_id in (ACTION_SELECT_ITEM, ACTION_MOUSE_LEFT_CLICK) and focus in ROWS:
                 select(labels('Container(%s).ListItem' % focus))
@@ -99,6 +105,33 @@ class Home(kodi.xbmcgui.WindowXML):
                 select(info)
         except Exception:
             self.__fail()
+
+    def dwell(self):
+        # a title card that keeps focus for PREFETCH_DWELL gets its detail request made now, on a timer thread, so its
+        # detail window opens with the shelves already there
+        if self.timer:
+            self.timer.cancel()
+        self.timer = threading.Timer(PREFETCH_DWELL, self.prefetch)
+        self.timer.start()
+
+    def prefetch(self):
+        try:
+            focus = self.getFocusId()
+            item = 'Container(%s).ListItem' % focus if focus in ROWS else HERO_ITEM if focus == HERO_INFO else None
+            if not item:
+                return
+            type = kodi.xbmc.getInfoLabel(item + '.Property(a4k.type)')
+            id = kodi.xbmc.getInfoLabel(item + '.Property(a4k.id)')
+            if type in ('movie', 'tvSeries') and id:
+                from . import detail
+                detail.fetch(detail.plugin_core(), id, type == 'tvSeries')
+        except Exception:
+            logger.debug(traceback.format_exc())
+
+    def close(self):
+        if self.timer:
+            self.timer.cancel()
+        super(Home, self).close()
 
     def hero_menu(self):
         info = labels(HERO_ITEM)

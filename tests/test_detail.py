@@ -304,6 +304,22 @@ def test_episodes_and_people_from_home_keep_their_classic_click(core, home, call
     home.select(card('person', 'nm1'))
     assert calls == ['PlayMedia(%s?action=play&type=&id=tt9)' % PLUGIN]
 
+@pytest.mark.parametrize('focus, type, fetched', [
+    (302, 'tvSeries', [(SERIES, True)]), (301, 'movie', [(SERIES, False)]), (302, 'tvEpisode', []), (201, 'movie', []),
+])
+def test_home_prefetches_the_title_that_keeps_focus(core, home, detail, monkeypatch, focus, type, fetched):
+    # a move starts the dwell timer; when it fires, the focused title's detail request runs (the window then opens full)
+    monkeypatch.setattr(home, 'threading', Sync)
+    item = 'Container(%s).ListItem' % focus if focus != 201 else home.HERO_ITEM
+    labels = {item + '.Property(a4k.type)': type, item + '.Property(a4k.id)': SERIES}
+    monkeypatch.setattr(core.kodi.xbmc, 'getInfoLabel', lambda label: labels.get(label, ''))
+    seen = []
+    monkeypatch.setattr(detail, 'fetch', lambda core, id, series: seen.append((id, series)))
+    win = home.Home('a4k-home.xml', '', 'Default', '1080i')
+    win.setFocusId(focus)
+    win.onAction(Action(home.ACTION_MOVES[0]))
+    assert seen == fetched and win.error is None
+
 def test_open_window_id_returns_to_home_after_detail(core, detail, opened):
     home_window = core.kodi.xbmcgui.Window(10000)
     home_window.setProperty('a4k.ui.window', '13000')
