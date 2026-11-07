@@ -35,11 +35,9 @@ def __setup_provider(a4kstreaming_api, settings={}):
     keyboard.isConfirmed = lambda: True
     __invoke(a4kstreaming_api, 'provider', { 'type': 'install' }, settings=settings)
 
+    # every installed provider: a single one may return nothing from a CI runner
     provider = a4kstreaming_api.core.cache.get_provider()
-    selected = {}
-    keys = sorted(provider.keys())
-    selected[keys[0]] = True
-    a4kstreaming_api.core.cache.save_provider(selected)
+    a4kstreaming_api.core.cache.save_provider({key: True for key in provider})
 
 def __invoke(a4kstreaming_api, action, params={}, settings={}, prerun=None, remove_cache=True):
     if remove_cache:
