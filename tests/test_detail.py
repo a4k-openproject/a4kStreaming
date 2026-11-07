@@ -307,11 +307,12 @@ def test_episodes_and_people_from_home_keep_their_classic_click(core, home, call
 
 @pytest.mark.parametrize('focus, type, fetched', [
     (302, 'tvSeries', [(SERIES, True)]), (301, 'movie', [(SERIES, False)]), (302, 'tvEpisode', []), (201, 'movie', []),
+    (202, 'movie', [(SERIES, False)]),
 ])
 def test_home_prefetches_the_title_that_keeps_focus(core, home, detail, monkeypatch, focus, type, fetched):
     # a move starts the dwell timer; when it fires, the focused title's detail request runs (the window then opens full)
     monkeypatch.setattr(home, 'threading', Sync)
-    item = 'Container(%s).ListItem' % focus if focus != 201 else home.HERO_ITEM
+    item = 'Container(%s).ListItem' % focus if focus in home.ROWS else 'Container(301).ListItemAbsolute(0)'
     labels = {item + '.Property(a4k.type)': type, item + '.Property(a4k.id)': SERIES}
     monkeypatch.setattr(core.kodi.xbmc, 'getInfoLabel', lambda label: labels.get(label, ''))
     seen = []
@@ -361,9 +362,9 @@ def test_episodes_row_shows_on_its_url_alone():
 
 def test_focusable_controls_navigate_explicitly(detail):
     page = [c for c in root().iter('control') if c.get('id') == '100'][0]
-    groups = {c.get('id') for c in page.findall('control')}
-    focusable = [c for c in root().iter('control') if c.get('type') == 'list' or c.get('id') == '500']
-    assert len(focusable) == 4
+    groups = {c.get('id') for c in page.findall('control')} | {str(detail.PLOT), '500'}  # the plot and the buttons link up and down
+    focusable = [c for c in root().iter('control') if c.get('type') == 'list' or c.get('id') in ('500', str(detail.PLOT))]
+    assert len(focusable) == 5
     for control in focusable:
         assert {'onup', 'ondown', 'onleft', 'onright'} <= {child.tag for child in control}
         targets = [control.findtext(tag) for tag in ('onup', 'ondown') if control.findtext(tag) != 'noop']

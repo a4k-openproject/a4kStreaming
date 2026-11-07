@@ -43,7 +43,7 @@
 			<scrolltime tween="cubic" easing="out">320</scrolltime>
 			<usecontrolcoords>true</usecontrolcoords>
 
-			<!-- Top shelf: the first trending movie. Its art runs on under the first rows and scrolls away with the page. -->
+			<!-- Top shelf: the trending movies in turn (a4k.hero.*, set from Python). Its art runs on under the first rows and scrolls away with the page. -->
 			<control type="group" id="200">
 				<top>0</top>
 				<left>0</left>
@@ -57,7 +57,7 @@
 					<height>1120</height>
 					<aspectratio>scale</aspectratio>
 					<fadetime>700</fadetime>
-					<texture background="true" colordiffuse="FFCCCCCC">$INFO[Container(301).ListItemAbsolute(0).Art(blur)]</texture>
+					<texture background="true" colordiffuse="FFCCCCCC">$INFO[Window.Property(a4k.hero.blur)]</texture>
 				</control>
 				<control type="image">
 					<left>0</left>
@@ -66,7 +66,7 @@
 					<height>680</height>
 					<aspectratio aligny="top" scalediffuse="false">scale</aspectratio>
 					<fadetime>700</fadetime>
-					<texture background="true" diffuse="a4k/fade_bottom.png">$INFO[Container(301).ListItemAbsolute(0).Art(fanart)]</texture>
+					<texture background="true" diffuse="a4k/fade_bottom.png">$INFO[Window.Property(a4k.hero.fanart)]</texture>
 				</control>
 				<control type="image">
 					<left>0</left>
@@ -100,7 +100,7 @@
 						<font>font25_title</font>
 						<textcolor>B8FFFFFF</textcolor>
 						<label>TRENDING MOVIE</label>
-						<visible>!String.IsEmpty(Container(301).ListItemAbsolute(0).Label)</visible>
+						<visible>!String.IsEmpty(Window.Property(a4k.hero.label))</visible>
 					</control>
 					<control type="textbox">
 						<left>0</left>
@@ -109,7 +109,7 @@
 						<height max="160">auto</height>
 						<font>font52_title</font>
 						<textcolor>FFFFFFFF</textcolor>
-						<label>$INFO[Container(301).ListItemAbsolute(0).Label]</label>
+						<label>$INFO[Window.Property(a4k.hero.label)]</label>
 					</control>
 					<control type="grouplist" id="230">
 						<left>0</left>
@@ -126,7 +126,7 @@
 							<height>40</height>
 							<font>font27</font>
 							<textcolor>B8FFFFFF</textcolor>
-							<label>$INFO[Container(301).ListItemAbsolute(0).Year]</label>
+							<label>$INFO[Window.Property(a4k.hero.year)]</label>
 						</control>
 						<control type="image">
 							<left>0</left>
@@ -134,7 +134,7 @@
 							<width>26</width>
 							<height>26</height>
 							<texture colordiffuse="FFFFD166">a4k/star.png</texture>
-							<visible>!String.IsEmpty(Container(301).ListItemAbsolute(0).Rating)</visible>
+							<visible>!String.IsEmpty(Window.Property(a4k.hero.rating))</visible>
 						</control>
 						<control type="label">
 							<left>0</left>
@@ -143,7 +143,7 @@
 							<height>40</height>
 							<font>font27</font>
 							<textcolor>B8FFFFFF</textcolor>
-							<label>$INFO[Container(301).ListItemAbsolute(0).Rating]</label>
+							<label>$INFO[Window.Property(a4k.hero.rating)]</label>
 						</control>
 						<control type="label">
 							<left>0</left>
@@ -152,7 +152,7 @@
 							<height>40</height>
 							<font>font27</font>
 							<textcolor>B8FFFFFF</textcolor>
-							<label>$INFO[Container(301).ListItemAbsolute(0).MPAA]</label>
+							<label>$INFO[Window.Property(a4k.hero.mpaa)]</label>
 						</control>
 					</control>
 					<control type="textbox">
@@ -162,7 +162,7 @@
 						<height>76</height>
 						<font>font27</font>
 						<textcolor>B8FFFFFF</textcolor>
-						<label>$INFO[Container(301).ListItemAbsolute(0).Plot]</label>
+						<label>$INFO[Window.Property(a4k.hero.plot)]</label>
 					</control>
 				</control>
 				<control type="grouplist" id="210">
@@ -590,7 +590,7 @@
 				</control>
 			</control>
 
-			<!-- Browse: today's directories, opened on top of the home window (Back returns here). Four tiles a row. -->
+			<!-- Browse: the grid for the title listings, today's directory for Debrid, the settings. Four tiles a row. -->
 			<control type="group" id="410">
 				<top>0</top>
 				<left>0</left>
@@ -681,40 +681,46 @@
 							</control>
 						</control>
 					</focusedlayout>
+					<!-- a4k.grid: Python opens the grid (search, years, or that listing type); the others run their onclick -->
 					<content>
 						<item>
 							<label>Search</label>
-							<onclick>ActivateWindow(Videos,plugin://plugin.video.a4kstreaming/?action=search&amp;type=input,return)</onclick>
+							<property name="a4k.grid">search</property>
 						</item>
 						<item>
-							<label>Fan Favorites</label>
-							<onclick>ActivateWindow(Videos,plugin://plugin.video.a4kstreaming/?action=query&amp;type=fan_picks,return)</onclick>
+							<label>Watchlist</label>
+							<property name="a4k.grid">watchlist</property>
+							<visible>!String.IsEmpty(Window.Property(a4k.auth))</visible>
 						</item>
 						<item>
 							<label>Recommended</label>
-							<onclick>ActivateWindow(Videos,plugin://plugin.video.a4kstreaming/?action=query&amp;type=top_picks,return)</onclick>
+							<property name="a4k.grid">top_picks</property>
 							<visible>!String.IsEmpty(Window.Property(a4k.auth))</visible>
 						</item>
 						<item>
 							<label>Lists</label>
-							<onclick>ActivateWindow(Videos,plugin://plugin.video.a4kstreaming/?action=query&amp;type=lists,return)</onclick>
+							<property name="a4k.grid">lists</property>
 							<visible>!String.IsEmpty(Window.Property(a4k.auth))</visible>
 						</item>
 						<item>
 							<label>By Year</label>
-							<onclick>ActivateWindow(Videos,plugin://plugin.video.a4kstreaming/?action=years&amp;type=root,return)</onclick>
+							<property name="a4k.grid">years</property>
+						</item>
+						<item>
+							<label>Fan Favorites</label>
+							<property name="a4k.grid">fan_picks</property>
 						</item>
 						<item>
 							<label>Animations</label>
-							<onclick>ActivateWindow(Videos,plugin://plugin.video.a4kstreaming/?action=query&amp;type=popularAnimations,return)</onclick>
+							<property name="a4k.grid">popularAnimations</property>
 						</item>
 						<item>
 							<label>Animated TV</label>
-							<onclick>ActivateWindow(Videos,plugin://plugin.video.a4kstreaming/?action=query&amp;type=popularAnimationTVShows,return)</onclick>
+							<property name="a4k.grid">popularAnimationTVShows</property>
 						</item>
 						<item>
 							<label>Reality TV</label>
-							<onclick>ActivateWindow(Videos,plugin://plugin.video.a4kstreaming/?action=query&amp;type=popularRealityTVShows,return)</onclick>
+							<property name="a4k.grid">popularRealityTVShows</property>
 						</item>
 						<item>
 							<label>Debrid</label>

@@ -103,6 +103,7 @@ def __create_listitem(*args, **kwargs):
     listitem.addContextMenuItems = listitem.context_menu.extend
     listitem.setInfo = lambda _, __: None
     listitem.setLabel = lambda _: None
+    listitem.getLabel = lambda: listitem.label
     listitem.setCast = lambda _: None
     listitem.setRating = lambda n, r, v, d: None
     listitem.setSubtitles = lambda _: None
@@ -120,6 +121,7 @@ __dialog.select = select
 def multiselect(*args, **kwargs): return None
 __dialog.multiselect = multiselect
 __dialog.contextmenu = lambda _: -1
+__dialog.textviewer = lambda heading, text, usemono=False: None
 def __create_dialog(*args, **kwargs): return __dialog
 xbmcgui.Dialog = __create_dialog
 
@@ -145,6 +147,7 @@ class _Window(object):
     def clearProperties(self): self.properties.clear()
 xbmcgui.Window = _Window
 xbmcgui.getCurrentWindowId = lambda: 10025
+xbmcgui.getCurrentWindowDialogId = lambda: 9999  # no dialog up
 
 class ControlList(object):
     def __init__(self, *args, **kwargs): self.items = []

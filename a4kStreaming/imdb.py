@@ -87,30 +87,37 @@ def __episodes_by_season(core, id, seasons):
         return None
     return [episode for page in pages for episode in core.utils.sanitize_response(page['edges'])]
 
+def ask_search(core, history, query=None, select=None):
+    # the history select, then the keyboard: (query, confirmed). The windows pass their select sheet.
+    confirmed = True if query else False
+    if history:
+        selection = (select or core.kodi.xbmcgui.Dialog().select)(
+            'Search for title or person',
+            [__action_menu_style % 'New Search'] + list(map(lambda v: str(v), history)),
+        )
+
+        confirmed = True
+        selection = int(selection)
+        if selection > 0:
+            query = history[selection - 1]
+        elif selection == 0:
+            confirmed = False
+
+    if not confirmed and not query:
+        keyboard = core.kodi.xbmc.Keyboard('', 'Enter part of title or person\'s name')
+        keyboard.doModal()
+        query = keyboard.getText()
+        confirmed = keyboard.isConfirmed()
+
+    return query, confirmed
+
 def search(core, params):
     query = params.query
     confirmed = True if query else False
     search = core.cache.get_search()
 
     if params.type == 'input':
-        if search.history:
-            selection = core.kodi.xbmcgui.Dialog().select(
-                'Search for title or person',
-                [__action_menu_style % 'New Search'] + list(map(lambda v: str(v), search.history)),
-            )
-
-            confirmed = True
-            selection = int(selection)
-            if selection > 0:
-                query = search.history[selection - 1]
-            elif selection == 0:
-                confirmed = False
-
-        if not confirmed and not query:
-            keyboard = core.kodi.xbmc.Keyboard('', 'Enter part of title or person\'s name')
-            keyboard.doModal()
-            query = keyboard.getText()
-            confirmed = keyboard.isConfirmed()
+        query, confirmed = ask_search(core, search.history, query)
 
     if not confirmed or not query:
         core.utils.end_action(core, True)

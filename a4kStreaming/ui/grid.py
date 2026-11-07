@@ -1,0 +1,221 @@
+# -*- coding: utf-8 -*-
+# Browse grid (a4k-grid.xml): one window for the Browse tiles (lists, watchlist, recommended, a year, search results,
+# the public lists), more like this, a person's known-for titles and the rest of a home row. Its items are the
+# plugin's own listing, loaded by Kodi from the a4k.path property (<content>), so they are exactly the classic items.
+# The listing's Next item pages forward and a list or a person opens in place; Back walks those steps back, then closes.
+# Any window error opens the classic listing instead, logged once per session (as detail.py and sheets.py do).
+
+import re
+import threading
+import traceback
+from datetime import datetime
+
+from ..lib import kodi, logger
+from . import app, home
+
+PANEL = 500
+FAILED = 'a4k.ui.grid.failed'
+NEAR_END = 12  # two rows of six: focus this close to a Next item fetches the next page in the background
+NO_LOGIN = 'Missing IMDb authentication cookies'  # the classic listing's own notification
+
+def widget(path):
+    # grid paths carry widget=1: the router then skips the classic view-mode wait
+    return path if 'widget=1' in path else path + '&widget=1'
+
+def classic_path(path):
+    return path.replace('&widget=1', '')
+
+def page_of(path):
+    match = re.search(r'[?&]page=(\d+)', path)
+    return int(match.group(1)) if match else 1
+
+def fail(reason):
+    __home = kodi.xbmcgui.Window(app.HOME_WINDOW)
+    if __home.getProperty(FAILED):
+        return
+    __home.setProperty(FAILED, 'true')
+    logger.error('grid window failed, using the classic listing: %s' % reason)
+
+def prefetch_page(path):
+    # the next page's listing, run once in the background: its IMDb answer lands in the request cache (public pages
+    # keep it for 30 minutes), so the page opens from cache when the user gets to the Next item
+    try:
+        kodi.json_rpc('Files.GetDirectory', {'directory': widget(path), 'media': 'files'}, log_error=False)
+    except Exception:
+        logger.debug(traceback.format_exc())
+
+class Grid(kodi.xbmcgui.WindowXML):
+    error = None
+    closed = False
+    timer = None
+    prefetched = None
+    path = ''
+    title = ''
+    kicker = ''
+    steps = None  # the (path, title, kicker, position) of every page or list under the one shown
+
+    def go(self, path, title, kicker=''):
+        self.path, self.title, self.kicker = widget(path), title, kicker
+        page = page_of(path)
+        self.setProperty('a4k.kicker', kicker.upper())
+        self.setProperty('a4k.title', title)
+        self.setProperty('a4k.page', 'Page %s' % page if page > 1 else '')
+        self.setProperty('a4k.path', self.path)
+
+    def onInit(self):
+        # runs again on every return (after detail, playback or a listing): no network, nothing to undo
+        try:
+            self.getControl(PANEL)  # raises when the XML did not load
+            kodi.xbmcgui.Window(app.HOME_WINDOW).setProperty(app.OPEN_WINDOW, str(kodi.xbmcgui.getCurrentWindowId()))
+        except Exception:
+            self.__fail()
+
+    def onAction(self, action):
+        try:
+            action_id = action.getId()
+            if action_id in (home.ACTION_PREVIOUS_MENU, home.ACTION_NAV_BACK):
+                return self.back()
+            if self.getFocusId() != PANEL:
+                return
+            if action_id in home.ACTION_MOVES:
+                self.moved()
+            elif action_id in (home.ACTION_SELECT_ITEM, home.ACTION_MOUSE_LEFT_CLICK):
+                # a provider list: Kodi sends no click to Python (spike 2c); the item's InfoLabels say what it is
+                self.select(home.labels('Container(%s).ListItem' % PANEL))
+        except Exception:
+            self.__fail()
+
+    def select(self, info):
+        type, path = info['Property(a4k.type)'], info['FolderPath']
+        if type in ('movie', 'tvSeries'):
+            home.select(info)
+        elif type == 'person':
+            if logged_in():
+                self.step(path, info['Label'], 'Known for')
+        elif type:
+            home.run(home.click_builtin(info))
+        elif 'paginationToken=' in path:
+            self.step(path, self.title, self.kicker)
+        elif path:  # one of the user's lists
+            self.step(path, info['Label'], self.kicker)
+
+    def step(self, path, title, kicker):
+        # forward to the next page, a list or a person: the new listing keeps the selected index, so start it at the top
+        control = self.getControl(PANEL)
+        self.steps.append((self.path, self.title, self.kicker, control.getSelectedPosition()))
+        control.selectItem(0)
+        self.go(path, title, kicker)
+
+    def back(self):
+        if not self.steps:
+            return self.close()
+        path, title, kicker, position = self.steps.pop()
+        self.getControl(PANEL).selectItem(position)  # kept by the listing that comes back
+        self.go(path, title, kicker)
+
+    def moved(self):
+        self.dwell()
+        count = int(kodi.xbmc.getInfoLabel('Container(%s).NumItems' % PANEL) or 0)
+        if count - self.getControl(PANEL).getSelectedPosition() > NEAR_END:
+            return
+        last = kodi.xbmc.getInfoLabel('Container(%s).ListItemAbsolute(%s).FolderPath' % (PANEL, count - 1))
+        if 'paginationToken=' in last and last != self.prefetched:
+            self.prefetched = last
+            threading.Thread(target=prefetch_page, args=(last,)).start()
+
+    def dwell(self):
+        # a title that keeps focus for a moment gets its detail request made now, as on the home window
+        if self.timer:
+            self.timer.cancel()
+        self.timer = threading.Timer(home.PREFETCH_DWELL, self.prefetch)
+        self.timer.start()
+
+    def prefetch(self):
+        try:
+            if not self.closed and self.getFocusId() == PANEL:
+                home.prefetch('Container(%s).ListItem' % PANEL)
+        except Exception:
+            logger.debug(traceback.format_exc())
+
+    def close(self):
+        self.closed = True
+        if self.timer:
+            self.timer.cancel()
+        super(Grid, self).close()
+
+    def __fail(self):
+        self.error = traceback.format_exc()
+        self.close()
+
+def open(path, title, kicker=''):
+    # True when the window ran; False when it failed (logged once per session) and the caller opens the classic listing
+    if kodi.xbmcgui.Window(app.HOME_WINDOW).getProperty(FAILED):
+        return False
+    try:
+        window = Grid('a4k-grid.xml', kodi.addon_path, 'Default', '1080i')
+        # a reopened add-on (after the Home key) comes back to this window, not to the one under it
+        window.setProperty('a4k.home', 'true')
+        window.steps = []
+        window.go(path, title, kicker)
+        home.modal(window)
+        error = window.error
+        del window
+        if error:
+            raise RuntimeError(error)
+        return True
+    except Exception:
+        fail(traceback.format_exc())
+        return False
+
+def show(path, title, kicker=''):
+    if not open(path, title, kicker):
+        home.run('ActivateWindow(Videos,%s,return)' % classic_path(path))
+
+def logged_in():
+    # known for, watchlist, lists and recommended need an IMDb login; without one, the classic listing's notification
+    if kodi.get_setting('imdb.at-main'):
+        return True
+    kodi.notification(NO_LOGIN)
+    return False
+
+# entry points: the Browse tiles, the detail window's cast and More like this
+
+def browse(tile, label):
+    # a Browse tile's a4k.grid property: search, years, or the query type of a listing
+    if tile == 'search':
+        return search()
+    if tile == 'years':
+        return years()
+    show(app.row_url(tile), label)
+
+def known_for(id, name):
+    if logged_in():
+        show('%s&id=%s' % (app.row_url('knownfor'), id), name, 'Known for')
+
+def more_like_this(id, title):
+    show('%s&id=%s' % (app.row_url('more_like_this'), id), title, 'More like this')
+
+def search():
+    # the classic search's history select (as a sheet) and keyboard, then the results in the grid
+    from types import SimpleNamespace
+    from urllib.parse import quote_plus
+    from ..lib import cache
+    from .. import imdb
+    from . import sheets
+    query, confirmed = imdb.ask_search(SimpleNamespace(kodi=kodi), cache.get_search().history, select=sheets.select)
+    if confirmed and query:
+        show('%s?action=search&query=%s&widget=1' % (app.PLUGIN, quote_plus(query)), query, 'Search')
+
+def years():
+    # a decade, then a year (Back returns to the decades), as the classic Discover by Year, newest first
+    from . import sheets
+    now = datetime.now().year
+    decades = list(range(now - now % 10, 1899, -10))
+    while True:
+        choice = sheets.select('Discover by Year', ['%s-%s' % (start, start + 9) for start in decades])
+        if choice < 0:
+            return
+        years = [year for year in range(decades[choice] + 9, decades[choice] - 1, -1) if year <= now]
+        pick = sheets.select('%s-%s' % (decades[choice], decades[choice] + 9), [str(year) for year in years])
+        if pick >= 0:
+            return show('%s&target_year=%s' % (app.row_url('year'), years[pick]), str(years[pick]), 'Year')

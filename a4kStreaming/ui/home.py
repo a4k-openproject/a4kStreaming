@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
-# Home window: the top shelf (first trending movie), the rows and the Browse tiles of a4k-home.xml.
-# The rows are the plugin's own listings loaded by Kodi (<content>), so this file only routes clicks and the hero menu.
+# Home window: the top shelf (the trending movies in turn), the rows and the Browse tiles of a4k-home.xml.
+# The rows are the plugin's own listings loaded by Kodi (<content>), so this file only routes clicks and the hero menu
+# and turns the top shelf.
 
 import threading
 import traceback
@@ -10,9 +11,18 @@ from ..lib import kodi, logger
 from . import app
 
 ROWS = (301, 302, 303)
+ROW_TITLES = {301: 'Trending Movies', 302: 'Trending TV Shows', 303: 'Watchlist'}
 HERO_PLAY = 201
 HERO_INFO = 202
-HERO_ITEM = 'Container(301).ListItemAbsolute(0)'
+HERO_ROW = 301
+TILES = 400
+
+# the top shelf turns to the next of the first HERO_COUNT trending movies every HERO_TURN seconds
+HERO_TURN = 15
+HERO_COUNT = 6
+HERO_FIELDS = {'label': 'Label', 'plot': 'Plot', 'year': 'Year', 'rating': 'Rating', 'mpaa': 'MPAA',
+               'fanart': 'Art(fanart)', 'blur': 'Art(blur)'}  # a4k.hero.<key> = the item's InfoLabel
+NO_DIALOG = 9999  # getCurrentWindowDialogId() with no modal dialog up
 
 ACTION_PREVIOUS_MENU = 10
 ACTION_NAV_BACK = 92
@@ -32,7 +42,7 @@ def labels(item):
 
 def click_builtin(info):
     # what selecting a row item does, the same as in the classic listing: movies and episodes play, series open their
-    # seasons, anything else with a path (the row's Next item) opens as a listing
+    # seasons, anything else with a path opens as a listing
     type = info.get('Property(a4k.type)', '')
     id = info.get('Property(a4k.id)', '')
     path = info.get('FolderPath', '')
@@ -67,16 +77,45 @@ def select(info):
         return
     run(click_builtin(info))
 
+MORE_LIKE_THIS = 'IMDb: More like this'
+
+def menu(items, id, title):
+    # a title's context list (label, builtin) as Kodi's context menu; More like this opens the grid
+    choice = kodi.xbmcgui.Dialog().contextmenu([label for label, _ in items])
+    if choice is None or choice < 0:
+        return
+    label, builtin = items[choice]
+    if label == MORE_LIKE_THIS:
+        from . import grid
+        return grid.more_like_this(id, title)
+    run(builtin)
+
+def prefetch(item):
+    # the detail request of the title at item (an InfoLabel prefix such as Container(301).ListItem), made now so its
+    # detail window opens with the shelves already there
+    type = kodi.xbmc.getInfoLabel(item + '.Property(a4k.type)')
+    id = kodi.xbmc.getInfoLabel(item + '.Property(a4k.id)')
+    if type in ('movie', 'tvSeries') and id:
+        from . import detail
+        detail.fetch(detail.plugin_core(), id, type == 'tvSeries')
+
 class Home(kodi.xbmcgui.WindowXML):
     error = None
     timer = None
+    hero = 0
+    own_id = None
+    stopped = None
 
     def onInit(self):
         # runs again on every return to the window (after playback, after a listing): no network, nothing to undo
         try:
             # raises when the XML did not load; a grouplist would raise anyway (Python cannot wrap that type)
             self.getControl(HERO_PLAY)
-            kodi.xbmcgui.Window(app.HOME_WINDOW).setProperty(app.OPEN_WINDOW, str(kodi.xbmcgui.getCurrentWindowId()))
+            self.own_id = kodi.xbmcgui.getCurrentWindowId()
+            kodi.xbmcgui.Window(app.HOME_WINDOW).setProperty(app.OPEN_WINDOW, str(self.own_id))
+            if self.stopped is None:
+                self.stopped = threading.Event()
+                threading.Thread(target=self.rotate).start()
         except Exception:
             self.__fail()
 
@@ -88,8 +127,18 @@ class Home(kodi.xbmcgui.WindowXML):
             if action_id in ACTION_MOVES:
                 return self.dwell()
             focus = self.getFocusId()
-            if action_id in (ACTION_SELECT_ITEM, ACTION_MOUSE_LEFT_CLICK) and focus in ROWS:
-                select(labels('Container(%s).ListItem' % focus))
+            selected = action_id in (ACTION_SELECT_ITEM, ACTION_MOUSE_LEFT_CLICK)
+            if selected and focus in ROWS:
+                info = labels('Container(%s).ListItem' % focus)
+                if not info['Property(a4k.type)'] and 'paginationToken=' in info['FolderPath']:
+                    from . import grid  # the row's Next item: the rest of the row in the grid
+                    return grid.show(info['FolderPath'], ROW_TITLES[focus])
+                select(info)
+            elif selected and focus == TILES:
+                tile = kodi.xbmc.getInfoLabel('Container(%s).ListItem.Property(a4k.grid)' % TILES)
+                if tile:  # Debrid and Settings run their own onclick
+                    from . import grid
+                    grid.browse(tile, kodi.xbmc.getInfoLabel('Container(%s).ListItem.Label' % TILES))
             elif action_id == ACTION_CONTEXT_MENU and focus in (HERO_PLAY, HERO_INFO):
                 # rows get Kodi's own menu with the listing's items; the hero buttons are not list items
                 self.hero_menu()
@@ -98,13 +147,46 @@ class Home(kodi.xbmcgui.WindowXML):
 
     def onClick(self, control_id):
         try:
-            info = labels(HERO_ITEM)
+            info = labels(self.hero_item())
             if control_id == HERO_PLAY:
                 run(click_builtin(info))
             elif control_id == HERO_INFO and info['Property(a4k.id)']:
                 select(info)
         except Exception:
             self.__fail()
+
+    def hero_item(self):
+        return 'Container(%s).ListItemAbsolute(%s)' % (HERO_ROW, self.hero)
+
+    def show_hero(self):
+        item = self.hero_item()
+        for key, field in HERO_FIELDS.items():
+            self.setProperty('a4k.hero.%s' % key, kodi.xbmc.getInfoLabel('%s.%s' % (item, field)))
+
+    def rotate(self):
+        # Paint the top shelf as soon as its row is in (Kodi gives the window no event for that: look every 100 ms,
+        # 15 s at most), then turn it every HERO_TURN seconds until the window closes.
+        try:
+            for _ in range(150):
+                if self.stopped.is_set() or kodi.xbmc.getInfoLabel('Container(%s).NumItems' % HERO_ROW) not in ('', '0'):
+                    break
+                self.stopped.wait(0.1)
+            if not self.stopped.is_set():
+                self.show_hero()
+            while not self.stopped.wait(HERO_TURN):
+                self.turn()
+        except Exception:
+            logger.debug(traceback.format_exc())
+
+    def turn(self):
+        # never under a dialog, the detail or grid window or the player; only properties change, focus stays put
+        if kodi.xbmcgui.getCurrentWindowId() != self.own_id or kodi.xbmcgui.getCurrentWindowDialogId() != NO_DIALOG:
+            return
+        count = min(int(kodi.xbmc.getInfoLabel('Container(%s).NumItems' % HERO_ROW) or 0), HERO_COUNT)
+        if count < 2:
+            return
+        self.hero = (self.hero + 1) % count
+        self.show_hero()
 
     def dwell(self):
         # a title card that keeps focus for PREFETCH_DWELL gets its detail request made now, on a timer thread, so its
@@ -117,31 +199,29 @@ class Home(kodi.xbmcgui.WindowXML):
     def prefetch(self):
         try:
             focus = self.getFocusId()
-            item = 'Container(%s).ListItem' % focus if focus in ROWS else HERO_ITEM if focus == HERO_INFO else None
-            if not item:
-                return
-            type = kodi.xbmc.getInfoLabel(item + '.Property(a4k.type)')
-            id = kodi.xbmc.getInfoLabel(item + '.Property(a4k.id)')
-            if type in ('movie', 'tvSeries') and id:
-                from . import detail
-                detail.fetch(detail.plugin_core(), id, type == 'tvSeries')
+            item = 'Container(%s).ListItem' % focus if focus in ROWS else self.hero_item() if focus == HERO_INFO else None
+            if item:
+                prefetch(item)
         except Exception:
             logger.debug(traceback.format_exc())
 
-    def close(self):
+    def stop(self):
         if self.timer:
             self.timer.cancel()
+        if self.stopped:
+            self.stopped.set()
+
+    def close(self):
+        self.stop()
         super(Home, self).close()
 
     def hero_menu(self):
-        info = labels(HERO_ITEM)
+        info = labels(self.hero_item())
         if not info['Property(a4k.id)']:
             return
         from .. import listing
         items = listing.title_context_menu(SimpleNamespace(url=app.PLUGIN, kodi=kodi), title_from_info(info))
-        choice = kodi.xbmcgui.Dialog().contextmenu([label for label, _ in items])
-        if choice is not None and choice >= 0:
-            run(items[choice][1])
+        menu(items, info['Property(a4k.id)'], info['Label'])
 
     def __fail(self):
         self.error = traceback.format_exc()
@@ -168,6 +248,21 @@ def replace_current(window_id):
     # of it, and Back from the listing lands on Kodi's Home screen. Back from the home window now goes to Home, too.
     kodi.xbmc.executebuiltin('ReplaceWindow(%s)' % window_id, True)
 
+def modal(window):
+    # doModal for a window opened over another a4k window (detail, grid). It takes the open-window slot in its onInit;
+    # on close the slot goes back to the window below, and so does the screen when the user went Home and reopened the
+    # add-on into this one (Back must not land on Kodi's Home).
+    __home = kodi.xbmcgui.Window(app.HOME_WINDOW)
+    previous = __home.getProperty(app.OPEN_WINDOW)
+    try:
+        window.doModal()
+    finally:
+        window.closed = True
+        if previous:
+            __home.setProperty(app.OPEN_WINDOW, previous)
+            if kodi.xbmcgui.getCurrentWindowId() != int(previous) and not kodi.xbmc.Monitor().abortRequested():
+                replace_current(previous)
+
 def open():
     window = Home('a4k-home.xml', kodi.addon_path, 'Default', '1080i')
     # row URLs are set before the window opens: a row's provider fires once, at load (spike 2b)
@@ -183,6 +278,7 @@ def open():
     try:
         window.doModal()
     finally:
+        window.stop()
         kodi.xbmcgui.Window(app.HOME_WINDOW).clearProperty(app.OPEN_WINDOW)
     error = window.error
     del window

@@ -33,7 +33,7 @@
 			<aspectratio>scale</aspectratio>
 			<fadetime>300</fadetime>
 			<texture background="true" colordiffuse="FFCCCCCC">$INFO[Window.Property(a4k.blur)]</texture>
-			<visible>!ControlGroup(500).HasFocus</visible>
+			<visible>!ControlGroup(500).HasFocus + !Control.HasFocus(510)</visible>
 			<animation effect="fade" time="300">VisibleChange</animation>
 		</control>
 		<control type="image">
@@ -151,18 +151,39 @@
 							<visible>!String.IsEmpty(Window.Property(a4k.certificate))</visible>
 						</control>
 					</control>
-					<control type="textbox">
+					<!-- The plot is focusable (Up from the buttons): a soft pill, OK shows the full text. -->
+					<control type="group">
 						<left>0</left>
-						<top>6</top>
-						<width>940</width>
-						<height>114</height>
-						<font>font27</font>
-						<textcolor>CCFFFFFF</textcolor>
-						<label>$INFO[Window.Property(a4k.plot)]</label>
+						<top>0</top>
+						<width>1100</width>
+						<height>130</height>
+						<visible>!String.IsEmpty(Window.Property(a4k.plot))</visible>
+						<control type="button" id="510">
+							<onup>noop</onup>
+							<ondown>500</ondown>
+							<onleft>noop</onleft>
+							<onright>noop</onright>
+							<left>-20</left>
+							<top>0</top>
+							<width>980</width>
+							<height>130</height>
+							<label></label>
+							<texturefocus border="20" colordiffuse="29FFFFFF">a4k/rr20.png</texturefocus>
+							<texturenofocus></texturenofocus>
+						</control>
+						<control type="textbox">
+							<left>0</left>
+							<top>8</top>
+							<width>940</width>
+							<height>114</height>
+							<font>font27</font>
+							<textcolor>CCFFFFFF</textcolor>
+							<label>$INFO[Window.Property(a4k.plot)]</label>
+						</control>
 					</control>
 				</control>
 				<control type="grouplist" id="500">
-					<onup>noop</onup>
+					<onup>510</onup>
 					<ondown>320</ondown>
 					<onleft>noop</onleft>
 					<onright>noop</onright>

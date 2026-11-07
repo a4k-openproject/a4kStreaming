@@ -56,6 +56,11 @@ def home(core):
     return importlib.import_module('a4kStreaming.ui.home')
 
 @pytest.fixture(autouse=True)
+def no_rotation(home, monkeypatch):
+    # onInit starts the top shelf's rotation thread; test_grid.py drives rotate() and turn() itself
+    monkeypatch.setattr(home.Home, 'rotate', lambda self: None)
+
+@pytest.fixture(autouse=True)
 def clean_windows(core):
     properties = importlib.import_module('a4kStreaming.lib.kodi_mock')._window_properties
     properties.clear()
@@ -98,7 +103,7 @@ def png_size(path):
     return struct.unpack('>II', head[16:24])
 
 def test_skin_has_the_windows_and_sheets():
-    assert [os.path.basename(path) for path in windows()] == ['a4k-detail.xml', 'a4k-home.xml', 'a4k-progress.xml', 'a4k-sheet.xml']
+    assert [os.path.basename(path) for path in windows()] == ['a4k-detail.xml', 'a4k-grid.xml', 'a4k-home.xml', 'a4k-progress.xml', 'a4k-sheet.xml']
 
 @pytest.mark.parametrize('path', windows())
 def test_window_xml_parses_with_unique_control_ids(path):
@@ -135,7 +140,7 @@ def test_window_uses_no_includes_or_named_colours(path):
     colours += [node.get('colordiffuse') for node in root.iter() if node.get('colordiffuse')]
     assert colours and all(re.fullmatch(r'[0-9A-F]{8}', colour) for colour in colours)
 
-@pytest.mark.parametrize('name,count', [('a4k-home.xml', 3), ('a4k-detail.xml', 1)])
+@pytest.mark.parametrize('name,count', [('a4k-home.xml', 3), ('a4k-detail.xml', 1), ('a4k-grid.xml', 1)])
 def test_rows_do_not_reload_on_play_or_stop(name, count):
     # Kodi reloads every unsorted <content> on each OnPlay/OnStop (DirectoryProvider::Announce). The reloads start new
     # Python interpreters next to the playing plugin call, and two starting at once crash Kodi 21 (seen live with the
@@ -167,8 +172,7 @@ def test_focusable_controls_navigate_explicitly():
 def test_python_control_ids_exist_in_the_xml(home):
     root = ElementTree.parse(os.path.join(WINDOWS, 'a4k-home.xml')).getroot()
     ids = {int(control.get('id')) for control in root.iter('control') if control.get('id')}
-    used = {100, home.HERO_PLAY, home.HERO_INFO} | set(home.ROWS)
-    used.add(int(re.search(r'Container\((\d+)\)', home.HERO_ITEM).group(1)))
+    used = {100, home.HERO_PLAY, home.HERO_INFO, home.HERO_ROW, home.TILES} | set(home.ROWS)
     assert used <= ids
     xml_containers = {int(n) for n in re.findall(r'Container\((\d+)\)', open(os.path.join(WINDOWS, 'a4k-home.xml')).read())}
     assert xml_containers <= ids
@@ -194,7 +198,9 @@ def test_every_row_property_the_xml_reads_is_set(core, home, monkeypatch):
     monkeypatch.setattr(home.Home, 'doModal', lambda self: opened.update(self.properties))
     home.open()
     xml = open(os.path.join(WINDOWS, 'a4k-home.xml')).read()
-    assert set(re.findall(r'Window\.Property\(([\w.]+)\)', xml)) <= set(opened)
+    hero = {'a4k.hero.' + key for key in home.HERO_FIELDS}  # set by the rotation once the row is in
+    read = set(re.findall(r'Window\.Property\(([\w.]+)\)', xml))
+    assert read - hero <= set(opened) and read & hero == hero
     assert opened['a4k.row.301'] == PLUGIN + '?action=query&type=popularMovies&widget=1'
     assert opened['a4k.row.303'] == PLUGIN + '?action=query&type=watchlist&widget=1'
 
@@ -357,9 +363,15 @@ def test_select_on_a_title_opens_its_detail_and_other_items_run_their_builtin(co
     win.onAction(Action(home.ACTION_SELECT_ITEM))
     assert [(i['Property(a4k.id)'], i['Label']) for i in opened] == [('tt5', 'A Show')] and calls == [] and win.error is None
     path = PLUGIN + '?action=query&type=popularTVShows&paginationToken=abc&page=2'
+    grids = []
+    monkeypatch.setattr(importlib.import_module('a4kStreaming.ui.grid'), 'show', lambda path, title: grids.append((path, title)))
     win = window(core, home, monkeypatch, 302, {'Container(302).ListItem.FolderPath': path})
+    win.onAction(Action(home.ACTION_SELECT_ITEM))  # the row's Next item: the rest of the row in the grid
+    assert grids == [(path, 'Trending TV Shows')] and calls == [] and len(opened) == 1
+    folder = PLUGIN + '?action=query&type=lists'
+    win = window(core, home, monkeypatch, 302, {'Container(302).ListItem.FolderPath': folder})
     win.onAction(Action(home.ACTION_SELECT_ITEM))
-    assert calls == ['ActivateWindow(Videos,%s,return)' % path] and len(opened) == 1
+    assert calls == ['ActivateWindow(Videos,%s,return)' % folder] and len(grids) == 1
 
 def test_context_menu_on_rows_is_kodis_and_on_the_hero_is_ours(core, home, monkeypatch, calls):
     settings(core, monkeypatch)

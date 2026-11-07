@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Title detail window (a4k-detail.xml): opened from the home window for a movie or a series.
+# Title detail window (a4k-detail.xml): opened from the home window or the grid for a movie or a series.
 # It paints at once from the card the user selected, then fetches the title on a worker thread and fills the season
 # pills and the cast; the episodes shelf is the plugin's own episodes listing, loaded by Kodi (<content>).
 
@@ -17,6 +17,7 @@ PLAY, TRAILER, WATCHLIST, MORE = BUTTONS
 SEASONS = 520
 EPISODES = 530
 CAST = 540
+PLOT = 510  # the plot's focus frame: select opens the whole plot
 
 ACTION_MOVE_LEFT = 1
 ACTION_MOVE_RIGHT = 2
@@ -237,6 +238,7 @@ class Detail(kodi.xbmcgui.WindowXML):
         for person in vm['cast']:
             item = ListItem(label=person['name'], label2=person['role'], offscreen=True)
             item.setArt({'thumb': person['face'] or ''})
+            item.setProperty('id', person['id'])
             people.append(item)
         self.getControl(CAST).addItems(people)
 
@@ -303,6 +305,10 @@ class Detail(kodi.xbmcgui.WindowXML):
                 self.menu()
             elif control_id == SEASONS:
                 self.select_season()
+            elif control_id == CAST:
+                self.person()
+            elif control_id == PLOT:
+                self.full_plot()
         except Exception:
             self.__fail()
 
@@ -315,10 +321,18 @@ class Detail(kodi.xbmcgui.WindowXML):
             home.run('PlayMedia(%s)' % path)
 
     def menu(self):
-        items = self.vm['menu']
-        choice = kodi.xbmcgui.Dialog().contextmenu([label for label, _ in items])
-        if choice is not None and choice >= 0:
-            home.run(items[choice][1])
+        home.menu(self.vm['menu'], self.vm['id'], self.vm['title'])
+
+    def person(self):
+        # a cast face opens the person's known-for grid
+        item = self.getControl(CAST).getSelectedItem()
+        if item and item.getProperty('id'):
+            from . import grid
+            grid.known_for(item.getProperty('id'), item.getLabel())
+
+    def full_plot(self):
+        if self.vm['plot']:
+            kodi.xbmcgui.Dialog().textviewer(self.vm['title'], self.vm['plot'])
 
     def close(self):
         self.closed = True
@@ -335,7 +349,6 @@ def open(info):
     __home = kodi.xbmcgui.Window(app.HOME_WINDOW)
     if __home.getProperty(FAILED):
         return False
-    previous = __home.getProperty(app.OPEN_WINDOW)
     try:
         window = Detail('a4k-detail.xml', kodi.addon_path, 'Default', '1080i')
         # a reopened add-on (after the Home key) comes back to this window, not to the home window under it
@@ -343,16 +356,7 @@ def open(info):
         window.setProperty('a4k.auth', 'true' if kodi.get_setting('imdb.at-main') else '')
         window.paint(from_card(info))
         window.setProperty('a4k.series', 'true' if window.vm['type'] == 'tvSeries' else '')
-        try:
-            window.doModal()
-        finally:
-            window.closed = True
-            if previous:
-                __home.setProperty(app.OPEN_WINDOW, previous)
-                # after the Home key and a reopen (which put this window in Videos' history slot), Kodi's history no
-                # longer has the home window under this one and Back would land on Kodi's Home screen: go back to it
-                if kodi.xbmcgui.getCurrentWindowId() != int(previous) and not kodi.xbmc.Monitor().abortRequested():
-                    home.replace_current(previous)
+        home.modal(window)
         error = window.error
         del window
         if error:
