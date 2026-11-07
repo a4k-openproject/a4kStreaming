@@ -39,4 +39,3 @@ exclude =
     tmp,
     providers,
     providerModules,
-    a4kStreaming/lib/goto.py,

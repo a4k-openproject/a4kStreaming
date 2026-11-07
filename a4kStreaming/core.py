@@ -18,7 +18,6 @@ from .lib import (
     utils,
     cache,
     debrid,
-    goto
 )
 
 from .lib.database import db
@@ -128,7 +127,13 @@ def main(url, handle, paramstring):
     kodi.xbmcplugin.setContent(core.handle, core.contentType)
     kodi.xbmcplugin.endOfDirectory(core.handle)
 
-    kodi.xbmc.sleep(100)
-    dir_switch = not listitem_path or listitem_path == kodi.xbmc.getInfoLabel('Container.FolderPath')
-    if dir_switch:
-        utils.apply_viewtype(core)
+    # a skin widget (widget=1) has no view of its own to switch, so it skips the wait and the view mode
+    if params.widget != '1':
+        kodi.xbmc.sleep(100)
+        dir_switch = not listitem_path or listitem_path == kodi.xbmc.getInfoLabel('Container.FolderPath')
+        if dir_switch:
+            utils.apply_viewtype(core)
+
+    # the listing is on screen: refresh any page that was answered stale, then keep the cache under its size cap
+    request.revalidate(core)
+    db.cleanup()

@@ -7,7 +7,8 @@ from .utils import DictAsObject, open_file_wrapper
 
 __search_filepath = os.path.join(kodi.addon_profile, 'search.json')
 __provider_filepath = os.path.join(kodi.addon_profile, 'provider.json')
-__last_results_filepath = os.path.join(kodi.addon_profile, 'last_results.json')
+# raw provider rows (before the debrid split); the old last_results.json held split rows and is no longer read
+__last_results_filepath = os.path.join(kodi.addon_profile, 'last_search.json')
 __last_title_filepath = os.path.join(kodi.addon_profile, 'last_title.json')
 __last_selected_result_filepath = os.path.join(kodi.addon_profile, 'last_selected_result.json')
 __general_filepath = os.path.join(kodi.addon_profile, 'general.json')

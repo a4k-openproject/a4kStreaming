@@ -8,10 +8,7 @@ import time
 from zipfile import ZipFile
 from xml.etree import ElementTree
 
-try:
-    from urlparse import unquote
-except ImportError:
-    from urllib.parse import unquote
+from urllib.parse import unquote
 
 # xbmc
 xbmc = lambda: None
@@ -82,29 +79,36 @@ xbmcplugin.SORT_METHOD_LABEL_IGNORE_THE = None
 
 # xbmcgui
 xbmcgui = lambda: None
-__listitem = lambda: None
-__listitem.setProperty = lambda _, __: None
-__listitem.setArt = lambda _: None
-__listitem.setInfo = lambda _, __: None
-__listitem.setLabel = lambda _: None
-__listitem.setCast = lambda _: None
-__listitem.setRating = lambda n, r, v, d: None
-__listitem.setSubtitles = lambda _: None
-__listitem.addContextMenuItems = lambda _: None
-__listitem.setContentLookup = lambda _: None
-__listitem.addStreamInfo = lambda _, __: None
 
 __video_info_tag = lambda: None
 __video_info_tag.setRating = lambda _, __, ___, ____: None
 def __get_video_info_tag(*args, **kwargs): return __video_info_tag
-__listitem.getVideoInfoTag = __get_video_info_tag
 
 __list_info_tag = lambda: None
 __list_info_tag.set_cast = lambda _: None
 __list_info_tag.add_stream_info = lambda _, __: None
 def set_info_tag(*args, **kwargs): return __list_info_tag
 
-def __create_listitem(*args, **kwargs): return __listitem
+def __create_listitem(*args, **kwargs):
+    # each item records its art, properties and context menu so tests can read what a listing set
+    listitem = lambda: None
+    listitem.label = kwargs.get('label', args[0] if args else '')
+    listitem.art = {}
+    listitem.properties = {}
+    listitem.context_menu = []
+    listitem.setArt = listitem.art.update
+    listitem.setProperty = listitem.properties.__setitem__
+    listitem.getProperty = lambda key: listitem.properties.get(key, '')
+    listitem.addContextMenuItems = listitem.context_menu.extend
+    listitem.setInfo = lambda _, __: None
+    listitem.setLabel = lambda _: None
+    listitem.setCast = lambda _: None
+    listitem.setRating = lambda n, r, v, d: None
+    listitem.setSubtitles = lambda _: None
+    listitem.setContentLookup = lambda _: None
+    listitem.addStreamInfo = lambda _, __: None
+    listitem.getVideoInfoTag = __get_video_info_tag
+    return listitem
 xbmcgui.ListItem = __create_listitem
 
 __dialog = lambda: None

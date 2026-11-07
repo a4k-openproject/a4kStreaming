@@ -68,6 +68,10 @@ msgctxt "#33109"
 msgid "Allow Dolby Vision sources"
 msgstr ""
 
+msgctxt "#33110"
+msgid "Source search time limit (seconds)"
+msgstr ""
+
 # Season Title Templates
 msgctxt "#33111"
 msgid "Season 1 (2020) - 10 Episodes"
@@ -192,22 +196,6 @@ msgid "Premiumize"
 msgstr ""
 
 msgctxt "#33402"
-msgid "API key: "
-msgstr ""
-
-msgctxt "#33403"
-msgid "RealDebrid"
-msgstr ""
-
-msgctxt "#33404"
-msgid "API key (real-debrid.com/apitoken): "
-msgstr ""
-
-msgctxt "#33405"
-msgid "AllDebrid"
-msgstr ""
-
-msgctxt "#33406"
 msgid "API key: "
 msgstr ""
 

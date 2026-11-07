@@ -25,13 +25,8 @@ def __log(message, level=xbmc.LOGDEBUG):
 
     xbmc.log('{0}: {1}'.format(addon_id, message), level)
 
-try:
-    notice_type = xbmc.LOGNOTICE
-except:
-    notice_type = xbmc.LOGINFO
-
 def notice(message):
-    __log(message, notice_type)
+    __log(message, xbmc.LOGINFO)
 
 def error(message):
     __log(message, xbmc.LOGERROR)

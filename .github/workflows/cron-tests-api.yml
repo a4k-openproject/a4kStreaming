@@ -28,4 +28,4 @@ jobs:
 
     - name: test
       run: |
-        pytest -v ./tests/test_api.py
+        pytest -v ./tests/test_api.py ./tests/test_unit.py

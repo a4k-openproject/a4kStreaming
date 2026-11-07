@@ -9,36 +9,23 @@ import string
 import zipfile
 import shutil
 import time
-import base64
 import hashlib
-from datetime import datetime
+import unicodedata
+from datetime import date, timedelta
 from io import BytesIO
 from itertools import islice
 from contextlib import closing
 from . import kodi, logger
 
-try:
-    from urlparse import unquote, parse_qsl
-    from urllib import quote_plus
-    import urllib2 as urllib
-    from StringIO import StringIO
-    import Queue as queue
-except ImportError:
-    from urllib.parse import quote_plus, unquote, parse_qsl
-    import urllib
-    from io import StringIO
-    import queue
-    unicode = lambda v: v
-
-py2 = sys.version_info[0] == 2
-py3 = not py2
+from urllib.parse import parse_qsl, quote_plus
+from urllib.request import urlopen
 
 default_encoding = 'utf-8'
 zip_utf8_flag = 0x800
-py3_zip_missing_utf8_flag_fallback_encoding = 'cp437'
-recommended = base64.b64decode('VE9SUkVOVElP')
-if py3:
-    recommended = recommended.decode('ascii')
+zip_missing_utf8_flag_fallback_encoding = 'cp437'
+# result keys set by the provider package, named there
+result_link_key = 'magnet'
+result_rank_key = 'seeds'
 
 temp_dir = os.path.join(kodi.addon_profile, 'temp')
 provider_temp_dir = os.path.join(kodi.addon_profile, 'provider-temp')
@@ -83,7 +70,7 @@ def chunk(it, size):
     return iter(lambda: tuple(islice(it, size)), ())
 
 def open_file_wrapper(file, mode='r', encoding='utf-8'):
-    if py2 or mode.endswith('b'):
+    if mode.endswith('b'):
         return lambda: open(file, mode)
     return lambda: open(file, mode, encoding=encoding)
 
@@ -105,6 +92,7 @@ def imdb_auth_request_props():
             'content-type': 'application/json',
             'x-amzn-sessionid': '%s-%s-%s' % (random_digit_str(3), random_digit_str(7), random_digit_str(7)),
             'x-imdb-client-name': 'imdb-web-next',
+            'referer': 'https://www.imdb.com/',
             'x-imdb-user-language': 'en-US',
             'x-imdb-user-country': 'US'
         },
@@ -114,14 +102,6 @@ def imdb_auth_request_props():
         }
     }
 
-def rd_auth_query_params(core, rd_api_key=None):
-    rd_apikey = rd_api_key if rd_api_key else get_realdebrid_apikey(core)
-    return '?client_id=X245A4XAIBGVM&auth_token=%s' % rd_apikey
-
-def ad_auth_query_params(core, ad_api_key=None):
-    ad_apikey = ad_api_key if ad_api_key else get_alldebrid_apikey(core)
-    return '&agent=%s&apikey=%s' % (core.kodi.addon_name, ad_apikey)
-
 def time_ms():
     return int(round(time.time() * 1000))
 
@@ -129,7 +109,7 @@ def download_zip(core, zip_url, zip_name):
     filepath = os.path.join(temp_dir, zip_name)
 
     if zip_url.startswith('ftp://'):
-        with closing(urllib.urlopen(zip_url)) as r:
+        with closing(urlopen(zip_url)) as r:
             with open(filepath, 'wb') as f:
                 shutil.copyfileobj(r, f)
         return filepath
@@ -148,14 +128,11 @@ def download_zip(core, zip_url, zip_name):
     return filepath
 
 def extract_zip_member(zip, member, dest):
-    if py2:
-        zip.extract(member.encode(default_encoding), dest)
-    else:
-        try:
-            zip.extract(member, dest)
-        except:
-            member = member.encode(default_encoding).decode(py3_zip_missing_utf8_flag_fallback_encoding)
-            zip.extract(member, dest)
+    try:
+        zip.extract(member, dest)
+    except:
+        member = member.encode(default_encoding).decode(zip_missing_utf8_flag_fallback_encoding)
+        zip.extract(member, dest)
 
 def extract_zip(src, dest):
     with open(src, 'rb') as f:
@@ -173,16 +150,11 @@ def extract_zip(src, dest):
         zip_root = ''
         rename = False
 
-    if py2:
-        for info in infolist:
-            filename = info.filename.decode(default_encoding)
-            extract_zip_member(zip, filename, extract_dir)
-    else:
-        for info in infolist:
-            filename = info.filename
-            if not info.flag_bits & zip_utf8_flag:
-                filename = info.filename.encode(py3_zip_missing_utf8_flag_fallback_encoding).decode(default_encoding)
-            extract_zip_member(zip, filename, extract_dir)
+    for info in infolist:
+        filename = info.filename
+        if not info.flag_bits & zip_utf8_flag:
+            filename = info.filename.encode(zip_missing_utf8_flag_fallback_encoding).decode(default_encoding)
+        extract_zip_member(zip, filename, extract_dir)
 
     if rename:
         os.rename(os.path.join(extract_dir, zip_root), dest)
@@ -193,12 +165,6 @@ def random_digit_str(length):
 def get_premiumize_apikey(core):
     return core.kodi.get_setting('premiumize.apikey')
 
-def get_realdebrid_apikey(core):
-    return None  # core.kodi.get_setting('realdebrid.apikey')
-
-def get_alldebrid_apikey(core):
-    return core.kodi.get_setting('alldebrid.apikey')
-
 def get_color_string(string, color):
     return '[B][COLOR %s]%s[/COLOR][/B]' % (color, string)
 
@@ -207,6 +173,20 @@ def video_containers():
 
 def clean_release_title(title):
     return re.sub(r'\s+', ' ', re.sub(r'\-|\_|\.|\,|\?|\!|\[|\]|\{|\}|\(|\)|\||\'|\’|\"|\|\\|\/|\`|\~|\^|\<|\>', ' ', title))
+
+__title_stopwords = ('the', 'a', 'an', 'and', 'of')
+
+def title_words(text):
+    text = unicodedata.normalize('NFKD', text or '').encode('ascii', 'ignore').decode('ascii').lower().replace("'", '')
+    return [word for word in re.split(r'[^a-z0-9]+', text) if word and word not in __title_stopwords]
+
+def rank_guards(release_title, ref):
+    # (missing a word of the expected title, names the episode): a wrong show's 4K pack must rank below the right show's 720p
+    words = set(title_words(release_title))
+    episode = ref.get('mediatype', None) == 'episode'
+    expected = set(title_words(ref.get('tvshowtitle' if episode else 'title', None)))
+    episode_words = set(title_words(ref.get('title', None))) if episode else set()
+    return bool(expected) and not expected <= words, bool(episode_words) and episode_words <= words
 
 def cleanup_result(result, no_meta=False):
     title = clean_release_title(result['release_title']).upper()
@@ -223,7 +203,7 @@ def cleanup_result(result, no_meta=False):
     if 'H265' in title: videocodec = 'H265'
     if 'H 265' in title: videocodec = 'H265'
     if 'H264' in title: videocodec = 'H264'
-    if 'H 264' in title: videocodec = 'H265'
+    if 'H 264' in title: videocodec = 'H264'
     if 'X264' in title: videocodec = 'H264'
     if 'X 264' in title: videocodec = 'H264'
 
@@ -300,15 +280,15 @@ def cleanup_result(result, no_meta=False):
     title = re.sub(r'|'.join(containers), ' ', title)
 
     audiochannel = ''
-    if '2 0 ' in title: audiocodec = ' 2.0'
-    if '2 0CH' in title: audiocodec = ' 2.0'
-    if '2CH' in title: audiocodec = ' 2.0'
-    if '5 1 ' in title: audiocodec = ' 5.1'
-    if '5 1CH' in title: audiocodec = ' 5.1'
-    if '6CH' in title: audiocodec = ' 5.1'
-    if '7 1 ' in title: audiocodec = ' 7.1'
-    if '7 1CH' in title: audiocodec = ' 7.1'
-    if '8CH' in title: audiocodec = ' 7.1'
+    if '2 0 ' in title: audiochannel = '2.0'
+    if '2 0CH' in title: audiochannel = '2.0'
+    if '2CH' in title: audiochannel = '2.0'
+    if '5 1 ' in title: audiochannel = '5.1'
+    if '5 1CH' in title: audiochannel = '5.1'
+    if '6CH' in title: audiochannel = '5.1'
+    if '7 1 ' in title: audiochannel = '7.1'
+    if '7 1CH' in title: audiochannel = '7.1'
+    if '8CH' in title: audiochannel = '7.1'
 
     if audiochannel:
         if result['audiocodec'] == '':
@@ -412,9 +392,17 @@ def generic_list_items(core, items):
 
     return list_items
 
+# IMDb CDN sizes Kodi shows, widths on a 40 px grid so the same few URLs repeat across lists and the texture cache
+poster_size = (520, 780)
+thumb_size = (480, 270)
+fanart_size = (1280, 720)
+landscape_size = (960, 540)
+cast_size = (280, 420)
+blur_size = (64, 36)  # a tiny still the skin blurs behind the focused row
+
 def get_image_params(image, desired_width, desired_height):
     if not image.get('width', None) or not image.get('height', None):
-        return 'UX%s' % desired_width
+        return 'UX%s_' % desired_width
 
     width = image['width']
     height = image['height']
@@ -430,29 +418,48 @@ def get_image_params(image, desired_width, desired_height):
     if aspect_change or target_width < desired_width or scaled_height < desired_height:
         params = 'UY%s' % target_height
         if aspect_change:
-            cx = (scaled_width - desired_width) / 2
+            cx = (scaled_width - desired_width) // 2
     else:
         params = 'UX%s' % target_width
 
-    return '_V1_%s_CR%s,0,%s,%s_AL_.' % (params, cx, desired_width, desired_height)
+    return '%s_CR%s,0,%s,%s_AL_' % (params, cx, desired_width, desired_height)
+
+def resize_image(image, size):
+    # appends the resize to whatever transform the URL already has (IMDb serves some as `_V1_CR600,1,2999,4499_.jpg`,
+    # which a plain `_V1_.` replace missed, so the full original was downloaded)
+    if not image or not image.get('url', None):
+        return None
+    match = re.search(r'_V1_([^/]*)(\.\w+)$', image['url'])
+    if not match:
+        return image['url']
+    transform = match.group(1)
+    if transform and not transform.endswith('_'):
+        transform += '_'
+    return '%s_V1_%s%s%s' % (image['url'][:match.start()], transform, get_image_params(image, *size), match.group(2))
 
 def fix_thumb_size(image):
-    if image and image.get('url', None):
-        return image['url'].replace('_V1_.', get_image_params(image, 480, 270))
+    return resize_image(image, thumb_size)
 
 def fix_fanart_size(image):
-    if image and image.get('url', None):
-        return image['url'].replace('_V1_.', get_image_params(image, 900, 506))
+    return resize_image(image, fanart_size)
 
 def fix_poster_size(image):
-    if image and image.get('url', None):
-        return image['url'].replace('_V1_.', get_image_params(image, 528, 781))
+    return resize_image(image, poster_size)
+
+def fix_cast_size(image):
+    return resize_image(image, cast_size)
+
+def fix_landscape_size(image):
+    return resize_image(image, landscape_size)
+
+def fix_blur_size(image):
+    return resize_image(image, blur_size)
 
 def apply_viewtype(core):
     kodi.xbmc.executebuiltin('Container.SetViewMode(%s)' % core.viewTypes[int(core.viewType)])
 
 def get_graphql_query(body):
-    now = datetime.now()
+    tomorrow = date.today() + timedelta(days=1)
 
     fragments = {
         'Title': '''
@@ -565,6 +572,16 @@ def get_graphql_query(body):
                     }
                 }
                 isAdult
+                stillFrame: images(first: 1, filter: { types: ["still_frame"] }) {
+                    edges {
+                        node {
+                            url
+                            width
+                            height
+                            type
+                        }
+                    }
+                }
                 %s
             }
         ''' % ('userRating { value }' if kodi.get_setting('imdb.at-main') != '' else ''),
@@ -624,7 +641,7 @@ def get_graphql_query(body):
                     }
                 }
             }
-        ''' % (now.day + 1, now.month, now.year),
+        ''' % (tomorrow.day, tomorrow.month, tomorrow.year),
         'Episode': '''
             fragment Episode on Title {
                 id
@@ -710,21 +727,7 @@ def get_graphql_query(body):
                         episodes(first: 250, after: $paginationToken) {
                             edges {
                                 node {
-                                    ... on Title {
-                                        id
-                                        releaseDate {
-                                            day
-                                            month
-                                            year
-                                        }
-                                        series {
-                                            episodeNumber {
-                                                seasonNumber
-                                                episodeNumber
-                                            }
-                                        }
-                                        %s
-                                    }
+                                    ...SeasonsNode
                                 }
                             }
                             pageInfo {
@@ -734,6 +737,23 @@ def get_graphql_query(body):
                         }
                     }
                 }
+            }
+        ''',
+        'SeasonsNode': '''
+            fragment SeasonsNode on Title {
+                id
+                releaseDate {
+                    day
+                    month
+                    year
+                }
+                series {
+                    episodeNumber {
+                        seasonNumber
+                        episodeNumber
+                    }
+                }
+                %s
             }
         ''' % ('userRating { value }' if kodi.get_setting('imdb.at-main') != '' else ''),
         'Episodes': '''

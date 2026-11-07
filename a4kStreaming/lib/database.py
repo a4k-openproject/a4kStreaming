@@ -21,16 +21,19 @@ def __cache_get(key):
     except:
         return {}
 
-def __cache_check(key):
+def __cache_age(key):
     try:
-        path = __cache_key_path(key)
-        if os.path.exists(path):
-            ttl = os.path.getmtime(path)
-            if time.time() - ttl < 5:
-                return True
-            os.remove(path)
+        return time.time() - os.path.getmtime(__cache_key_path(key))
     except:
-        pass
+        return None
+
+def __cache_clear(prefix):
+    prefix = __cache_key_path(prefix)
+    for file in os.listdir(provider_temp_dir):
+        path = os.path.join(provider_temp_dir, file)
+        if path.startswith(prefix):
+            try: os.remove(path)
+            except: pass
 
 def __cache_cleanup():
     try:
@@ -64,5 +67,6 @@ def __cache_cleanup():
 db = lambda: None
 db.set = lambda key, value: __cache_save(key, value)
 db.get = lambda key: __cache_get(key)
-db.check = lambda key: __cache_check(key)
+db.age = lambda key: __cache_age(key)
 db.cleanup = lambda: __cache_cleanup()
+db.clear = lambda prefix='': __cache_clear(prefix)

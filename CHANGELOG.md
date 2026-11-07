@@ -1,3 +1,25 @@
+* [v1.69.0](https://github.com/newt-sc/a4kStreaming/releases/tag/plugin.video.a4kstreaming%2Fplugin.video.a4kstreaming-1.69.0):
+  * Requires KODI 20 or newer
+  * Faster source search:
+    * Provider searches start at once and cancelling stops the pending ones
+    * New setting: Source search time limit (default 40s), results found so far are shown
+    * Progress shows found results, time left and finished/pending providers
+    * One batched debrid cache check per search
+    * Cached/uncached status is refreshed every time a title is reopened
+    * Sources missing a title word sort last, sources naming the episode sort first
+  * New context menu:
+    * Refresh sources
+  * A dead resolved link moves on to the next source instead of failing in the player
+  * Faster IMDb browsing:
+    * Public lists are kept for 30 min and refreshed in the background
+    * Fewer requests for long shows, known-for titles and Trakt sync
+    * Artwork is requested near display size
+    * Episode still frames as fanart
+  * Write actions (rate, watchlist, lists) are never cached and clear the cached IMDb pages
+  * Retry IMDb requests on temporary errors
+  * Remove AllDebrid support
+  * Fix H.264 codec label, audio channels and next-day episode dates
+
 * [v1.68.0](https://github.com/newt-sc/a4kStreaming/releases/tag/plugin.video.a4kstreaming%2Fplugin.video.a4kstreaming-1.68.0):
   * Fix trailers
 
@@ -275,7 +297,7 @@
   * Add debrid files browsing and streaming
 
 * [v0.20.0](https://github.com/newt-sc/a4kStreaming/releases/tag/plugin.video.a4kstreaming%2Fplugin.video.a4kstreaming-0.20.0):
-  * Fix missing seasons meta breaking tvshow scraping
+  * Fix missing seasons meta breaking tvshow source search
 
 * [v0.19.0](https://github.com/newt-sc/a4kStreaming/releases/tag/plugin.video.a4kstreaming%2Fplugin.video.a4kstreaming-0.19.0):
   * Remove the extra info view on title click

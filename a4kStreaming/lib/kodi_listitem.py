@@ -35,8 +35,6 @@ def ListItemInfoTag(listitem, tag_type: str = 'video', type_check=False):
     """
     factory_routes = {
         'video': _ListItemInfoTagVideo,
-        'music': _ListItemInfoTagMusic,
-        'game': _ListItemInfoTagGame
     }
 
     return factory_routes[tag_type](listitem, type_check=type_check)
@@ -173,13 +171,7 @@ class _ListItemInfoTagVideo(_ListItemInfoTag):
 
         try:
             for i in stream_details['video']:
-                try:
-                    self._info_tag.addVideoStream(VideoStreamDetail(**i))
-                except TypeError:
-                    # TEMP BANDAID workaround for inconsistent key names prior to Nexus Beta changes
-                    i['hdrType'] = i.pop('hdrtype', '')
-                    i['stereoMode'] = i.pop('stereomode', '')
-                    self._info_tag.addVideoStream(VideoStreamDetail(**i))
+                self._info_tag.addVideoStream(VideoStreamDetail(**i))
         except (KeyError, TypeError):
             pass
 
@@ -200,81 +192,3 @@ class _ListItemInfoTagVideo(_ListItemInfoTag):
         stream_details = {'video': [], 'audio': [], 'subtitle': []}
         stream_details[stream_type] = [stream_values]
         self.set_stream_details(stream_details)
-
-    def set_resume_point(self, infoproperties: dict, resume_key='ResumeTime', total_key='TotalTime', pop_keys=True):
-        """ Wrapper to get/pop resumetime and totaltime properties for InfoTagVideo.setResumePoint() """
-        getter_func = infoproperties.pop if pop_keys else infoproperties.get
-        try:
-            resume_time = float(getter_func(resume_key, 0.0))
-        except ValueError:
-            resume_time = None
-        try:
-            total_time = float(getter_func(total_key, 0.0))
-        except ValueError:
-            total_time = None
-        if resume_time and total_time:
-            self._info_tag.setResumePoint(resume_time, total_time)
-        elif resume_time:
-            self._info_tag.setResumePoint(resume_time)
-        return infoproperties
-
-    def set_unique_ids(self, unique_ids: dict, default_id: str = None):
-        """ Wrapper for compatibility with Matrix ListItem.setUniqueIDs() method """
-        self._info_tag.setUniqueIDs({k: f'{v}' for k, v in unique_ids.items()}, default_id)
-
-
-class _ListItemInfoTagMusic(_ListItemInfoTag):
-    _tag_gttr = 'getMusicInfoTag'
-    _tag_attr = {
-        'size': {'skip': True},  # Currently no infoTag setter for this property
-        'count': {'skip': True},  # Currently no infoTag setter for this property
-        'date': {'skip': True},  # Currently no infoTag setter for this property
-        'tracknumber': {'attr': 'setTrack', 'convert': int, 'classinfo': int},
-        'discnumber': {'attr': 'setDisc', 'convert': int, 'classinfo': int},
-        'duration': {'attr': 'setDuration', 'convert': int, 'classinfo': int},
-        'year': {'attr': 'setYear', 'convert': int, 'classinfo': int},
-        'genre': {'attr': 'setGenres', 'convert': lambda x: [x], 'classinfo': (list, tuple)},
-        'album': {'attr': 'setAlbum', 'convert': str, 'classinfo': str},
-        'artist': {'attr': 'setArtist', 'convert': str, 'classinfo': str},
-        'title': {'attr': 'setTitle', 'convert': str, 'classinfo': str},
-        'rating': {'attr': 'setRating', 'convert': float, 'classinfo': float},
-        'userrating': {'attr': 'setUserRating', 'convert': int, 'classinfo': int},
-        'lyrics': {'attr': 'setLyrics', 'convert': str, 'classinfo': str},
-        'playcount': {'attr': 'setPlayCount', 'convert': int, 'classinfo': int},
-        'lastplayed': {'attr': 'setLastPlayed', 'convert': str, 'classinfo': str},
-        'mediatype': {'attr': 'setMediaType', 'convert': str, 'classinfo': str},
-        'dbid': {'route': 'set_info_music_dbid'},
-        'listeners': {'attr': 'setListeners', 'convert': int, 'classinfo': int},
-        'musicbrainztrackid': {'attr': 'setMusicBrainzTrackID', 'convert': str, 'classinfo': str},
-        'musicbrainzartistid': {'attr': 'setMusicBrainzArtistID', 'convert': lambda x: [x], 'classinfo': (list, tuple)},
-        'musicbrainzalbumid': {'attr': 'setMusicBrainzAlbumID', 'convert': str, 'classinfo': str},
-        'musicbrainzalbumartistid': {'attr': 'setMusicBrainzAlbumArtistID', 'convert': lambda x: [x], 'classinfo': (list, tuple)},
-        'songvideourl': {'attr': 'setSongVideoURL', 'convert': str, 'classinfo': str},
-        'comment': {'attr': 'setComment', 'convert': str, 'classinfo': str},
-        'albumartist': {'attr': 'setAlbumArtist', 'convert': str, 'classinfo': str},  # Not listed in setInfo docs but included for forward compatibility
-    }
-
-    def set_info_music_dbid(self, dbid: int, infolabels: dict, *args, **kwargs):
-        """ Wrapper for InfoTagMusic.setDbId to retrieve mediatype """
-        try:
-            mediatype = infolabels['mediatype']
-            self._info_tag.setDbId(int(dbid), mediatype)
-        except (KeyError, TypeError):
-            return
-
-
-class _ListItemInfoTagGame(_ListItemInfoTag):
-    _tag_gttr = 'getGameInfoTag'
-    _tag_attr = {
-        'size': {'skip': True},  # Currently no infoTag setter for this property
-        'count': {'skip': True},  # Currently no infoTag setter for this property
-        'date': {'skip': True},  # Currently no infoTag setter for this property
-        'title': {'attr': 'setTitle', 'convert': str, 'classinfo': str},
-        'platform': {'attr': 'setPlatform', 'convert': str, 'classinfo': str},
-        'genres': {'attr': 'setGenres', 'convert': lambda x: [x], 'classinfo': (list, tuple)},
-        'publisher': {'attr': 'setPublisher', 'convert': str, 'classinfo': str},
-        'developer': {'attr': 'setDeveloper', 'convert': str, 'classinfo': str},
-        'overview': {'attr': 'setOverview', 'convert': str, 'classinfo': str},
-        'year': {'attr': 'setYear', 'convert': int, 'classinfo': int},
-        'gameclient': {'attr': 'setGameClient', 'convert': str, 'classinfo': str},
-    }

@@ -55,16 +55,13 @@ def __migrate_status(core, params):
             msg = [state.progress_msg]
             if state.target:
                 target = 'Show: %s' % state.target
-                if core.utils.py2:
-                    msg.append(target)
-                else:
-                    msg = [state.progress_msg + '\n' + target]
+                msg = [state.progress_msg + '\n' + target]
 
             progress.update(int(float(state.current) / state.total * 100), *msg)
 
         def mark_ids(ids, increment=True):
             ratings = []
-            for chunk in core.utils.chunk(ids, 50):
+            for chunk in core.utils.chunk(ids, 100):
                 if progress.iscanceled():
                     break
                 ratings += core.query(core, core.utils.DictAsObject({ 'type': 'ratings', 'ids': chunk }))
@@ -83,7 +80,7 @@ def __migrate_status(core, params):
                     core.logger.notice('error transfering set of ids starting with %s' % id)
                     return
 
-            for chunk in core.utils.chunk(unrated_ids, 50):
+            for chunk in core.utils.chunk(unrated_ids, 100):
                 if progress.iscanceled():
                     break
                 core.profile(core, core.utils.DictAsObject({ 'type': 'mark_as_watched', 'ids': '__'.join(chunk), 'silent': True }))
@@ -178,7 +175,7 @@ def __migrate_status(core, params):
         update_progress()
 
         for chunk in core.utils.chunk(results, 10000):
-            state.threads.append(core.threading.Thread(target=mark_show_ids, args=(results,)))
+            state.threads.append(core.threading.Thread(target=mark_show_ids, args=(chunk,)))
 
         exec_thread = core.threading.Thread(target=execute)
         exec_thread.start()
@@ -250,7 +247,7 @@ def __migrate_collections(core, params):
             ids = [title[type]['ids']['imdb'] for title in trakt_collection]
             current = 0
 
-            for chunk in core.utils.chunk(ids, 50):
+            for chunk in core.utils.chunk(ids, 100):
                 if progress.iscanceled():
                     break
                 core.profile(core, core.utils.DictAsObject({ 'type': 'list_add', 'imdb_list': target_lists[type_plural], 'ids': '__'.join(chunk), 'silent': True }))
