@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <addon id="plugin.video.a4kstreaming"
        name="a4kStreaming"
-       version="1.70.0"
+       version="1.71.0"
        provider-name="Unknown">
     <requires>
       <import addon="xbmc.python" version="3.0.1"/>
@@ -36,6 +36,14 @@ Designed for low-end devices and Estuary skin.
             <screenshot>screenshot-08.jpg</screenshot>
         </assets>
         <news>
+[v1.71.0]:
+  * Top menu on Up: Watch Now, Movies, TV Shows, Animations, Animated TV, Reality, Search and settings
+  * Search window with an on-screen keyboard, type/genre/era/rating/country filters and live results
+  * Year chips on Up over the category grids
+  * Animated loader in place of the busy spinner and the empty home page at start
+  * Person page works without an IMDb login
+  * Focused posters show at once, captions are no longer clipped
+  * New Appearance settings: home rows, My List, category tabs, hero rotation and row order
 [v1.70.0]:
   * New interface, designed for the TV:
     * Home: a rotating top shelf of trending movies, Trending Movies and TV Shows rows, Watchlist and Browse tiles

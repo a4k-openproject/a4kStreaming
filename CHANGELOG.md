@@ -1,3 +1,11 @@
+* [v1.71.0](https://github.com/newt-sc/a4kStreaming/releases/tag/plugin.video.a4kstreaming%2Fplugin.video.a4kstreaming-1.71.0):
+  * Top menu on Up: Watch Now, Movies, TV Shows, Animations, Animated TV, Reality, Search and settings
+  * Search window with an on-screen keyboard, type/genre/era/rating/country filters and live results
+  * Year chips on Up over the category grids
+  * Animated loader in place of the busy spinner and the empty home page at start
+  * Person page works without an IMDb login
+  * Focused posters show at once, captions are no longer clipped
+  * New Appearance settings: home rows, My List, category tabs, hero rotation and row order
 * [v1.70.0](https://github.com/newt-sc/a4kStreaming/releases/tag/plugin.video.a4kstreaming%2Fplugin.video.a4kstreaming-1.70.0):
   * New interface, designed for the TV:
     * Home: a rotating top shelf of trending movies, Trending Movies and TV Shows rows, Watchlist and Browse tiles
