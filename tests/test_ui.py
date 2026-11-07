@@ -126,6 +126,14 @@ def test_window_uses_no_includes_or_named_colours(path):
     colours += [node.get('colordiffuse') for node in root.iter() if node.get('colordiffuse')]
     assert colours and all(re.fullmatch(r'[0-9A-F]{8}', colour) for colour in colours)
 
+def test_rows_do_not_reload_on_play_or_stop():
+    # Kodi reloads every unsorted <content> on each OnPlay/OnStop (DirectoryProvider::Announce). The reloads start new
+    # Python interpreters next to the playing plugin call, and two starting at once crash Kodi 21 (seen live with the
+    # trailer). programcount is 0 on every plugin item, and the sort is stable, so the listing order stays.
+    root = ElementTree.parse(os.path.join(WINDOWS, 'a4k-home.xml')).getroot()
+    rows = [node for node in root.iter('content') if (node.text or '').strip()]
+    assert len(rows) == 3 and all(node.get('sortby') == 'programcount' for node in rows)
+
 def test_focusable_controls_navigate_explicitly():
     # the page grouplist links only its groups, and a container with no edge action wraps around
     root = ElementTree.parse(os.path.join(WINDOWS, 'a4k-home.xml')).getroot()

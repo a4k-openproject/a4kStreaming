@@ -13,6 +13,9 @@
   from it. So each focusable control names its neighbour groups in onup/ondown, and a hidden group passes the move on
   through the links the grouplist gave it. A container or grouplist with no onleft/onright/ondown wraps around at its
   edge, so the edges say noop.
+
+  Rows sort by programcount (0 on every plugin item, stable sort, so the listing order stays): Kodi reloads an unsorted
+  <content> on every play and stop, and those parallel reloads next to a running plugin call crash Kodi 21.
 -->
 <window>
 	<defaultcontrol>201</defaultcontrol>
@@ -307,7 +310,7 @@
 							</control>
 						</control>
 					</focusedlayout>
-					<content target="videos">$INFO[Window.Property(a4k.row.301)]</content>
+					<content target="videos" sortby="programcount">$INFO[Window.Property(a4k.row.301)]</content>
 				</control>
 			</control>
 
@@ -430,7 +433,7 @@
 							</control>
 						</control>
 					</focusedlayout>
-					<content target="videos">$INFO[Window.Property(a4k.row.302)]</content>
+					<content target="videos" sortby="programcount">$INFO[Window.Property(a4k.row.302)]</content>
 				</control>
 			</control>
 
@@ -553,7 +556,7 @@
 							</control>
 						</control>
 					</focusedlayout>
-					<content target="videos">$INFO[Window.Property(a4k.row.303)]</content>
+					<content target="videos" sortby="programcount">$INFO[Window.Property(a4k.row.303)]</content>
 				</control>
 			</control>
 
