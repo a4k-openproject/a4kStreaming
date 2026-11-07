@@ -2,6 +2,8 @@
 
 def start(api):
     core = api.core
+    from .imdb import cursor_ttl
+    from .ui import app as ui_app
     monitor = core.kodi.xbmc.Monitor()
 
     class XBMCPlayer(core.kodi.xbmc.Player):
@@ -18,6 +20,8 @@ def start(api):
 
     update = lambda: None
     update.last_check = None
+    # the first pre-warm of the home rows waits for Kodi to settle, then repeats once per gallery cache TTL
+    update.last_prewarm = core.time.time() - cursor_ttl + 10
 
     def reset_vars():
         watched.playing_imdb_id = None
@@ -57,6 +61,10 @@ def start(api):
             update.last_check = core.time.time()
             thread = core.threading.Thread(target=core.provider, args=(core, core.utils.DictAsObject({ 'type': 'new_version_check', 'silent': True })))
             thread.start()
+
+        if core.time.time() - update.last_prewarm >= cursor_ttl:
+            update.last_prewarm = core.time.time()
+            core.threading.Thread(target=ui_app.prewarm).start()
 
         if watched.play_count and watched.play_count > 0:
             continue

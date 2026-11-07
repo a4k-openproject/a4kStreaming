@@ -243,6 +243,16 @@ def test_run_returns_to_an_open_home_window(core, app, home, monkeypatch, calls)
     app.run()
     assert calls == ['ActivateWindow(13001)']
 
+def test_prewarm_lists_the_public_rows(core, app, monkeypatch):
+    rpc = []
+    monkeypatch.setattr(core.kodi, 'json_rpc', lambda method, params, log_error=True: rpc.append((method, params['directory'])))
+    settings(core, monkeypatch)
+    app.prewarm()
+    assert rpc == [('Files.GetDirectory', PLUGIN + '?action=query&type=%s&widget=1' % type) for type in ('popularMovies', 'popularTVShows')]
+    settings(core, monkeypatch, {'ui.mode': '1'})
+    app.prewarm()
+    assert len(rpc) == 2
+
 # D. clicks and menus
 
 def info(type, id='tt1', path='', rated='false', trailers=''):
