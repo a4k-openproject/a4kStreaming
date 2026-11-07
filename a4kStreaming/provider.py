@@ -272,7 +272,8 @@ def __query_providers(core, params):
         thread = core.threading.Thread(target=get_sources, args=(key,))
         threads.append(thread)
 
-    progress = core.kodi.xbmcgui.DialogProgress()
+    from .ui import sheets
+    progress = sheets.progress()
     progress_total = len(sources)
 
     def progress_msg():

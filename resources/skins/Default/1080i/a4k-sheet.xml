@@ -1,0 +1,124 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  a4kStreaming select sheet (tvOS-like): the source picker and any generic select. The same rules as a4k-home.xml:
+  1080p pixels = dobby units x2, no includes and no named colours, Estuary font names, every control places itself
+  (left/top).
+
+  A glass sheet on the right half over a veil; the rows are filled from Python (label = quality and formats, label2 =
+  debrid, size and release title). The focused row is a white pill with dark text, lifted 1.03. Up and down wrap at the
+  ends, as Kodi's own select does.
+-->
+<window>
+	<defaultcontrol>600</defaultcontrol>
+	<controls>
+		<control type="image">
+			<left>0</left>
+			<top>0</top>
+			<width>1920</width>
+			<height>1080</height>
+			<texture colordiffuse="73000000">a4k/white.png</texture>
+			<animation effect="fade" start="0" end="100" time="240">WindowOpen</animation>
+			<animation effect="fade" start="100" end="0" time="150">WindowClose</animation>
+		</control>
+		<control type="group">
+			<left>960</left>
+			<top>80</top>
+			<width>880</width>
+			<height>920</height>
+			<animation effect="slide" start="60,0" end="0,0" time="240" tween="cubic" easing="out">WindowOpen</animation>
+			<animation effect="fade" start="0" end="100" time="240">WindowOpen</animation>
+			<animation effect="slide" start="0,0" end="60,0" time="150" tween="cubic" easing="in">WindowClose</animation>
+			<animation effect="fade" start="100" end="0" time="150">WindowClose</animation>
+			<control type="image">
+				<left>0</left>
+				<top>0</top>
+				<width>880</width>
+				<height>920</height>
+				<texture border="48">a4k/sheet.png</texture>
+			</control>
+			<control type="label">
+				<left>56</left>
+				<top>40</top>
+				<width>600</width>
+				<height>44</height>
+				<font>font25_title</font>
+				<textcolor>B8FFFFFF</textcolor>
+				<label>[UPPERCASE]$INFO[Window.Property(a4k.heading)][/UPPERCASE]</label>
+			</control>
+			<control type="label">
+				<left>624</left>
+				<top>40</top>
+				<width>200</width>
+				<height>44</height>
+				<font>font12</font>
+				<align>right</align>
+				<textcolor>80FFFFFF</textcolor>
+				<label>$INFO[Container(600).CurrentItem]$INFO[Container(600).NumItems, / ]</label>
+			</control>
+			<control type="list" id="600">
+				<onleft>noop</onleft>
+				<onright>noop</onright>
+				<left>24</left>
+				<top>108</top>
+				<width>832</width>
+				<height>780</height>
+				<orientation>vertical</orientation>
+				<scrolltime tween="cubic" easing="out">220</scrolltime>
+				<itemlayout width="832" height="104">
+					<control type="label">
+						<left>40</left>
+						<top>12</top>
+						<width>752</width>
+						<height>44</height>
+						<font>font30_title</font>
+						<textcolor>FFFFFFFF</textcolor>
+						<label>$INFO[ListItem.Label]</label>
+					</control>
+					<control type="label">
+						<left>40</left>
+						<top>56</top>
+						<width>752</width>
+						<height>36</height>
+						<font>font27</font>
+						<textcolor>B8FFFFFF</textcolor>
+						<label>$INFO[ListItem.Label2]</label>
+					</control>
+				</itemlayout>
+				<focusedlayout width="832" height="104">
+					<control type="group">
+						<left>0</left>
+						<top>0</top>
+						<animation effect="zoom" start="100" end="103" time="200" tween="cubic" easing="out" center="416,52" reversible="false">Focus</animation>
+						<animation effect="zoom" start="103" end="100" time="200" tween="cubic" easing="out" center="416,52" reversible="false">Unfocus</animation>
+						<control type="image">
+							<left>16</left>
+							<top>4</top>
+							<width>800</width>
+							<height>96</height>
+							<texture border="20" colordiffuse="FFF5F6FA">a4k/rr20.png</texture>
+						</control>
+						<control type="label">
+							<left>40</left>
+							<top>12</top>
+							<width>752</width>
+							<height>44</height>
+							<font>font30_title</font>
+							<textcolor>FF0C0D12</textcolor>
+							<label>$INFO[ListItem.Label]</label>
+						</control>
+						<control type="label">
+							<left>40</left>
+							<top>56</top>
+							<width>752</width>
+							<height>36</height>
+							<font>font27</font>
+							<scroll>true</scroll>
+							<textcolor>B30C0D12</textcolor>
+							<label>$INFO[ListItem.Label2]</label>
+						</control>
+					</control>
+				</focusedlayout>
+			</control>
+		</control>
+	</controls>
+</window>

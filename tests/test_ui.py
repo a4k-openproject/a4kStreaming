@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
-# Offline tests for the window interface: the skin lint, the root routing and its classic fallback, and the
-# home window's click and menu mapping.
+# Offline tests for the window interface: the skin lint, the root routing and its classic fallback, the home window's
+# click and menu mapping, and the play flow's sheets (select sheet and source search progress).
 
 import os
 import re
@@ -34,10 +34,13 @@ TEXTURES = {
     'a4k/ring_face.png': (188, 188),
     'a4k/rr20.png': (64, 64),
     'a4k/rr24.png': (64, 64),
+    'a4k/rr4.png': (8, 8),
     'a4k/scrim_bottom.png': (1, 512),
     'a4k/scrim_left.png': (256, 128),
     'a4k/shadow.png': (256, 256),
+    'a4k/sheet.png': (128, 128),
     'a4k/star.png': (64, 64),
+    'a4k/white.png': (8, 8),
 }
 
 @pytest.fixture(scope='module')
@@ -94,8 +97,8 @@ def png_size(path):
     assert head[:8] == b'\x89PNG\r\n\x1a\n' and head[12:16] == b'IHDR', path
     return struct.unpack('>II', head[16:24])
 
-def test_skin_has_the_home_and_detail_windows():
-    assert [os.path.basename(path) for path in windows()] == ['a4k-detail.xml', 'a4k-home.xml']
+def test_skin_has_the_windows_and_sheets():
+    assert [os.path.basename(path) for path in windows()] == ['a4k-detail.xml', 'a4k-home.xml', 'a4k-progress.xml', 'a4k-sheet.xml']
 
 @pytest.mark.parametrize('path', windows())
 def test_window_xml_parses_with_unique_control_ids(path):
@@ -395,3 +398,200 @@ def test_back_closes_and_errors_close_with_the_traceback(core, home, monkeypatch
     monkeypatch.setattr(home, 'labels', lambda item: 1 / 0)
     win.onAction(Action(home.ACTION_SELECT_ITEM))
     assert closed == [True, True] and 'ZeroDivisionError' in win.error
+
+# E. sheets: the select sheet and the source search progress card (the play loop's use is in test_unit.py)
+
+@pytest.fixture
+def sheets(core):
+    return importlib.import_module('a4kStreaming.ui.sheets')
+
+@pytest.fixture
+def sheet_errors(sheets, monkeypatch):
+    log = []
+    monkeypatch.setattr(sheets.logger, 'error', log.append)
+    return log
+
+def __result(core, release_title, size, debrid=None):
+    result = {'release_title': release_title, 'size': size, 'ref': core.utils.DictAsObject({'title': 'The Movie', 'year': 2020})}
+    core.utils.cleanup_result(result)
+    if debrid:
+        result['debrid'] = debrid
+    return result
+
+@pytest.mark.parametrize('release_title, size, debrid, row', [
+    ('The.Movie.2020.2160p.UHD.BluRay.x265.10bit.HDR.TrueHD.7.1.Atmos-GROUP', 58.3, 'PM',
+     ('4K  HDR 10BIT  H265  TRUEHD 7.1', 'PM  ·  58.3 GB  ·  GROUP')),
+    ('The Movie 2020 1080p WEB-DL DDP5.1 H.264-GROUP', 6.1, 'PM', ('1080P  H264  DD+ 5.1', 'PM  ·  6.1 GB  ·  P GROUP')),
+    ('The.Movie.2020.HDCAM-GRP', 1.4, None, ('CAM', '1.4 GB  ·  HD GRP')),
+])
+def test_source_row_from_a_result(core, sheets, release_title, size, debrid, row):
+    assert sheets.source_row(__result(core, release_title, size, debrid)) == row
+
+class SheetList(object):
+    def __init__(self): self.items, self.selected = [], -1
+    def size(self): return len(self.items)
+    def addItems(self, items): self.items.extend(items)
+    def selectItem(self, index): self.selected = index
+    def getSelectedPosition(self): return self.selected
+
+def test_select_sheet_rows_preselect_and_click(core, sheets, monkeypatch, sheet_errors):
+    settings(core, monkeypatch)
+    shown = []
+    monkeypatch.setattr(sheets.Sheet, 'getControl', lambda self, id: self.__dict__.setdefault('list', SheetList()))
+    def doModal(self):
+        shown.append(self)
+        self.onInit()
+        self.getControl(sheets.LIST).selectItem(2)
+        self.onClick(sheets.LIST)
+    monkeypatch.setattr(sheets.Sheet, 'doModal', doModal)
+    labels = ['[COLOR white][B]New Search[/B][/COLOR]', '[LIGHT]4.2 GB  |  [B][COLOR white]720P[/COLOR][/B][/LIGHT]', 'Other']
+    assert sheets.select('Choose', labels, preselect=1) == 2
+    win = shown[0]
+    assert win.getProperty('a4k.heading') == 'Choose' and win.getFocusId() == sheets.LIST
+    # without rows the labels are the rows, minus colours (the focused row is white)
+    assert [(i.label, i.label2) for i in win.getControl(sheets.LIST).items] == [
+        ('[B]New Search[/B]', ''), ('[LIGHT]4.2 GB  |  [B]720P[/B][/LIGHT]', ''), ('Other', '')]
+    assert sheet_errors == []
+
+@pytest.mark.parametrize('preselect, selected', [(1, 1), (-1, -1), (5, -1)])
+def test_select_sheet_preselect_in_range_only(core, sheets, monkeypatch, preselect, selected):
+    settings(core, monkeypatch)
+    seen = []
+    monkeypatch.setattr(sheets.Sheet, 'getControl', lambda self, id: self.__dict__.setdefault('list', SheetList()))
+    monkeypatch.setattr(sheets.Sheet, 'doModal', lambda self: self.onInit() or seen.append(self.getControl(sheets.LIST).selected))
+    assert sheets.select('Choose', ['a', 'b'], preselect=preselect, rows=[('a', 'x'), ('b', 'y')]) == -1  # closed without a click
+    assert seen == [selected]
+
+def test_select_sheet_back_is_minus_one(core, sheets, monkeypatch):
+    settings(core, monkeypatch)
+    monkeypatch.setattr(sheets.Sheet, 'getControl', lambda self, id: self.__dict__.setdefault('list', SheetList()))
+    def doModal(self):
+        self.onInit()
+        self.getControl(sheets.LIST).selectItem(1)
+        self.onAction(Action(sheets.ACTION_NAV_BACK))
+    monkeypatch.setattr(sheets.Sheet, 'doModal', doModal)
+    assert sheets.select('Choose', ['a', 'b']) == -1
+
+def test_select_in_classic_mode_is_the_stock_select(core, sheets, monkeypatch):
+    settings(core, monkeypatch, {'ui.mode': '1'})
+    monkeypatch.setattr(sheets, 'Sheet', lambda *args: pytest.fail('sheet opened'))
+    calls = []
+    dialog = lambda: None
+    dialog.select = lambda heading, items, preselect=-1: calls.append((heading, items, preselect)) or 1
+    monkeypatch.setattr(core.kodi.xbmcgui, 'Dialog', lambda: dialog)
+    assert sheets.select('Choose', ['[B]a[/B]', 'b'], preselect=1, rows=[('a', ''), ('b', '')]) == 1
+    assert calls == [('Choose', ['[B]a[/B]', 'b'], 1)]
+
+@pytest.mark.parametrize('breakage', ['constructor', 'oninit', 'click'])
+def test_select_window_error_falls_back_to_the_stock_select_once(core, sheets, monkeypatch, sheet_errors, breakage):
+    settings(core, monkeypatch)
+    if breakage == 'constructor':
+        def missing(*args): raise RuntimeError('a4k-sheet.xml not found')
+        monkeypatch.setattr(sheets, 'Sheet', missing)
+    elif breakage == 'oninit':
+        def broken(self, id): raise RuntimeError('Non-Existent Control 600')
+        monkeypatch.setattr(sheets.Sheet, 'getControl', broken)
+    else:
+        monkeypatch.setattr(sheets.Sheet, 'getControl', lambda self, id: self.__dict__.setdefault('list', SheetList()))
+        monkeypatch.setattr(sheets.Sheet, 'doModal', lambda self: self.onInit() or self.onClick(sheets.LIST) or None)
+        monkeypatch.setattr(SheetList, 'getSelectedPosition', lambda self: 1 / 0)
+    calls = []
+    dialog = lambda: None
+    dialog.select = lambda heading, items, preselect=-1: calls.append((heading, items, preselect)) or 0
+    monkeypatch.setattr(core.kodi.xbmcgui, 'Dialog', lambda: dialog)
+    assert sheets.select('Choose', ['a', 'b'], preselect=1) == 0
+    assert calls == [('Choose', ['a', 'b'], 1)] and len(sheet_errors) == 1
+    assert core.kodi.xbmcgui.Window(10000).getProperty(sheets.FAILED)
+    # the rest of the session goes straight to the stock dialog, with no new log line
+    monkeypatch.setattr(sheets, 'Sheet', lambda *args: pytest.fail('sheet opened'))
+    sheets.select('Choose', ['a', 'b'])
+    assert len(calls) == 2 and len(sheet_errors) == 1
+
+class StockProgress(object):
+    # records the calls the source search makes on xbmcgui.DialogProgress
+    def __init__(self): self.calls = []
+    def create(self, heading, message=''): self.calls.append(('create', heading, message))
+    def update(self, percent, message=''): self.calls.append(('update', percent, message))
+    def iscanceled(self): return False
+    def close(self): self.calls.append(('close',))
+
+def test_progress_has_the_stock_dialogs_api(core, sheets):
+    # the search calls create(heading, message), update(percent, message), iscanceled() and close(); same signatures
+    import inspect
+    for name in ('create', 'update', 'iscanceled', 'close'):
+        ours = list(inspect.signature(getattr(sheets.Progress, name)).parameters.values())
+        stock = list(inspect.signature(getattr(StockProgress, name)).parameters.values())
+        assert [(p.name, p.default) for p in ours] == [(p.name, p.default) for p in stock], name
+
+def test_progress_card_shows_the_message_lines_and_the_bar(core, sheets, monkeypatch, sheet_errors):
+    shown, closed = [], []
+    monkeypatch.setattr(sheets.ProgressWindow, 'show', lambda self: shown.append(self))
+    monkeypatch.setattr(sheets.ProgressWindow, 'close', lambda self: closed.append(self))
+    progress = sheets.Progress()
+    progress.create('a4kStreaming', 'Results: 0\nDone: 0/2\nPending: 2  A | B')
+    card = shown[0]
+    assert [card.getProperty('a4k.line%s' % i) for i in (1, 2, 3)] == ['Results: 0', 'Done: 0/2', 'Pending: 2  A | B']
+    assert card.getProperty('a4k.heading') == 'a4kStreaming' and card.getControl(sheets.BAR).percent == 0
+    progress.update(40, 'Results: 3')
+    assert [card.getProperty('a4k.line%s' % i) for i in (1, 2, 3)] == ['Results: 3', '', '']
+    assert card.getControl(sheets.BAR).percent == 40 and not progress.iscanceled()
+    card.onAction(Action(sheets.ACTION_PREVIOUS_MENU))
+    assert progress.iscanceled() and closed == [card]
+    progress.close()
+    assert sheet_errors == []
+
+def test_progress_window_error_moves_to_the_stock_dialog(core, sheets, monkeypatch, sheet_errors):
+    stock = StockProgress()
+    monkeypatch.setattr(core.kodi.xbmcgui, 'DialogProgress', lambda: stock)
+    monkeypatch.setattr(sheets.ProgressWindow, 'show', lambda self: None)
+    progress = sheets.Progress()
+    progress.create('a4kStreaming', 'one')
+    def broken(percent): raise RuntimeError('control gone')
+    progress.bar.setPercent = broken
+    progress.update(30, 'two')
+    progress.update(60, 'three')
+    progress.close()
+    assert stock.calls == [('create', 'a4kStreaming', 'two'), ('update', 30, 'two'), ('update', 60, 'three'), ('close',)]
+    assert len(sheet_errors) == 1 and not progress.iscanceled()
+
+def test_progress_in_classic_mode_or_after_a_failure_is_the_stock_dialog(core, sheets, monkeypatch):
+    stock = StockProgress()
+    monkeypatch.setattr(core.kodi.xbmcgui, 'DialogProgress', lambda: stock)
+    settings(core, monkeypatch, {'ui.mode': '1'})
+    assert sheets.progress() is stock
+    settings(core, monkeypatch)
+    assert isinstance(sheets.progress(), sheets.Progress)
+    core.kodi.xbmcgui.Window(10000).setProperty(sheets.FAILED, 'true')
+    assert sheets.progress() is stock
+
+# sheet skin lint (the shared checks run over every window above)
+
+def __xml(name):
+    return ElementTree.parse(os.path.join(WINDOWS, name)).getroot()
+
+def test_sheet_python_ids_exist_with_types_kodi_can_wrap(sheets):
+    for name, id, type in (('a4k-sheet.xml', sheets.LIST, 'list'), ('a4k-progress.xml', sheets.BAR, 'progress')):
+        types = {int(c.get('id')): c.get('type') for c in __xml(name).iter('control') if c.get('id')}
+        assert types == {id: type} and type in PYTHON_CONTROL_TYPES
+        containers = {int(n) for n in re.findall(r'Container\((\d+)\)', open(os.path.join(WINDOWS, name)).read())}
+        assert containers <= set(types)
+
+def test_sheet_properties_the_xml_reads_are_set(core, sheets, monkeypatch):
+    settings(core, monkeypatch)
+    windows = []
+    monkeypatch.setattr(sheets.Sheet, 'getControl', lambda self, id: self.__dict__.setdefault('list', SheetList()))
+    monkeypatch.setattr(sheets.Sheet, 'doModal', lambda self: windows.append(self) or self.onInit())
+    monkeypatch.setattr(sheets.ProgressWindow, 'show', lambda self: windows.append(self))
+    sheets.select('Choose', ['a'])
+    sheets.Progress().create('a4kStreaming', 'line')
+    for name, window in zip(('a4k-sheet.xml', 'a4k-progress.xml'), windows):
+        read = set(re.findall(r'Window\.Property\(([\w.]+)\)', open(os.path.join(WINDOWS, name)).read()))
+        assert read and read <= set(window.properties), name
+
+def test_sheet_list_takes_focus_and_does_not_leave_sideways():
+    root = __xml('a4k-sheet.xml')
+    assert root.findtext('defaultcontrol') == '600'
+    rows = [c for c in root.iter('control') if c.get('id') == '600'][0]
+    # up and down wrap at the ends, as Kodi's own select does; left and right stay
+    assert rows.findtext('onleft') == 'noop' and rows.findtext('onright') == 'noop'
+    assert rows.find('onup') is None and rows.find('ondown') is None

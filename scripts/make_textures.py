@@ -139,6 +139,21 @@ def ring_face():
     draw.ellipse((6 * SS, 6 * SS, (size - 6) * SS - 1, (size - 6) * SS - 1), fill=(0, 0, 0, 0))
     return img.resize((size, size), Image.LANCZOS)
 
+def sheet():
+    # sheet glass (dobby rgba(62,64,80,.97) -> rgba(34,36,46,.97)), r44, 1px top highlight 2EFFFFFF; 9-sliced, border 48
+    w = h = 128
+    a, b = (62, 64, 80), (34, 36, 46)
+    rows = []
+    for y in range(h):
+        c = [a[i] + (b[i] - a[i]) * y / (h - 1) for i in range(3)]
+        if y == 1:
+            c = [v + (255 - v) * 0x2E / 255 for v in c]
+        rows.append(tuple(int(round(v)) for v in c))
+    img = Image.new('RGBA', (w, h))
+    img.putdata([rows[y] + (255,) for y in range(h) for _ in range(w)])
+    img.putalpha(rounded((w, h), 44).getchannel('A').point(lambda v: int(round(v * .97))))
+    return img
+
 def main():
     os.makedirs(OUT, exist_ok=True)
     save(rounded((64, 64), 20), 'rr20.png')
@@ -159,6 +174,10 @@ def main():
     save(rounded((176, 176), 88), 'mask_face.png')
     save(placeholder((176, 176), 88, (58, 58, 62), (31, 31, 35)), 'placeholder_face.png')
     save(ring_face(), 'ring_face.png')
+    # sheets: flat veil, sheet glass, progress bar
+    save(Image.new('RGBA', (8, 8), (255, 255, 255, 255)), 'white.png')
+    save(sheet(), 'sheet.png')
+    save(rounded((8, 8), 4), 'rr4.png')
 
 if __name__ == '__main__':
     main()

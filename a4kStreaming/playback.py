@@ -7,6 +7,7 @@ from .listing import (
 from .imdb import (
     query,
 )
+from .ui import sheets
 
 def cache_sources(core, params, results=None):
     pm_apikey = core.utils.get_premiumize_apikey(core)
@@ -344,10 +345,11 @@ def play(core, params):
 
     while True:
         if not autoplay:
-            selection = core.kodi.xbmcgui.Dialog().select(
+            selection = sheets.select(
                 'Choose source',
                 [__action_menu_style % 'New Search'] + [result_style % results[key].get('title_with_debrid', results[key]['title']) for key in results_keys],
-                preselect=selection
+                preselect=selection,
+                rows=[('New Search', '')] + [sheets.source_row(results[key]) for key in results_keys],
             )
 
         if selection == -1:

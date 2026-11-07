@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  a4kStreaming source search progress (tvOS-like): a centred glass card, shown without blocking (show()) once the search
+  has run for a second. The same rules as a4k-home.xml: no includes and no named colours, Estuary font names, every
+  control places itself (left/top). The three lines are the stock progress dialog's text (results and time left, done,
+  pending); Back cancels and the search keeps what it found.
+-->
+<window>
+	<controls>
+		<control type="group">
+			<left>600</left>
+			<top>390</top>
+			<width>720</width>
+			<height>300</height>
+			<animation effect="fade" start="0" end="100" time="200">WindowOpen</animation>
+			<animation effect="zoom" start="96" end="100" time="200" tween="cubic" easing="out" center="960,540">WindowOpen</animation>
+			<animation effect="fade" start="100" end="0" time="150">WindowClose</animation>
+			<control type="image">
+				<left>0</left>
+				<top>0</top>
+				<width>720</width>
+				<height>300</height>
+				<texture border="48">a4k/sheet.png</texture>
+			</control>
+			<control type="label">
+				<left>48</left>
+				<top>32</top>
+				<width>624</width>
+				<height>30</height>
+				<font>font12</font>
+				<textcolor>B8FFFFFF</textcolor>
+				<label>[UPPERCASE]$INFO[Window.Property(a4k.heading)][/UPPERCASE]</label>
+			</control>
+			<control type="label">
+				<left>48</left>
+				<top>62</top>
+				<width>624</width>
+				<height>48</height>
+				<font>font32_title</font>
+				<textcolor>FFFFFFFF</textcolor>
+				<label>Finding sources</label>
+			</control>
+			<control type="progress" id="700">
+				<left>48</left>
+				<top>124</top>
+				<width>624</width>
+				<height>8</height>
+				<texturebg border="4" colordiffuse="47FFFFFF">a4k/rr4.png</texturebg>
+				<lefttexture></lefttexture>
+				<midtexture border="4" colordiffuse="FFF5F6FA">a4k/rr4.png</midtexture>
+				<righttexture></righttexture>
+				<overlaytexture></overlaytexture>
+			</control>
+			<control type="label">
+				<left>48</left>
+				<top>150</top>
+				<width>624</width>
+				<height>36</height>
+				<font>font12</font>
+				<textcolor>FFFFFFFF</textcolor>
+				<label>$INFO[Window.Property(a4k.line1)]</label>
+			</control>
+			<control type="label">
+				<left>48</left>
+				<top>188</top>
+				<width>624</width>
+				<height>36</height>
+				<font>font12</font>
+				<textcolor>B8FFFFFF</textcolor>
+				<label>$INFO[Window.Property(a4k.line2)]</label>
+			</control>
+			<control type="label">
+				<left>48</left>
+				<top>226</top>
+				<width>624</width>
+				<height>36</height>
+				<font>font12</font>
+				<textcolor>B8FFFFFF</textcolor>
+				<label>$INFO[Window.Property(a4k.line3)]</label>
+			</control>
+		</control>
+	</controls>
+</window>

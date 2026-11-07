@@ -93,6 +93,7 @@ def __create_listitem(*args, **kwargs):
     # each item records its art, properties and context menu so tests can read what a listing set
     listitem = lambda: None
     listitem.label = kwargs.get('label', args[0] if args else '')
+    listitem.label2 = kwargs.get('label2', args[1] if len(args) > 1 else '')
     listitem.art = {}
     listitem.properties = {}
     listitem.context_menu = []
@@ -153,6 +154,7 @@ class ControlList(object):
     def getSelectedPosition(self): return 0 if self.items else -1
     def getSelectedItem(self): return self.items[0] if self.items else None
     def selectItem(self, index): pass
+    def setPercent(self, percent): self.percent = percent
 xbmcgui.ControlList = ControlList
 
 class WindowXML(_Window):
