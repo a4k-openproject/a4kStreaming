@@ -302,15 +302,21 @@ def test_years_picks_a_decade_then_a_year_and_back_returns_to_the_decades(core, 
     sheets = importlib.import_module('a4kStreaming.ui.sheets')
     asked = []
     picks = [1, -1, 1, 0, -1]
-    monkeypatch.setattr(sheets, 'select', lambda heading, items: asked.append((heading, items)) or picks.pop(0))
+    preselects = []
+    def select(heading, items, preselect=-1):
+        asked.append((heading, items))
+        preselects.append(preselect)
+        return picks.pop(0)
+    monkeypatch.setattr(sheets, 'select', select)
     grid.years()
+    assert preselects == [-1, -1, 1, -1]  # Back on the years focuses the decade picked before
     now = datetime.now().year
     decade = now - now % 10 - 10
     assert [heading for heading, _ in asked] == ['Discover by Year', '%s-%s' % (decade, decade + 9)] * 2
     assert asked[1][1][0] == str(decade + 9) and len(asked[1][1]) == 10
     assert shown == [(PLUGIN + '?action=query&type=year&widget=1&target_year=%s' % (decade + 9), str(decade + 9), 'Year')]
     grid.years()  # Back on the decades
-    assert len(shown) == 1
+    assert len(shown) == 1 and preselects[-1] == -1
 
 def test_known_for_needs_an_imdb_login(core, grid, shown, notes, monkeypatch):
     grid.known_for('nm1', 'Ana Torres')

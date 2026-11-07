@@ -239,8 +239,9 @@ def years():
     from . import sheets
     now = datetime.now().year
     decades = list(range(now - now % 10, 1899, -10))
-    while True:
-        choice = sheets.select('Discover by Year', ['%s-%s' % (start, start + 9) for start in decades])
+    choice = -1
+    while True:  # Back on the years returns to the decades with the picked one focused
+        choice = sheets.select('Discover by Year', ['%s-%s' % (start, start + 9) for start in decades], preselect=choice)
         if choice < 0:
             return
         years = [year for year in range(decades[choice] + 9, decades[choice] - 1, -1) if year <= now]
