@@ -130,8 +130,9 @@ def test_movie_view_model(core, detail, listing):
 
 def test_series_view_model(core, detail):
     vm = detail.view_model(core, fixture()['series'])
-    assert (vm['type'], vm['kicker'], vm['title'], vm['runtime'], vm['play']) == ('tvSeries', 'TV SERIES · DRAMA', 'Severance', '3 Seasons', '')
-    # the pills are the listing's seasons (season 3 has only year dates, so neither lists it); the latest aired opens
+    assert (vm['type'], vm['kicker'], vm['title'], vm['runtime'], vm['play']) == ('tvSeries', 'TV SERIES · DRAMA', 'Severance', '2 Seasons', '')
+    # the pills are the listing's seasons (season 3 has only year dates, so neither lists it, and the count says what
+    # can be opened, not IMDb's 3); the latest aired opens
     assert [(p['label'], p['url']) for p in vm['seasons']] == [
         ('Season %s' % (i + 1), PLUGIN + url + '&widget=1') for i, (url, _) in enumerate(GOLDEN[SERIES])]
     assert vm['season'] == 1

@@ -136,10 +136,11 @@ def view_model(core, title):
     art = still or title.get('primaryImage', None)
     rating = (title.get('ratingsSummary', None) or {}).get('aggregateRating', None)
     genres = title.get('genres', None) or []
-    count = len((title.get('episodes', None) or {}).get('seasons', None) or [])
     menu = __menu(core, title)
     trailer, watchlist = __actions(menu, title.get('primaryVideos', None))
     pills, selected = seasons(core, title) if series else ([], 0)
+    # the seasons the user can open (IMDb also counts announced seasons with no episode listed yet)
+    count = len(pills) or len((title.get('episodes', None) or {}).get('seasons', None) or [])
     return {
         'id': title['id'],
         'type': type,
