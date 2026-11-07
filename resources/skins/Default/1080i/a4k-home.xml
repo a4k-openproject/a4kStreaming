@@ -902,6 +902,11 @@
 					<height>68</height>
 					<animation effect="zoom" start="100" end="106" time="220" tween="cubic" easing="out" center="36,34" condition="Control.HasFocus(168)">Conditional</animation>
 					<control type="button" id="168">
+						<!-- inside a group, so the grouplist's own navigation does not reach it -->
+						<onup>noop</onup>
+						<ondown>201</ondown>
+						<onleft>167</onleft>
+						<onright>noop</onright>
 						<left>0</left>
 						<top>0</top>
 						<width>72</width>
