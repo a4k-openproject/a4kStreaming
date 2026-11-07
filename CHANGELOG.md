@@ -1,3 +1,15 @@
+* [v1.70.0](https://github.com/newt-sc/a4kStreaming/releases/tag/plugin.video.a4kstreaming%2Fplugin.video.a4kstreaming-1.70.0):
+  * New interface, designed for the TV:
+    * Home: a rotating top shelf of trending movies, Trending Movies and TV Shows rows, Watchlist and Browse tiles
+    * Title detail: backdrop, ratings, plot, Play/Trailer/More buttons, cast and crew, seasons and episodes
+    * Browse grid for lists, search, years, more like this and known for, with paging
+    * Sheets for title menus, source selection and source search progress
+  * Faster browsing:
+    * Home rows load in parallel and are prepared in the background after KODI starts
+    * Title details are requested while a title keeps focus, the next page while scrolling near the end
+    * Public listings are kept on disk, personal ones are always fresh
+  * New setting: Interface (Windows or Classic), Classic keeps the previous listings
+  * Provider install accepts the install choice from a plugin URL
 * [v1.69.0](https://github.com/newt-sc/a4kStreaming/releases/tag/plugin.video.a4kstreaming%2Fplugin.video.a4kstreaming-1.69.0):
   * Requires KODI 20 or newer
   * Faster source search:
