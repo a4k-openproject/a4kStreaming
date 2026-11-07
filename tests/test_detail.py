@@ -328,6 +328,12 @@ def test_every_property_the_xml_reads_is_set(core, detail, opened):
     read = set(re.findall(r'Window\.Property\(([\w.]+)\)', open(XML).read()))
     assert read <= set(opened[0].properties)
 
+def test_episodes_row_shows_on_its_url_alone():
+    # the URL arrives after the window opened; a row hidden until it has items never loads them (Kodi skips updating a
+    # hidden container), so the episodes shelf stayed empty on the rig
+    group = [c for c in root().iter('control') if c.get('id') == '330'][0]
+    assert group.findtext('visible') == '!String.IsEmpty(Window.Property(a4k.episodes))'
+
 def test_focusable_controls_navigate_explicitly(detail):
     page = [c for c in root().iter('control') if c.get('id') == '100'][0]
     groups = {c.get('id') for c in page.findall('control')}

@@ -354,7 +354,8 @@
 				<top>0</top>
 				<width>1920</width>
 				<height>400</height>
-				<visible>!String.IsEmpty(Window.Property(a4k.episodes)) + [Integer.IsGreater(Container(530).NumItems,0) | Container(530).IsUpdating]</visible>
+				<!-- visible on the URL alone: the URL is set after the window opens, and a hidden provider row never loads -->
+				<visible>!String.IsEmpty(Window.Property(a4k.episodes))</visible>
 				<control type="label">
 					<left>96</left>
 					<top>0</top>
