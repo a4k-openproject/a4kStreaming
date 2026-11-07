@@ -374,6 +374,8 @@ def test_detail_cast_opens_known_for_and_the_plot_opens_in_full(core, detail, gr
 def shelf(core, home, labels, monkeypatch, count='20'):
     win = home.Home('a4k-home.xml', '', 'Default', '1080i')
     win.own_id = 13000
+    win.stopped = threading.Event()
+    monkeypatch.setattr(home, 'HERO_FADE', 0)
     monkeypatch.setattr(core.kodi.xbmcgui, 'getCurrentWindowId', lambda: 13000)
     labels['Container(301).NumItems'] = count
     for index in range(int(count or 0)):
@@ -412,12 +414,13 @@ def test_rotation_paints_when_the_row_is_in_then_turns_every_15_seconds(core, ho
         if len(polls) == 3:  # the row lands after three polls
             labels.update({'Container(301).NumItems': '20', 'Container(301).ListItemAbsolute(0).Label': 'Movie 0',
                            'Container(301).ListItemAbsolute(1).Label': 'Movie 1'})
-        return len(polls) >= 6
+        return len(polls) >= 8
     painted = []
     monkeypatch.setattr(win, 'show_hero', lambda: painted.append(win.hero))
-    win.stopped = SimpleNamespace(is_set=lambda: False, wait=wait)  # the window closes at the sixth wait
+    win.stopped = SimpleNamespace(is_set=lambda: False, wait=wait)  # the window closes at the eighth wait
     win.rotate()
-    assert polls == [0.1, 0.1, 0.1, home.HERO_TURN, home.HERO_TURN, home.HERO_TURN]
+    turn = [home.HERO_TURN, home.HERO_FADE]  # each turn waits for the text's fade-out
+    assert polls == [0.1, 0.1, 0.1] + turn * 2 + [home.HERO_TURN]
     assert painted == [0, 1, 2] and win.error is None
 
 def test_turn_walks_the_first_six_and_wraps(core, home, labels, monkeypatch):
@@ -428,7 +431,23 @@ def test_turn_walks_the_first_six_and_wraps(core, home, labels, monkeypatch):
         win.turn()
         seen.append(win.getProperty('a4k.hero.label'))
     assert seen == ['Movie %s' % i for i in range(6)] + ['Movie 0']
-    assert win.getProperty('a4k.hero.fanart') == 'f0.jpg'
+    assert win.getProperty('a4k.hero.fanart') == 'f0.jpg' and win.getProperty('a4k.hero.shown') == 'true'
+
+def test_turn_fades_the_text_out_before_the_next_title(core, home, labels, monkeypatch):
+    win = shelf(core, home, labels, monkeypatch)
+    win.show_hero()
+    seen = []
+    def wait(seconds):
+        seen.append((seconds, win.getProperty('a4k.hero.shown'), win.getProperty('a4k.hero.label'), win.hero))
+        return closing
+    win.stopped = SimpleNamespace(wait=wait)
+    closing = False
+    win.turn()
+    assert seen == [(home.HERO_FADE, '', 'Movie 0', 0)] and win.hero == 1
+    assert (win.getProperty('a4k.hero.shown'), win.getProperty('a4k.hero.label')) == ('true', 'Movie 1')
+    closing = True  # the window closes during the fade: nothing more is set
+    win.turn()
+    assert win.hero == 1 and win.getProperty('a4k.hero.shown') == '' and win.getProperty('a4k.hero.label') == 'Movie 1'
 
 @pytest.mark.parametrize('window_id, dialog_id', [(13001, 9999), (13000, 10138), (12005, 9999)])
 def test_turn_waits_under_a_dialog_or_another_window(core, home, labels, monkeypatch, window_id, dialog_id):

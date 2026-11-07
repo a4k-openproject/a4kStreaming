@@ -198,7 +198,7 @@ def test_every_row_property_the_xml_reads_is_set(core, home, monkeypatch):
     monkeypatch.setattr(home.Home, 'doModal', lambda self: opened.update(self.properties))
     home.open()
     xml = open(os.path.join(WINDOWS, 'a4k-home.xml')).read()
-    hero = {'a4k.hero.' + key for key in home.HERO_FIELDS}  # set by the rotation once the row is in
+    hero = {'a4k.hero.' + key for key in list(home.HERO_FIELDS) + ['shown']}  # set by the rotation once the row is in
     read = set(re.findall(r'Window\.Property\(([\w.]+)\)', xml))
     assert read - hero <= set(opened) and read & hero == hero
     assert opened['a4k.row.301'] == PLUGIN + '?action=query&type=popularMovies&widget=1'

@@ -56,7 +56,7 @@
 					<width>1920</width>
 					<height>1120</height>
 					<aspectratio>scale</aspectratio>
-					<fadetime>700</fadetime>
+					<fadetime>300</fadetime>
 					<texture background="true" colordiffuse="FFCCCCCC">$INFO[Window.Property(a4k.hero.blur)]</texture>
 				</control>
 				<control type="image">
@@ -65,7 +65,7 @@
 					<width>1920</width>
 					<height>680</height>
 					<aspectratio aligny="top" scalediffuse="false">scale</aspectratio>
-					<fadetime>700</fadetime>
+					<fadetime>300</fadetime>
 					<texture background="true" diffuse="a4k/fade_bottom.png">$INFO[Window.Property(a4k.hero.fanart)]</texture>
 				</control>
 				<control type="image">
@@ -82,7 +82,8 @@
 					<height>840</height>
 					<texture>a4k/scrim_left.png</texture>
 				</control>
-				<!-- Bottom-aligned stack: a one-line title leaves no gap, a long one grows upwards; the buttons stay put. -->
+				<!-- Bottom-aligned stack: a one-line title leaves no gap, a long one grows upwards; the buttons stay put.
+				     On a turn Python clears a4k.hero.shown, waits for the fade-out, then sets the next title and the property. -->
 				<control type="grouplist">
 					<left>96</left>
 					<top>110</top>
@@ -92,6 +93,8 @@
 					<align>bottom</align>
 					<itemgap>6</itemgap>
 					<usecontrolcoords>true</usecontrolcoords>
+					<visible>!String.IsEmpty(Window.Property(a4k.hero.shown))</visible>
+					<animation effect="fade" time="250" tween="cubic" easing="out">VisibleChange</animation>
 					<control type="label">
 						<left>0</left>
 						<top>0</top>

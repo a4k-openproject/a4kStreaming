@@ -22,6 +22,7 @@ HERO_TURN = 15
 HERO_COUNT = 6
 HERO_FIELDS = {'label': 'Label', 'plot': 'Plot', 'year': 'Year', 'rating': 'Rating', 'mpaa': 'MPAA',
                'fanart': 'Art(fanart)', 'blur': 'Art(blur)'}  # a4k.hero.<key> = the item's InfoLabel
+HERO_FADE = 0.25  # the hero text's fade-out in a4k-home.xml (a4k.hero.shown), before the next title is set
 NO_DIALOG = 9999  # getCurrentWindowDialogId() with no modal dialog up
 
 ACTION_PREVIOUS_MENU = 10
@@ -167,6 +168,7 @@ class Home(kodi.xbmcgui.WindowXML):
         item = self.hero_item()
         for key, field in HERO_FIELDS.items():
             self.setProperty('a4k.hero.%s' % key, kodi.xbmc.getInfoLabel('%s.%s' % (item, field)))
+        self.setProperty('a4k.hero.shown', 'true')  # the text fades in; the art crossfades by its fadetime
 
     def rotate(self):
         # Paint the top shelf as soon as its row is in (Kodi gives the window no event for that: look every 100 ms,
@@ -190,8 +192,10 @@ class Home(kodi.xbmcgui.WindowXML):
         count = min(int(kodi.xbmc.getInfoLabel('Container(%s).NumItems' % HERO_ROW) or 0), HERO_COUNT)
         if count < 2:
             return
-        self.hero = (self.hero + 1) % count
-        self.show_hero()
+        self.setProperty('a4k.hero.shown', '')  # the shown title fades out first; the buttons act on it until then
+        if not self.stopped.wait(HERO_FADE):
+            self.hero = (self.hero + 1) % count
+            self.show_hero()
 
     def dwell(self):
         # a title card that keeps focus for PREFETCH_DWELL gets its detail request made now, on a timer thread, so its
