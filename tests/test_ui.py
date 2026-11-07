@@ -590,7 +590,8 @@ def test_sheet_properties_the_xml_reads_are_set(core, sheets, monkeypatch):
 
 def test_sheet_list_takes_focus_and_does_not_leave_sideways():
     root = __xml('a4k-sheet.xml')
-    assert root.findtext('defaultcontrol') == '600'
+    # no defaultcontrol: the list is empty when the window inits; onInit fills and focuses it
+    assert root.find('defaultcontrol') is None
     rows = [c for c in root.iter('control') if c.get('id') == '600'][0]
     # up and down wrap at the ends, as Kodi's own select does; left and right stay
     assert rows.findtext('onleft') == 'noop' and rows.findtext('onright') == 'noop'

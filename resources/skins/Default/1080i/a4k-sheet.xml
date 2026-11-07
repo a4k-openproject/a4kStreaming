@@ -5,11 +5,11 @@
   (left/top).
 
   A glass sheet on the right half over a veil; the rows are filled from Python (label = quality and formats, label2 =
-  debrid, size and release title). The focused row is a white pill with dark text, lifted 1.03. Up and down wrap at the
-  ends, as Kodi's own select does.
+  debrid, size and release title; a row without label2 centres its label). The focused row is a white pill with dark
+  text, lifted 1.03. Up and down wrap at the ends, as Kodi's own select does. No defaultcontrol: the list is empty when
+  the window inits (Kodi logs an error for a focus it cannot take); onInit fills it and then focuses it.
 -->
 <window>
-	<defaultcontrol>600</defaultcontrol>
 	<controls>
 		<control type="image">
 			<left>0</left>
@@ -61,7 +61,7 @@
 				<left>24</left>
 				<top>108</top>
 				<width>832</width>
-				<height>780</height>
+				<height>728</height>
 				<orientation>vertical</orientation>
 				<scrolltime tween="cubic" easing="out">220</scrolltime>
 				<itemlayout width="832" height="104">
@@ -73,6 +73,18 @@
 						<font>font30_title</font>
 						<textcolor>FFFFFFFF</textcolor>
 						<label>$INFO[ListItem.Label]</label>
+						<visible>!String.IsEmpty(ListItem.Label2)</visible>
+					</control>
+					<control type="label">
+						<left>40</left>
+						<top>0</top>
+						<width>752</width>
+						<height>104</height>
+						<font>font30_title</font>
+						<aligny>center</aligny>
+						<textcolor>FFFFFFFF</textcolor>
+						<label>$INFO[ListItem.Label]</label>
+						<visible>String.IsEmpty(ListItem.Label2)</visible>
 					</control>
 					<control type="label">
 						<left>40</left>
@@ -105,6 +117,18 @@
 							<font>font30_title</font>
 							<textcolor>FF0C0D12</textcolor>
 							<label>$INFO[ListItem.Label]</label>
+							<visible>!String.IsEmpty(ListItem.Label2)</visible>
+						</control>
+						<control type="label">
+							<left>40</left>
+							<top>0</top>
+							<width>752</width>
+							<height>104</height>
+							<font>font30_title</font>
+							<aligny>center</aligny>
+							<textcolor>FF0C0D12</textcolor>
+							<label>$INFO[ListItem.Label]</label>
+							<visible>String.IsEmpty(ListItem.Label2)</visible>
 						</control>
 						<control type="label">
 							<left>40</left>

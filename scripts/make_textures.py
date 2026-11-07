@@ -140,7 +140,8 @@ def ring_face():
     return img.resize((size, size), Image.LANCZOS)
 
 def sheet():
-    # sheet glass (dobby rgba(62,64,80,.97) -> rgba(34,36,46,.97)), r44, 1px top highlight 2EFFFFFF; 9-sliced, border 48
+    # sheet glass (dobby rgba(62,64,80,.97) -> rgba(34,36,46,.97)), r44, 1px top highlight 2EFFFFFF; 9-sliced, border 48.
+    # Opaque: dobby's .97 sits on a backdrop blur, which Kodi cannot do, and at .97 the text behind still showed (live)
     w = h = 128
     a, b = (62, 64, 80), (34, 36, 46)
     rows = []
@@ -151,7 +152,7 @@ def sheet():
         rows.append(tuple(int(round(v)) for v in c))
     img = Image.new('RGBA', (w, h))
     img.putdata([rows[y] + (255,) for y in range(h) for _ in range(w)])
-    img.putalpha(rounded((w, h), 44).getchannel('A').point(lambda v: int(round(v * .97))))
+    img.putalpha(rounded((w, h), 44).getchannel('A'))
     return img
 
 def main():
