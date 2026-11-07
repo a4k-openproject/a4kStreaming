@@ -8,6 +8,11 @@
   window opens; an empty property loads nothing and hides the row. A row is visible while it loads or has items: a
   hidden container never takes the items its provider fetched (spike 2b). Each row has a no-op onclick so Kodi does not
   play or open the item itself; Python handles the click in onAction (spike 2c).
+
+  The page grouplist links only its direct children, the groups; the lists and buttons inside them get no up/down
+  from it. So each focusable control names its neighbour groups in onup/ondown, and a hidden group passes the move on
+  through the links the grouplist gave it. A container or grouplist with no onleft/onright/ondown wraps around at its
+  edge, so the edges say noop.
 -->
 <window>
 	<defaultcontrol>201</defaultcontrol>
@@ -137,6 +142,9 @@
 					<label>$INFO[Container(301).ListItemAbsolute(0).Plot]</label>
 				</control>
 				<control type="grouplist" id="210">
+					<ondown>310</ondown>
+					<onleft>noop</onleft>
+					<onright>noop</onright>
 					<left>96</left>
 					<top>552</top>
 					<width>1200</width>
@@ -191,6 +199,10 @@
 					<label>Trending Movies</label>
 				</control>
 				<control type="list" id="301">
+					<onup>200</onup>
+					<ondown>320</ondown>
+					<onleft>noop</onleft>
+					<onright>noop</onright>
 					<left>0</left>
 					<top>50</top>
 					<width>1920</width>
@@ -310,6 +322,10 @@
 					<label>Trending TV Shows</label>
 				</control>
 				<control type="list" id="302">
+					<onup>310</onup>
+					<ondown>330</ondown>
+					<onleft>noop</onleft>
+					<onright>noop</onright>
 					<left>0</left>
 					<top>50</top>
 					<width>1920</width>
@@ -429,6 +445,10 @@
 					<label>Watchlist</label>
 				</control>
 				<control type="list" id="303">
+					<onup>320</onup>
+					<ondown>410</ondown>
+					<onleft>noop</onleft>
+					<onright>noop</onright>
 					<left>0</left>
 					<top>50</top>
 					<width>1920</width>
@@ -548,6 +568,10 @@
 					<label>Browse</label>
 				</control>
 				<control type="panel" id="400">
+					<onup>330</onup>
+					<ondown>noop</ondown>
+					<onleft>noop</onleft>
+					<onright>noop</onright>
 					<left>0</left>
 					<top>70</top>
 					<width>1920</width>

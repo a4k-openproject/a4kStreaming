@@ -126,6 +126,18 @@ def test_window_uses_no_includes_or_named_colours(path):
     colours += [node.get('colordiffuse') for node in root.iter() if node.get('colordiffuse')]
     assert colours and all(re.fullmatch(r'[0-9A-F]{8}', colour) for colour in colours)
 
+def test_focusable_controls_navigate_explicitly():
+    # the page grouplist links only its groups, and a container with no edge action wraps around
+    root = ElementTree.parse(os.path.join(WINDOWS, 'a4k-home.xml')).getroot()
+    page = [c for c in root.iter('control') if c.get('id') == '100'][0]
+    groups = {c.get('id') for c in page.findall('control')}
+    focusable = [c for c in root.iter('control') if c.get('type') in ('list', 'panel') or c.get('id') == '210']
+    assert len(focusable) == 5
+    for control in focusable:
+        assert {'onleft', 'onright', 'ondown'} <= {child.tag for child in control}
+        targets = [control.findtext(tag) for tag in ('onup', 'ondown') if control.findtext(tag) not in (None, 'noop')]
+        assert targets and set(targets) <= groups
+
 def test_python_control_ids_exist_in_the_xml(home):
     root = ElementTree.parse(os.path.join(WINDOWS, 'a4k-home.xml')).getroot()
     ids = {int(control.get('id')) for control in root.iter('control') if control.get('id')}
