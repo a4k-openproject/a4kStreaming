@@ -14,9 +14,24 @@ from ..lib import kodi, logger
 from . import app, home
 
 PANEL = 500
+YEARS = 520
 FAILED = 'a4k.ui.grid.failed'
 NEAR_END = 12  # two rows of six: focus this close to a Next item fetches the next page in the background
-NO_LOGIN = 'Missing IMDb authentication cookies'  # the classic listing's own notification
+# the category galleries (the home's tabs) take dobby's year chips: All Years, then this year back to 1970
+CATEGORIES = ('popularMovies', 'popularTVShows', 'popularAnimations', 'popularAnimationTVShows', 'popularRealityTVShows')
+FIRST_YEAR = 1970
+
+def category(path):
+    match = re.search(r'[?&]type=(\w+)', path)
+    return match.group(1) if match and match.group(1) in CATEGORIES else ''
+
+def year_path(path, year):
+    # the category's first page, within the year (or all years when there is none)
+    path = re.sub(r'&(paginationToken|page|cursor_time|target_year)=[^&]*', '', path)
+    return '%s&target_year=%s' % (path, year) if year else path
+
+def year_chips():
+    return [''] + [str(year) for year in range(datetime.now().year, FIRST_YEAR - 1, -1)]
 
 def widget(path):
     # grid paths carry widget=1: the router then skips the classic view-mode wait
@@ -53,6 +68,7 @@ class Grid(kodi.xbmcgui.WindowXML):
     title = ''
     kicker = ''
     steps = None  # the (path, title, kicker, position) of every page or list under the one shown
+    year = None  # the chosen year chip ('' for All Years) once the chips are filled
 
     def go(self, path, title, kicker=''):
         self.path, self.title, self.kicker = widget(path), title, kicker
@@ -67,8 +83,44 @@ class Grid(kodi.xbmcgui.WindowXML):
         try:
             self.getControl(PANEL)  # raises when the XML did not load
             kodi.xbmcgui.Window(app.HOME_WINDOW).setProperty(app.OPEN_WINDOW, str(kodi.xbmcgui.getCurrentWindowId()))
+            if self.year is None and category(self.path):
+                self.year = ''
+                self.setProperty('a4k.years', 'true')
+                self.show_years()
         except Exception:
             self.__fail()
+
+    def show_years(self):
+        chips = []
+        for year in year_chips():
+            item = kodi.xbmcgui.ListItem(label=year or 'All Years', offscreen=True)
+            item.setProperty('year', year)
+            item.setProperty('on', 'true' if year == self.year else '')
+            chips.append(item)
+        control = self.getControl(YEARS)
+        control.reset()
+        control.addItems(chips)
+        control.selectItem(year_chips().index(self.year))
+
+    def onClick(self, control_id):
+        try:
+            if control_id == YEARS:
+                self.pick_year(self.getControl(YEARS).getSelectedItem().getProperty('year'))
+        except Exception:
+            self.__fail()
+
+    def pick_year(self, year):
+        # the same category within the year, from its first page; the chip stays marked and the steps start over
+        if year == self.year:
+            return
+        self.year = year
+        # marked in place: resetting the focused list drops its focus to the panel (seen live), whose select then fires
+        chips = self.getControl(YEARS)
+        for index, chip in enumerate(year_chips()):
+            chips.getListItem(index).setProperty('on', 'true' if chip == year else '')
+        self.steps = []
+        self.getControl(PANEL).selectItem(0)
+        self.go(year_path(self.path, year), self.title, year)
 
     def onAction(self, action):
         try:
@@ -90,8 +142,7 @@ class Grid(kodi.xbmcgui.WindowXML):
         if type in ('movie', 'tvSeries'):
             home.select(info)
         elif type == 'person':
-            if logged_in():
-                self.step(path, info['Label'], 'Known for')
+            self.step(path, info['Label'], 'Known for')
         elif type:
             home.run(home.click_builtin(info))
         elif 'paginationToken=' in path:
@@ -199,13 +250,6 @@ def show(path, title, kicker=''):
     if not open(path, title, kicker):
         home.run('ActivateWindow(Videos,%s,return)' % classic_path(path))
 
-def logged_in():
-    # known for, watchlist, lists and recommended need an IMDb login; without one, the classic listing's notification
-    if kodi.get_setting('imdb.at-main'):
-        return True
-    kodi.notification(NO_LOGIN)
-    return False
-
 # entry points: the Browse tiles, the detail window's cast and More like this
 
 def browse(tile, label):
@@ -217,8 +261,8 @@ def browse(tile, label):
     show(app.row_url(tile), label)
 
 def known_for(id, name):
-    if logged_in():
-        show('%s&id=%s' % (app.row_url('knownfor'), id), name, 'Known for')
+    # a person's titles are public (no IMDb login), as dobby's person page
+    show('%s&id=%s' % (app.row_url('knownfor'), id), name, 'Known for')
 
 def more_like_this(id, title):
     show('%s&id=%s' % (app.row_url('more_like_this'), id), title, 'More like this')

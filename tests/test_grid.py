@@ -201,11 +201,9 @@ def test_select_routes_titles_people_and_episodes(core, grid, home, opened, labe
     win.select(item('tvSeries', id='tt2'))
     win.select(item('tvEpisode', PLUGIN + '?action=play&type=ep', id='tt3'))
     person = item('person', PLUGIN + '?action=query&type=knownfor&id=nm1', 'Ana Torres', 'nm1')
-    win.select(person)  # known for needs an IMDb login: the classic listing's notification
     assert selected == ['tt1', 'tt2'] and calls == ['PlayMedia(%s?action=play&type=ep)' % PLUGIN]
-    assert notes == [grid.NO_LOGIN] and win.steps == []
-    login(core, monkeypatch)
-    win.select(person)
+    win.select(person)  # a person's titles are public: no login asked
+    assert notes == []
     assert win.getProperty('a4k.title') == 'Ana Torres' and win.getProperty('a4k.kicker') == 'KNOWN FOR'
     win.select(item())  # an empty item does nothing
     assert len(win.steps) == 1
@@ -325,11 +323,9 @@ def test_years_picks_a_decade_then_a_year_and_back_returns_to_the_decades(core, 
     grid.years()  # Back on the decades
     assert len(shown) == 1 and preselects[-1] == -1
 
-def test_known_for_needs_an_imdb_login(core, grid, shown, notes, monkeypatch):
+def test_known_for_needs_no_imdb_login(core, grid, shown, notes):
     grid.known_for('nm1', 'Ana Torres')
-    assert shown == [] and notes == [grid.NO_LOGIN]
-    login(core, monkeypatch)
-    grid.known_for('nm1', 'Ana Torres')
+    assert notes == []
     assert shown == [(PLUGIN + '?action=query&type=knownfor&widget=1&id=nm1', 'Ana Torres', 'Known for')]
 
 def test_more_like_this_from_a_context_menu_opens_the_grid(core, home, grid, shown, calls, monkeypatch):
@@ -498,11 +494,15 @@ def test_panel_is_wrappable_and_keeps_focus_in(grid):
     window = root()
     panel = [c for c in window.iter('control') if c.get('id') == str(grid.PANEL)][0]
     assert panel.get('type') == 'panel' and window.findtext('defaultcontrol') == str(grid.PANEL)
-    assert all(panel.findtext(edge) == 'noop' for edge in ('onup', 'ondown', 'onleft', 'onright'))
+    assert all(panel.findtext(edge) == 'noop' for edge in ('ondown', 'onleft', 'onright'))
     # a provider list hands select to Kodi unless the container has its own onclick (spike 2c)
     assert panel.findtext('onclick')
+    # up reaches the category's year chips, which say noop at their own edges and go back down to the panel
+    years = [c for c in window.iter('control') if c.get('id') == str(grid.YEARS)][0]
+    assert panel.findtext('onup') == str(grid.YEARS) and years.findtext('ondown') == str(grid.PANEL)
+    assert all(years.findtext(edge) == 'noop' for edge in ('onup', 'onleft', 'onright'))
     focusable = [c for c in window.iter('control') if c.get('type') in ('list', 'panel', 'button', 'wraplist', 'fixedlist')]
-    assert focusable == [panel]
+    assert focusable == [panel, years]
 
 def test_panel_lists_the_path_property(grid):
     content = root().find(".//control[@id='500']/content")
@@ -511,7 +511,7 @@ def test_panel_lists_the_path_property(grid):
 def test_every_property_the_xml_reads_is_set(core, grid, opened):
     grid.open(NEXT, 'Fan Favorites', 'Browse')
     read = set(re.findall(r'Window\.Property\(([\w.]+)\)', open(XML).read()))
-    assert read and read <= set(opened[0].properties)
+    assert read and read - {'a4k.years'} <= set(opened[0].properties)  # a4k.years: onInit, for a category
 
 def test_grid_posters_use_the_poster_mask_at_its_aspect():
     posters = [c for c in root().iter('control') if c.findtext('texture') == '$INFO[ListItem.Art(poster)]']

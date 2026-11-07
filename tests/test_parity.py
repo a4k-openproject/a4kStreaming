@@ -284,3 +284,69 @@ def test_search_entry_points_route_to_the_window(core, home, monkeypatch):
     window = home.Home('a4k-home.xml', '', 'Default', '1080i')
     window.onClick(home.SEARCH)
     assert opened == [True]
+
+# 3. year chips over the category grids
+
+def category_window(grid, path):
+    win = grid.Grid('a4k-grid.xml', '', 'Default', '1080i')
+    win.steps = []
+    win.go(path, 'Animations')
+    win.onInit()
+    return win
+
+def test_category_grids_take_year_chips_and_others_do_not(core, grid):
+    from datetime import datetime
+    win = category_window(grid, PLUGIN + '?action=query&type=popularAnimations')
+    chips = win.getControl(grid.YEARS).items
+    labels = [c.getLabel() for c in chips]
+    assert labels[:2] == ['All Years', str(datetime.now().year)] and labels[-1] == '1970'
+    assert len(labels) == datetime.now().year - 1970 + 2 and chips[0].getProperty('on') == 'true'
+    assert win.getProperty('a4k.years') == 'true' and win.error is None
+    other = category_window(grid, PLUGIN + '?action=query&type=fan_picks')
+    assert other.getProperty('a4k.years') == '' and other.getControl(grid.YEARS).items == []
+
+def test_a_year_chip_reruns_the_same_category_within_the_year(core, grid):
+    win = category_window(grid, PLUGIN + '?action=query&type=popularAnimations&widget=1')
+    win.steps.append(('x', 'y', 'z', 3))  # a page under the one shown
+    win.path = PLUGIN + '?action=query&type=popularAnimations&paginationToken=abc&page=2&cursor_time=1&widget=1'
+    win.pick_year('2019')
+    assert win.getProperty('a4k.path') == PLUGIN + '?action=query&type=popularAnimations&widget=1&target_year=2019'
+    assert win.steps == [] and win.getProperty('a4k.kicker') == '2019' and win.getProperty('a4k.title') == 'Animations'
+    chips = win.getControl(grid.YEARS).items
+    assert [c.getLabel() for c in chips if c.getProperty('on')] == ['2019']
+    win.onInit()  # a return from detail keeps the chosen year
+    assert [c.getLabel() for c in win.getControl(grid.YEARS).items if c.getProperty('on')] == ['2019']
+    win.pick_year('')
+    assert win.getProperty('a4k.path') == PLUGIN + '?action=query&type=popularAnimations&widget=1'
+    assert win.getProperty('a4k.kicker') == '' and win.error is None
+
+def test_year_chip_clicks_reach_python(core, grid):
+    win = category_window(grid, PLUGIN + '?action=query&type=popularMovies&widget=1')
+    chips = win.getControl(grid.YEARS)
+    chips.getSelectedItem = lambda: chips.items[3]  # the mock list has no selection of its own
+    win.onClick(grid.YEARS)
+    assert win.getProperty('a4k.path').endswith('&target_year=%s' % grid.year_chips()[3]) and win.error is None
+
+@pytest.mark.parametrize('year,expected', [
+    ('', (None, '2026-11-07')),
+    ('2019', ('2019-01-01', '2019-12-31')),
+    ('2026', ('2026-01-01', '2026-11-07')),  # never past today, as the unfiltered gallery
+])
+def test_category_dates(imdb, year, expected):
+    from datetime import datetime
+    assert imdb.category_dates(datetime(2026, 11, 7), year) == expected
+
+def test_category_query_sends_the_years_dates(core, imdb, monkeypatch):
+    import json
+    sent = []
+    monkeypatch.setattr(core.request, 'execute', lambda core, request, *a, **k: sent.append(request) or type('R', (), {'status_code': 500, 'content': b'', 'text': '', 'fetched_at': 0})())
+    monkeypatch.setattr(core.kodi, 'get_int_setting', lambda *a: 20)
+    for year in ('2019', None):
+        try:
+            imdb.query(core, core.utils.DictAsObject({'type': 'popularAnimations', 'target_year': year}))
+        except Exception:
+            pass
+    bodies = [json.loads(r['data']) if isinstance(r['data'], str) else r['data'] for r in sent]
+    assert bodies[0]['variables']['startDate'] == '2019-01-01' and bodies[0]['variables']['endDate'] == '2019-12-31'
+    assert bodies[1]['variables']['startDate'] is None
+    assert 'releaseDateRange: { start: $startDate, end: $endDate }' in bodies[0]['query']
