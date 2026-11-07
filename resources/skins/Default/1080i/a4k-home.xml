@@ -34,7 +34,7 @@
 			<texture>a4k/bg_home.png</texture>
 		</control>
 		<control type="grouplist" id="100">
-			<animation effect="fade" start="0" end="0" time="0" condition="!String.IsEmpty(Window.Property(a4k.loading))">Conditional</animation>
+			<animation effect="fade" start="0" end="0" time="0" reversible="false" condition="!String.IsEmpty(Window.Property(a4k.loading))">Conditional</animation>
 			<animation effect="fade" start="0" end="100" time="300" condition="String.IsEmpty(Window.Property(a4k.loading))">Conditional</animation>
 			<left>0</left>
 			<top>0</top>

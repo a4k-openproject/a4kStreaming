@@ -409,6 +409,8 @@ def test_home_waits_behind_the_loader_until_the_top_shelf_has_a_title(core, home
     page = control(xml('a4k-home.xml'), 100)
     assert [a.get('condition') for a in page.findall('animation')] == [
         '!String.IsEmpty(Window.Property(a4k.loading))', 'String.IsEmpty(Window.Property(a4k.loading))']
+    # the hiding fade has no length: played in reverse it never ends, and the page stayed transparent (seen live)
+    assert page.findall('animation')[0].get('reversible') == 'false'
 
 @pytest.mark.parametrize('items', ['5', '0'])  # a title, or 15 s without one: never a loader for good
 def test_the_first_top_shelf_title_ends_the_loading(core, monkeypatch, items):
