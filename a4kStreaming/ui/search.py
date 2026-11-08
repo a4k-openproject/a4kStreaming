@@ -67,8 +67,10 @@ def url(query, filters, count=0):
 class Search(kodi.xbmcgui.WindowXML):
     error = None
     closed = False
-    timer = None
-    dwell_timer = None
+    stopped = None  # set in open(); every thread of the window ends on it (home.spawn)
+    threads = ()
+    typing = None  # the cancels of the running debounce and dwell
+    dwelling = None
     query = ''
     filters = None
     count = 0
@@ -139,10 +141,9 @@ class Search(kodi.xbmcgui.WindowXML):
     def typed(self):
         self.setProperty('a4k.query', self.query)
         self.setProperty('a4k.hint', '' if self.query else HINT)
-        if self.timer:
-            self.timer.cancel()
-        self.timer = threading.Timer(DEBOUNCE, self.guarded, args=(self.apply,))
-        self.timer.start()
+        if self.typing:
+            self.typing.set()
+        self.typing = home.spawn(self, self.guarded, self.apply, delay=DEBOUNCE)
 
     def keyboard(self):
         # Kodi's own keyboard: its text runs at once
@@ -151,7 +152,7 @@ class Search(kodi.xbmcgui.WindowXML):
         if keyboard.isConfirmed():
             self.query = keyboard.getText()
             self.typed()
-            self.timer.cancel()
+            self.typing.set()
             self.apply()
 
     def pick(self, id):
@@ -224,10 +225,9 @@ class Search(kodi.xbmcgui.WindowXML):
             self.apply(more=True)
 
     def dwell(self):
-        if self.dwell_timer:
-            self.dwell_timer.cancel()
-        self.dwell_timer = threading.Timer(home.PREFETCH_DWELL, self.guarded, args=(self.prefetch,))
-        self.dwell_timer.start()
+        if self.dwelling:
+            self.dwelling.set()
+        self.dwelling = home.spawn(self, self.guarded, self.prefetch, delay=home.PREFETCH_DWELL)
 
     def prefetch(self):
         if not self.closed and self.getFocusId() == RESULTS:
@@ -241,9 +241,6 @@ class Search(kodi.xbmcgui.WindowXML):
 
     def close(self):
         self.closed = True
-        for timer in (self.timer, self.dwell_timer):
-            if timer:
-                timer.cancel()
         super(Search, self).close()
 
     def __fail(self):
@@ -253,6 +250,7 @@ class Search(kodi.xbmcgui.WindowXML):
 def open():
     try:
         window = Search('a4k-search.xml', kodi.addon_path, 'Default', '1080i')
+        window.stopped = threading.Event()
         # a reopened add-on (after the Home key) comes back to this window, not to the one under it
         window.setProperty('a4k.home', 'true')
         home.modal(window)

@@ -7,6 +7,7 @@ import re
 import importlib
 from xml.etree import ElementTree
 from .common import pytest, api
+from .utils import Spawned
 
 WINDOWS = os.path.join(os.path.dirname(__file__), '..', 'resources', 'skins', 'Default', '1080i')
 PLUGIN = 'plugin://plugin.video.a4kstreaming/'
@@ -95,7 +96,7 @@ def test_watch_now_focuses_play_and_settings_opens_the_settings_window(core, hom
     from types import SimpleNamespace
     opened = []
     monkeypatch.setattr(home, 'run', lambda builtin: opened.append(builtin))
-    monkeypatch.setattr(home.threading, 'Thread', lambda target: SimpleNamespace(start=lambda: None))
+    monkeypatch.setattr(home, 'spawn', Spawned(run=False))
     window = home.Home('a4k-home.xml', '', 'Default', '1080i')
     window.setFocusId(home.WATCH_NOW)
     window.onClick(home.WATCH_NOW)
@@ -113,23 +114,12 @@ def search(core):
 def imdb(core):
     return importlib.import_module('a4kStreaming.imdb')
 
-class Timer(object):
-    # threading.Timer stand-in: records the delay and runs only when the test says so
-    made = []
-
-    def __init__(self, delay, fn, args=()):
-        self.delay, self.fn, self.args, self.cancelled = delay, fn, args, False
-        Timer.made.append(self)
-
-    def start(self): pass
-    def cancel(self): self.cancelled = True
-    def fire(self): self.fn(*self.args)
-
 @pytest.fixture
 def timers(search, monkeypatch):
-    Timer.made = []
-    monkeypatch.setattr(search.threading, 'Timer', Timer)
-    return Timer.made
+    # the window's delayed calls: recorded, each runs only when the test fires it
+    spawned = Spawned(run=False)
+    monkeypatch.setattr(search.home, 'spawn', spawned)
+    return spawned
 
 def window(search):
     win = search.Search('a4k-search.xml', '', 'Default', '1080i')
@@ -155,7 +145,7 @@ def test_typing_runs_the_search_once_typing_pauses(core, search, timers):
     win.press('del')
     win.press('space')
     assert win.getProperty('a4k.query') == 'du ' and win.getProperty('a4k.hint') == ''
-    assert [t.delay for t in timers] == [0.5] * 5 and [t.cancelled for t in timers] == [True] * 4 + [False]
+    assert [t.delay for t in timers] == [0.5] * 5 and [t.cancel.is_set() for t in timers] == [True] * 4 + [False]
     assert win.getProperty('a4k.path') == ''  # nothing until the pause
     timers[-1].fire()
     assert win.getProperty('a4k.path') == PLUGIN + '?action=query&type=find&query=du&widget=1'
@@ -175,7 +165,7 @@ def test_type_key_opens_kodis_keyboard_and_searches_at_once(core, search, timers
     win = window(search)
     win.press('type')
     assert win.getProperty('a4k.path') == PLUGIN + '?action=query&type=find&query=Le+Mans&widget=1'
-    assert timers[-1].cancelled
+    assert timers[-1].cancel.is_set()
 
 @pytest.mark.parametrize('query,filters,count,expected', [
     ('', {}, 0, ''),
@@ -704,9 +694,8 @@ def test_the_settings_apply_the_new_appearance_once_closed(core, home, monkeypat
             values.update({'appearance.hero_source': '1', 'appearance.reality': 'true'})
         return up
     monkeypatch.setattr(core.kodi.xbmc, 'getCondVisibility', active, raising=False)
-    threads, timers = [], []
-    monkeypatch.setattr(home.threading, 'Thread', lambda target: SimpleTimer(threads, target))
-    monkeypatch.setattr(home.threading, 'Timer', lambda seconds, target, args=(): SimpleTimer(timers, (target, args)))
+    spawned = Spawned(run=False)
+    monkeypatch.setattr(home, 'spawn', spawned)
     window = home.Home('a4k-home.xml', '', 'Default', '1080i')
     window.stopped = threading.Event()
     monkeypatch.setattr(window.stopped, 'wait', lambda seconds: False)
@@ -714,12 +703,13 @@ def test_the_settings_apply_the_new_appearance_once_closed(core, home, monkeypat
     window.hero = 3
     window.onClick(home.SETTINGS)
     # opened without waiting (a blocking builtin holds Python's lock), watched from a thread
-    assert calls == ['RunScript(plugin.video.a4kstreaming,settings)'] and threads == [window.settings_closed]
+    assert calls == ['RunScript(plugin.video.a4kstreaming,settings)'] and [t.target for t in spawned] == [window.settings_closed]
     assert window.getProperty('a4k.title.303') == ''
     window.settings_closed()
     assert window.getProperty('a4k.title.303') == 'Reality TV' and list(window.sources) == [(302, 'TRENDING NOW')]
     # every slot with a listing shows for FRESH_TIME (a hidden list never loads), then the shelf starts over
-    assert window.getProperty('a4k.fresh') == 'true' and timers == [(window.setProperty, ('a4k.fresh', '')), (window.turn, ())]
+    assert window.getProperty('a4k.fresh') == 'true' and [(t.target, t.args, t.delay) for t in spawned[1:]] == [
+        (window.setProperty, ('a4k.fresh', ''), home.FRESH_TIME), (window.turn, (), home.HERO_RELOAD)]
     assert window.hero == -1 and window.error is None
 
 def test_settings_watch_stops_looking_when_nothing_opens(core, home, monkeypatch):
@@ -736,10 +726,6 @@ def test_settings_watch_stops_looking_when_nothing_opens(core, home, monkeypatch
     monkeypatch.setattr(window.stopped, 'wait', lambda seconds: seconds == home.SETTINGS_SETTLE)  # closes meanwhile
     window.settings_closed()
     assert reapplied == [1]
-
-class SimpleTimer(object):
-    def __init__(self, log, target): self.log, self.target = log, target
-    def start(self): self.log.append(self.target)
 
 def test_my_list_picker_offers_the_title_lists(core, monkeypatch):
     import json

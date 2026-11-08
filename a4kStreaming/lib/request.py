@@ -95,7 +95,8 @@ def execute(core, request, cache=True, stale_ok=False):
     # stale_ok: an older read (up to a day) is answered at once and fetched again after the listing renders.
     session = get_session()
 
-    request.setdefault('timeout', 60)
+    # a thread of an a4k window carries a shorter one (ui/home.py spawn): the window's close waits for its requests
+    request.setdefault('timeout', getattr(threading.current_thread(), 'request_timeout', 60))
     headers = request.setdefault('headers', {})
     headers.setdefault('User-Agent', user_agent)
 

@@ -253,7 +253,9 @@ class Detail(kodi.xbmcgui.WindowXML):
     vm = None
     started = False
     closed = False
-    timer = None
+    stopped = None  # set in open(); every thread of the window ends on it (home.spawn)
+    threads = ()
+    dwelling = None  # the running season dwell's cancel
     title = None  # the fetched title, for the season marks again after a play
     stamp = None  # the progress store's change time the episodes listing was asked with (its t param)
 
@@ -270,9 +272,9 @@ class Detail(kodi.xbmcgui.WindowXML):
             if not self.started:
                 self.started = True
                 self.stamp = progress.stamp()
-                threading.Thread(target=self.fill).start()
+                home.spawn(self, self.fill)
             elif self.title and (home.playing() or self.stamp != progress.stamp()):
-                threading.Thread(target=self.refresh).start()  # back from a play: the bars and marks move
+                home.spawn(self, self.refresh)  # back from a play: the bars and marks move
         except Exception:
             self.__fail()
 
@@ -281,7 +283,7 @@ class Detail(kodi.xbmcgui.WindowXML):
         # episodes reload under a new URL (once, from onInit, after the player went: never next to a running plugin
         # call or the player's stop)
         try:
-            if not home.after_play(lambda: self.closed) or self.stamp == progress.stamp():
+            if not home.after_play(self.stopped) or self.closed or self.stamp == progress.stamp():
                 return
             self.stamp = progress.stamp()
             vm = view_model(plugin_core(), self.title, self.vm['seasons'][self.season_index()]['key'] if self.vm['seasons'] else None)
@@ -366,16 +368,14 @@ class Detail(kodi.xbmcgui.WindowXML):
                 if kodi.xbmc.getInfoLabel('Container(%s).ListItemAbsolute(%s).Property(a4k.label)' % (EPISODES, index)) == label:
                     kodi.xbmc.executebuiltin('Control.SetFocus(%s,%s,absolute)' % (EPISODES, index))
                     return
-            if count:
-                return  # the listing is in and the episode is not in it
-            time.sleep(EPISODE_LOOK)
+            if count or self.stopped.wait(EPISODE_LOOK):
+                return  # the listing is in and the episode is not in it, or the window went
 
     def __dwell(self):
         # a season's episodes load once its pill keeps focus for a moment, so arrowing across pills starts no listings
-        if self.timer:
-            self.timer.cancel()
-        self.timer = threading.Timer(SEASON_DWELL, self.__guard_select)
-        self.timer.start()
+        if self.dwelling:
+            self.dwelling.set()
+        self.dwelling = home.spawn(self, self.__guard_select, delay=SEASON_DWELL)
 
     def __guard_select(self):
         try:
@@ -456,18 +456,18 @@ class Detail(kodi.xbmcgui.WindowXML):
 
     def close(self):
         self.closed = True
-        if self.timer:
-            self.timer.cancel()
         super(Detail, self).close()
 
     def __fail(self):
         self.error = traceback.format_exc()
-        self.close()
+        if not self.closed:  # a worker's error after the close: the window is gone already
+            self.close()
 
 def open(info):
     # a window error is logged and closes the window
     try:
         window = Detail('a4k-detail.xml', kodi.addon_path, 'Default', '1080i')
+        window.stopped = threading.Event()
         # a reopened add-on (after the Home key) comes back to this window, not to the home window under it
         window.setProperty('a4k.home', 'true')
         window.setProperty('a4k.auth', 'true' if kodi.get_setting('imdb.at-main') else '')

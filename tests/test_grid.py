@@ -11,6 +11,7 @@ from types import SimpleNamespace
 from datetime import datetime
 from xml.etree import ElementTree
 from .common import pytest, api
+from .utils import Spawned
 
 WINDOWS = os.path.join(os.path.dirname(__file__), '..', 'resources', 'skins', 'Default', '1080i')
 XML = os.path.join(WINDOWS, 'a4k-grid.xml')
@@ -78,16 +79,6 @@ def shown(grid, monkeypatch):
     monkeypatch.setattr(grid, 'show', lambda path, title, kicker='': log.append((path, title, kicker)))
     return log
 
-class Sync(object):
-    # threading stand-in: threads and timers run at start()
-    class Thread(object):
-        def __init__(self, target, args=(), **kwargs): self.target, self.args = target, args
-        def start(self): self.target(*self.args)
-        def cancel(self): pass
-
-    @staticmethod
-    def Timer(seconds, target): return Sync.Thread(target)
-
 class Action(object):
     def __init__(self, id): self.id = id
     def getId(self): return self.id
@@ -143,7 +134,7 @@ def test_home_row_next_item_opens_the_rest_of_the_row(core, home, labels, shown)
 @pytest.fixture
 def opened(core, grid, monkeypatch):
     # open() runs the window the way Kodi would: onInit; the window is kept for the test
-    monkeypatch.setattr(grid, 'threading', Sync)
+    monkeypatch.setattr(grid.home, 'spawn', Spawned())  # the window's threads run at once
     windows = []
     monkeypatch.setattr(grid.Grid, 'doModal', lambda self: windows.append(self) or self.onInit())
     return windows
@@ -330,7 +321,7 @@ def test_title_menu_is_a_sheet_and_hides_account_actions_when_signed_out(core, h
 
 def test_detail_cast_opens_known_for_and_the_plot_opens_in_full(core, detail, grid, monkeypatch):
     fetched = importlib.import_module('tests.test_detail')
-    monkeypatch.setattr(detail, 'threading', Sync)
+    monkeypatch.setattr(detail.home, 'spawn', Spawned())
     monkeypatch.setattr(detail, 'fetch', lambda core, id, series: fetched.fixture()['movie'])
     windows = []
     monkeypatch.setattr(detail.Detail, 'doModal', lambda self: windows.append(self) or self.onInit())
@@ -362,15 +353,12 @@ def shelf(core, home, labels, monkeypatch, count='20'):
     return win
 
 def test_on_init_starts_the_rotation_once_and_close_stops_it(core, home, monkeypatch):
-    started = []
-    class Thread(object):
-        def __init__(self, target): self.target = target
-        def start(self): started.append(self.target)
-    monkeypatch.setattr(home, 'threading', SimpleNamespace(Thread=Thread, Event=threading.Event))
+    spawned = Spawned(run=False)
+    monkeypatch.setattr(home, 'spawn', spawned)
     win = home.Home('a4k-home.xml', '', 'Default', '1080i')
     win.onInit()
     win.onInit()  # back from detail: the same rotation goes on
-    assert started == [win.rotate] and not win.stopped.is_set() and win.error is None
+    assert [t.target for t in spawned] == [win.rotate] and not win.stopped.is_set() and win.error is None
     win.close()
     assert win.stopped.is_set()
 

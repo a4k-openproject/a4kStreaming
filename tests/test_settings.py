@@ -4,10 +4,10 @@
 
 import os
 import re
-import types
 import importlib
 from xml.etree import ElementTree
 from .common import pytest, api
+from .utils import Spawned
 
 ROOT = os.path.join(os.path.dirname(__file__), '..')
 SECRET = 'k3y-VALUE-never-shown'
@@ -431,12 +431,12 @@ def home(core, monkeypatch):
     return home
 
 def test_gear_runs_the_window_in_its_own_interpreter_and_watches_it(home, core, monkeypatch):
-    calls, threads = [], []
+    calls, threads = [], Spawned(run=False)
     monkeypatch.setattr(home, 'run', calls.append)
-    monkeypatch.setattr(home.threading, 'Thread', lambda target: types.SimpleNamespace(start=lambda: threads.append(target)))
+    monkeypatch.setattr(home, 'spawn', threads)
     window = home.Home('a4k-home.xml', '', 'Default', '1080i')
     window.onClick(home.SETTINGS)
-    assert calls == ['RunScript(plugin.video.a4kstreaming,settings)'] and threads == [window.settings_closed]
+    assert calls == ['RunScript(plugin.video.a4kstreaming,settings)'] and [t.target for t in threads] == [window.settings_closed]
     assert window.error is None
 
 @pytest.mark.parametrize('native,only_order,opened', [(False, False, []), (True, False, ['dialog']), (True, True, [])])

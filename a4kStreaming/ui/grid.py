@@ -51,7 +51,9 @@ def prefetch_page(path):
 class Grid(kodi.xbmcgui.WindowXML):
     error = None
     closed = False
-    timer = None
+    stopped = None  # set in show(); every thread of the window ends on it (home.spawn)
+    threads = ()
+    dwelling = None  # the running dwell's cancel
     prefetched = None
     path = ''
     title = ''
@@ -159,7 +161,7 @@ class Grid(kodi.xbmcgui.WindowXML):
         self.refocus()
 
     def refocus(self):
-        threading.Thread(target=self.wait_and_focus, args=(self.path,)).start()
+        home.spawn(self, self.wait_and_focus, self.path)
 
     def wait_and_focus(self, path):
         # An empty listing cannot keep focus: Kodi drops it (and logs that it cannot focus the panel), and nothing gives
@@ -189,14 +191,13 @@ class Grid(kodi.xbmcgui.WindowXML):
         last = kodi.xbmc.getInfoLabel('Container(%s).ListItemAbsolute(%s).FolderPath' % (PANEL, count - 1))
         if 'paginationToken=' in last and last != self.prefetched:
             self.prefetched = last
-            threading.Thread(target=prefetch_page, args=(last,)).start()
+            home.spawn(self, prefetch_page, last)  # holds no window, but the window's close waits for it all the same
 
     def dwell(self):
         # a title that keeps focus for a moment gets its detail request made now, as on the home window
-        if self.timer:
-            self.timer.cancel()
-        self.timer = threading.Timer(home.PREFETCH_DWELL, self.prefetch)
-        self.timer.start()
+        if self.dwelling:
+            self.dwelling.set()
+        self.dwelling = home.spawn(self, self.prefetch, delay=home.PREFETCH_DWELL)
 
     def prefetch(self):
         try:
@@ -207,8 +208,6 @@ class Grid(kodi.xbmcgui.WindowXML):
 
     def close(self):
         self.closed = True
-        if self.timer:
-            self.timer.cancel()
         super(Grid, self).close()
 
     def __fail(self):
@@ -218,6 +217,7 @@ class Grid(kodi.xbmcgui.WindowXML):
 def show(path, title, kicker=''):
     try:
         window = Grid('a4k-grid.xml', kodi.addon_path, 'Default', '1080i')
+        window.stopped = threading.Event()
         # a reopened add-on (after the Home key) comes back to this window, not to the one under it
         window.setProperty('a4k.home', 'true')
         window.steps = []

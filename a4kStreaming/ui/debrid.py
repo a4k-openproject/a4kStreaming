@@ -30,9 +30,7 @@ TAB_NAMES = ((DOWNLOADS, 'Downloads'), (CLOUD, 'Cloud'))
 ACTIVE = 2  # s between transfer refreshes while one is queued or downloading
 IDLE = 15  # s between them otherwise, and after a failure
 TICK = 0.25  # s between looks whether the window is on screen and a refresh is due
-TIMEOUT = 10  # s a Premiumize request may take, so a closing window waits for its threads a bounded time
-JOIN = TIMEOUT + 2  # s the close waits for them
-LEFT_OVER = []  # windows whose threads outlived JOIN: never freed off the main thread
+TIMEOUT = home.TIMEOUT  # s a Premiumize request may take, so a closing window waits for its threads a bounded time
 
 # the status chips, as the reference app draws them; any other status shows as it comes
 CHIPS = {'queued': 'Queued', 'running': 'Downloading', 'waiting': 'Downloading', 'seeding': 'Downloading',
@@ -198,6 +196,7 @@ class Debrid(kodi.xbmcgui.WindowXML):
     seen = None
     fair = None
     threads = ()
+    stopped = None
     over_call = False  # opened from a running play call (the uncached wait): its loader stamp is not ours
 
     def onInit(self):
@@ -220,18 +219,11 @@ class Debrid(kodi.xbmcgui.WindowXML):
             self.tabs.addItems([kodi.xbmcgui.ListItem(label=label, offscreen=True) for _, label in TAB_NAMES])
             self.show_tab(self.tab)
             self.setFocusId(TABS)
-            self.spawn(self.poll)
+            home.spawn(self, self.poll)
         except Exception:
             self.__fail()
 
     # the refresh thread, alive as long as the window
-
-    def spawn(self, target, *args):
-        # every thread of the window is joined before the window is freed (open)
-        self.threads = [thread for thread in self.threads if thread.is_alive()]
-        thread = threading.Thread(target=target, args=args)
-        self.threads.append(thread)
-        thread.start()
 
     def visible(self):
         return kodi.xbmcgui.getCurrentWindowId() == self.own_id and \
@@ -355,7 +347,7 @@ class Debrid(kodi.xbmcgui.WindowXML):
     # Cloud
 
     def load_cloud_later(self, folder, back_to=None, focus=False):
-        self.spawn(self.load_cloud, folder, back_to, focus)
+        home.spawn(self, self.load_cloud, folder, back_to, focus)
 
     def load_cloud(self, folder, back_to=None, focus=False):
         try:
@@ -535,16 +527,7 @@ def open(tab='downloads', folder='', over_call=False):
         window.setProperty('a4k.overcall', 'true' if over_call else '')  # the play call's loader is not drawn
         window.tab = CLOUD if tab == 'cloud' else DOWNLOADS
         window.folder = folder or ''
-        try:
-            home.modal(window)
-        finally:
-            window.stop()
-        # a window freed on one of its own threads races the interpreter's main thread: Kodi 21 dies with SIGSEGV
-        deadline = time.time() + JOIN
-        for thread in window.threads:
-            thread.join(max(0, deadline - time.time()))
-        if any(thread.is_alive() for thread in window.threads):
-            LEFT_OVER.append(window)  # ponytail: kept until the interpreter ends; a hung request costs one window
+        home.modal(window)  # joins the window's threads before it is freed
         error = window.error
         del window
         if error:

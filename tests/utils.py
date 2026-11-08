@@ -1,5 +1,21 @@
 # -*- coding: utf-8 -*-
 
+import threading
+from types import SimpleNamespace
+
+class Spawned(list):
+    # ui/home.py spawn stand-in: records each thread (target, args, delay, cancel) and runs it at once when run is set
+    def __init__(self, run=True):
+        super(Spawned, self).__init__()
+        self.run = run
+
+    def __call__(self, window, target, *args, delay=None):
+        cancel = threading.Event()
+        self.append(SimpleNamespace(target=target, args=args, delay=delay, cancel=cancel, fire=lambda: target(*args)))
+        if self.run:
+            target(*args)
+        return cancel
+
 class Spy(object):
     def __init__(self):
         self.args = []

@@ -61,6 +61,12 @@ ACTION_CONTEXT_MENU = 117
 ACTION_MOVES = (1, 2, 3, 4)
 PREFETCH_DWELL = 0.4
 
+# a window's threads (spawn, release)
+TIMEOUT = 10  # s a request on a window's thread may take (lib/request's default is 60), so its close waits a bounded time
+JOIN = TIMEOUT + 2  # s a closing window waits for its threads
+LEFT_OVER = []  # windows whose threads outlived JOIN: kept, so they are never freed on one of those threads
+LOCK = threading.Lock()
+
 INFO = ('FolderPath', 'Property(a4k.id)', 'Property(a4k.type)', 'Property(a4k.rated)', 'Property(a4k.trailers)',
         'Property(a4k.at)',  # a Continue Watching episode: the show's detail opens at "<season>:<episode>"
         # what the detail window paints before its own request lands
@@ -171,7 +177,8 @@ def apply(window):
 
 class Home(kodi.xbmcgui.WindowXML):
     error = None
-    timer = None
+    dwelling = None  # the running dwell's cancel (spawn)
+    threads = ()
     hero = 0
     own_id = None
     stopped = None
@@ -191,26 +198,26 @@ class Home(kodi.xbmcgui.WindowXML):
             kodi.busy_live()  # clears a stale loader stamp (see run)
             if self.stopped is None:
                 self.stopped = threading.Event()
-                threading.Thread(target=self.rotate).start()
+                spawn(self, self.rotate)
             elif self.getProperty('a4k.row.%s' % CONTINUE) and (playing() or self.getProperty('a4k.row.%s' % CONTINUE) != continue_url()):
                 # back from a play (or a detail window that played): the Continue Watching row reloads once, after the
                 # player went and only with nothing over the window. Rows reloading next to a running plugin call or
                 # the player's stop, or right as a window of this interpreter closes, crashed Kodi (a4k-home.xml,
                 # ui/settings.py).
-                threading.Thread(target=self.reload_continue).start()
+                spawn(self, self.reload_continue)
         except Exception:
             self.__fail()
 
     def reload_continue(self):
         try:
-            if not after_play(self.stopped.is_set):
+            if not after_play(self.stopped):
                 return
             url = continue_url()
             if self.stopped.is_set() or not self.idle() or self.getProperty('a4k.row.%s' % CONTINUE) == url:
                 return  # the next return to the window looks again
             self.setProperty('a4k.row.%s' % CONTINUE, url)
             self.setProperty(FRESH, 'true')  # an empty row is hidden, and a hidden list never loads
-            threading.Timer(FRESH_TIME, self.setProperty, (FRESH, '')).start()
+            spawn(self, self.setProperty, FRESH, '', delay=FRESH_TIME)
         except Exception:
             logger.debug(traceback.format_exc())
 
@@ -299,7 +306,7 @@ class Home(kodi.xbmcgui.WindowXML):
         # from a thread: a blocking executebuiltin holds Python's lock, and the dialog's actions (ui.py) then could not
         # run until it closed (seen live).
         run('RunScript(%s,settings)' % kodi.addon_id)
-        threading.Thread(target=self.settings_closed).start()
+        spawn(self, self.settings_closed)
 
     def settings_closed(self, opened=False):
         try:
@@ -326,10 +333,10 @@ class Home(kodi.xbmcgui.WindowXML):
         apply(self)
         self.wire()
         self.setProperty(FRESH, 'true')  # every slot with a listing shows for a moment, so a new listing starts loading
-        threading.Timer(FRESH_TIME, self.setProperty, (FRESH, '')).start()
+        spawn(self, self.setProperty, FRESH, '', delay=FRESH_TIME)
         if self.sources != sources:
             self.hero = -1
-            threading.Timer(HERO_RELOAD, self.turn).start()
+            spawn(self, self.turn, delay=HERO_RELOAD)
 
     def wire(self):
         # Down on the last row that shows stays there. Past it only hidden slots follow, their chain ends in noop, and
@@ -420,12 +427,11 @@ class Home(kodi.xbmcgui.WindowXML):
             self.show_hero(items)
 
     def dwell(self):
-        # a title card that keeps focus for PREFETCH_DWELL gets its detail request made now, on a timer thread, so its
-        # detail window opens with the shelves already there
-        if self.timer:
-            self.timer.cancel()
-        self.timer = threading.Timer(PREFETCH_DWELL, self.prefetch)
-        self.timer.start()
+        # a title card that keeps focus for PREFETCH_DWELL gets its detail request made now, on a thread of the window,
+        # so its detail window opens with the shelves already there
+        if self.dwelling:
+            self.dwelling.set()
+        self.dwelling = spawn(self, self.prefetch, delay=PREFETCH_DWELL)
 
     def prefetch(self):
         try:
@@ -437,8 +443,6 @@ class Home(kodi.xbmcgui.WindowXML):
             logger.debug(traceback.format_exc())
 
     def stop(self):
-        if self.timer:
-            self.timer.cancel()
         if self.stopped:
             self.stopped.set()
 
@@ -482,32 +486,66 @@ def replace_current(window_id):
 def playing():
     return bool(kodi.xbmc.getCondVisibility('Player.HasMedia'))
 
-def after_play(gone):
+def after_play(stopped):
     # Back from the video shows the window before the player stops and records the position (service.py): wait until
-    # the player went, then a settle. False when the window went (gone()) or the player stays
+    # the player went, then a settle. False when the window stopped (stopped, its Event, also ends the waits at once,
+    # so a closed window's thread ends with it) or the player stays
     waited = 0
     while playing():
-        if gone() or waited >= PLAYER_WAIT:
+        if waited >= PLAYER_WAIT or stopped.wait(PLAYER_LOOK):
             return False
-        time.sleep(PLAYER_LOOK)
         waited += PLAYER_LOOK
-    time.sleep(CONTINUE_SETTLE)
-    return not gone()
+    return not stopped.wait(CONTINUE_SETTLE)
+
+def spawn(window, target, *args, delay=None):
+    # Every thread of an a4k window starts here and is joined before the window is freed (release): Kodi 21 dies with
+    # SIGSEGV when a WindowXML is freed off its interpreter's main thread, and a thread whose target is a bound method
+    # holds the window past `del window`. delay stands in for threading.Timer, whose run never drops its function: a
+    # stored timer made a window -> timer -> method -> window cycle, and the GC then freed the window on any thread.
+    # The delay ends early when the window stops; the returned Event, once set, cancels the target (a restarted dwell).
+    # window.stopped must be the window's Event; a stopped window starts nothing.
+    cancel = threading.Event()
+    def run():
+        if delay is None or not (window.stopped.wait(delay) or cancel.is_set()):
+            target(*args)
+    with LOCK:
+        if not window.stopped.is_set():
+            thread = threading.Thread(target=run)
+            thread.request_timeout = TIMEOUT  # lib/request: the default timeout of this thread's requests
+            window.threads = [alive for alive in window.threads if alive.is_alive()] + [thread]
+            thread.start()
+    return cancel
+
+def release(window):
+    # on the interpreter's main thread once the window's doModal returned: its waits end, its threads are joined against
+    # one deadline, and a window with a thread still running is kept rather than freed on that thread
+    with LOCK:
+        if window.stopped:
+            window.stopped.set()
+        threads = list(window.threads)
+    deadline = time.time() + JOIN
+    for thread in threads:
+        thread.join(max(0, deadline - time.time()))
+    if any(thread.is_alive() for thread in threads):
+        LEFT_OVER.append(window)  # ponytail: a hung request costs one window until the interpreter ends
 
 def modal(window):
     # doModal for a window opened over another a4k window (detail, grid). It takes the open-window slot in its onInit;
     # on close the slot goes back to the window below, and so does the screen when the user went Home and reopened the
-    # add-on into this one (Back must not land on Kodi's Home).
+    # add-on into this one (Back must not land on Kodi's Home). Its threads are joined before it is freed (release).
     __home = kodi.xbmcgui.Window(app.HOME_WINDOW)
     previous = __home.getProperty(app.OPEN_WINDOW)
     try:
         window.doModal()
     finally:
         window.closed = True
-        if previous:
-            __home.setProperty(app.OPEN_WINDOW, previous)
-            if kodi.xbmcgui.getCurrentWindowId() != int(previous) and not kodi.xbmc.Monitor().abortRequested():
-                replace_current(previous)
+        try:
+            if previous:
+                __home.setProperty(app.OPEN_WINDOW, previous)
+                if kodi.xbmcgui.getCurrentWindowId() != int(previous) and not kodi.xbmc.Monitor().abortRequested():
+                    replace_current(previous)
+        finally:
+            release(window)
 
 def open(cover=None):
     # cover: the launch cover (app.launch), closed as the window takes its place
@@ -525,8 +563,8 @@ def open(cover=None):
     try:
         window.doModal()
     finally:
-        window.stop()
         kodi.xbmcgui.Window(app.HOME_WINDOW).clearProperty(app.OPEN_WINDOW)
+        release(window)
     error = window.error
     del window
     if error:

@@ -2,10 +2,15 @@
 # Offline tests for the window interface: the skin lint, the root routing and the launch, the home window's
 # click and menu mapping, and the play flow's sheets (select sheet and source search progress).
 
+import gc
 import os
 import re
 import struct
+import threading
+import time
+import weakref
 import importlib
+from types import SimpleNamespace
 from xml.etree import ElementTree
 from .common import pytest, api
 
@@ -590,3 +595,103 @@ def test_sheet_list_takes_focus_and_does_not_leave_sideways():
     # up and down wrap at the ends, as Kodi's own select does; left and right stay
     assert rows.findtext('onleft') == 'noop' and rows.findtext('onright') == 'noop'
     assert rows.find('onup') is None and rows.find('ondown') is None
+
+# the windows' threads (ui/home.py spawn and release): Kodi 21 dies with SIGSEGV when a WindowXML is freed off its
+# interpreter's main thread, so a window is never freed on one of its own threads
+
+class Win(object):
+    # a window as spawn and release see it
+    threads = ()
+
+    def __init__(self):
+        self.stopped = threading.Event()
+
+def test_release_stops_and_joins_the_window_threads(home):
+    win, woke = Win(), []
+    home.spawn(win, lambda: woke.append(win.stopped.wait(5)))
+    home.spawn(win, lambda: woke.append(win.stopped.wait(5)))
+    home.release(win)
+    assert woke == [True, True] and not any(t.is_alive() for t in win.threads) and win not in home.LEFT_OVER
+
+def test_a_thread_that_outlives_the_join_keeps_its_window(home, monkeypatch):
+    monkeypatch.setattr(home, 'JOIN', 0.2)
+    monkeypatch.setattr(home, 'LEFT_OVER', [])
+    win, gate = Win(), threading.Event()
+    home.spawn(win, gate.wait, 5)  # a request that does not end with the window
+    started = time.time()
+    home.release(win)
+    assert home.LEFT_OVER == [win] and time.time() - started < 1
+    gate.set()
+    win.threads[0].join(1)
+
+def test_a_delayed_call_runs_once_unless_cancelled_or_its_window_stops(home):
+    win, ran = Win(), []
+    home.spawn(win, ran.append, 'stopped', delay=5)
+    home.spawn(win, ran.append, 'cancelled', delay=0.05).set()
+    home.spawn(win, ran.append, 'ran', delay=0.05)
+    win.threads[2].join(1)
+    started = time.time()
+    home.release(win)  # the 5 s delay ends with the window, its call never made
+    assert ran == ['ran'] and time.time() - started < 1
+    home.spawn(win, ran.append, 'late')  # a stopped window starts nothing
+    assert ran == ['ran'] and len(win.threads) == 3
+
+def test_a_released_window_is_freed_at_its_del_with_no_cycle_left(home):
+    # a stored threading.Timer kept window -> timer -> bound method -> window: del freed nothing, and the GC later freed
+    # the window on whatever thread it ran on. With the GC off, the window must go at del, on this thread.
+    gc.disable()
+    try:
+        win = home.Home('a4k-home.xml', '', 'Default', '1080i')
+        win.stopped = threading.Event()
+        win.dwell()
+        win.dwell()  # a restarted dwell: the first one cancelled
+        win.reapply()  # the FRESH reset and the top shelf's restart, both delayed
+        home.spawn(win, win.rotate)
+        home.release(win)
+        window = weakref.ref(win)
+        del win
+        assert window() is None
+    finally:
+        gc.enable()
+
+def test_modal_joins_a_thread_still_running_as_the_window_closes(core, home, monkeypatch):
+    detail = importlib.import_module('a4kStreaming.ui.detail')
+    gate, done = threading.Event(), []
+    def fill(self):
+        gate.wait(5)
+        done.append(self.closed)
+    def doModal(self):
+        self.onInit()  # starts fill
+        threading.Timer(0.1, gate.set).start()  # the fetch lands after the window closed
+    monkeypatch.setattr(detail.Detail, 'fill', fill)
+    monkeypatch.setattr(detail.Detail, 'doModal', doModal)
+    detail.open(importlib.import_module('tests.test_detail').card())
+    assert done == [True]
+
+def test_after_play_ends_as_soon_as_the_window_stops(core, home, monkeypatch):
+    monkeypatch.setattr(core.kodi.xbmc, 'getCondVisibility', lambda condition: True)  # the player stays
+    stopped = threading.Event()
+    stopped.set()
+    started = time.time()
+    assert home.after_play(stopped) is False and time.time() - started < 0.1
+    stopped = threading.Event()
+    threading.Timer(0.1, stopped.set).start()  # closed during the wait
+    assert home.after_play(stopped) is False and time.time() - started < 0.5
+
+def test_window_threads_start_only_through_spawn():
+    ui = os.path.join(os.path.dirname(__file__), '..', 'a4kStreaming', 'ui')
+    for name in ('home', 'detail', 'grid', 'search', 'debrid'):
+        with open(os.path.join(ui, name + '.py')) as f:
+            started = re.findall(r'\b(?:Thread|Timer)\(', f.read())
+        assert started == (['Thread('] if name == 'home' else []), name  # the one in spawn
+
+def test_a_window_thread_requests_with_the_short_timeout(core, home, monkeypatch):
+    request = importlib.import_module('a4kStreaming.lib.request')
+    timeouts = []
+    monkeypatch.setattr(request, '__send', lambda core, session, sent: timeouts.append(sent['timeout']) or SimpleNamespace(status_code=404, content=''))
+    call = lambda: request.execute(core, {'method': 'GET', 'url': 'https://example.com/'}, cache=False)
+    call()
+    win = Win()
+    home.spawn(win, call)
+    home.release(win)
+    assert timeouts == [60, home.TIMEOUT]

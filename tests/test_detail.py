@@ -9,6 +9,7 @@ import json
 import importlib
 from xml.etree import ElementTree
 from .common import pytest, api
+from .utils import Spawned
 
 WINDOWS = os.path.join(os.path.dirname(__file__), '..', 'resources', 'skins', 'Default', '1080i')
 XML = os.path.join(WINDOWS, 'a4k-detail.xml')
@@ -201,20 +202,10 @@ def test_query_raw_returns_the_title(core, monkeypatch):
 
 # D. the window
 
-class Sync(object):
-    # threading stand-in: threads and timers run at start()
-    class Thread(object):
-        def __init__(self, target, *args, **kwargs): self.target = target
-        def start(self): self.target()
-        def cancel(self): pass
-
-    @staticmethod
-    def Timer(seconds, target): return Sync.Thread(target)
-
 @pytest.fixture
 def opened(core, detail, monkeypatch):
-    # open() runs the window the way Kodi would: onInit, then the worker; the window is kept for the test
-    monkeypatch.setattr(detail, 'threading', Sync)
+    # open() runs the window the way Kodi would: onInit, then the worker (at once); the window is kept for the test
+    monkeypatch.setattr(detail.home, 'spawn', Spawned())
     monkeypatch.setattr(detail, 'fetch', lambda core, id, series: fixture()['series' if series else 'movie'])
     windows = []
     monkeypatch.setattr(detail.Detail, 'doModal', lambda self: windows.append(self) or self.onInit())
@@ -319,7 +310,7 @@ def test_episodes_play_and_people_do_nothing_from_home(core, home, calls, monkey
 ])
 def test_home_prefetches_the_title_that_keeps_focus(core, home, detail, monkeypatch, focus, type, fetched):
     # a move starts the dwell timer; when it fires, the focused title's detail request runs (the window then opens full)
-    monkeypatch.setattr(home, 'threading', Sync)
+    monkeypatch.setattr(home, 'spawn', Spawned())
     item = 'Container(%s).ListItem' % focus if focus in home.ROWS else 'Container(301).ListItemAbsolute(0)'
     labels = {item + '.Property(a4k.type)': type, item + '.Property(a4k.id)': SERIES}
     monkeypatch.setattr(core.kodi.xbmc, 'getInfoLabel', lambda label: labels.get(label, ''))
@@ -408,11 +399,11 @@ def test_movie_in_progress_reads_resume(core, detail, opened, progress_store):
 
 def test_return_after_a_play_refreshes_once_the_player_went(core, detail, home, opened, progress_store, monkeypatch):
     media, sleeps = [], []
-    monkeypatch.setattr(home.time, 'sleep', sleeps.append)
     monkeypatch.setattr(core.kodi.xbmc, 'getCondVisibility', lambda cond: cond == 'Player.HasMedia' and bool(media and media.pop()))
     detail.open(card())
     win = opened[0]
-    win.closed = False
+    win.closed = False  # the mock doModal has returned: reopen it, its waits recorded and never stopped
+    win.stopped = type('Stopped', (), {'wait': lambda self, seconds: sleeps.append(seconds) or False})()
     assert win.getProperty('a4k.playlabel') == 'Play'
     win.onInit()  # back from a trailer: nothing moved
     assert sleeps == []

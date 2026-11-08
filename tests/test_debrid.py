@@ -343,7 +343,7 @@ def test_cloud_click_opens_folders_plays_videos_and_back_goes_up(core, debrid, w
     assert 'includebreadcrumbs=true' in server.requests[0][0]['url'] and all(cache is False for _, cache in server.requests)
 
 def test_close_waits_for_the_window_threads(core, debrid, monkeypatch):
-    # a window freed on its own thread crashed Kodi 21 (SIGSEGV on close): open() joins them first
+    # a window freed on its own thread crashed Kodi 21 (SIGSEGV on close): home.modal joins them first
     import threading
     monkeypatch.setattr(core.kodi.xbmcgui, 'ListItem', FakeItem)
     gate, done = threading.Event(), []
@@ -356,9 +356,9 @@ def test_close_waits_for_the_window_threads(core, debrid, monkeypatch):
         window.onInit()
         threading.Timer(0.1, gate.set).start()  # the refresh still running as the window closes
     monkeypatch.setattr(debrid.Debrid, 'poll', poll)
-    monkeypatch.setattr(debrid.home, 'modal', modal)
+    monkeypatch.setattr(debrid.Debrid, 'doModal', modal)
     debrid.open()
-    assert done == [True] and not debrid.LEFT_OVER
+    assert done == [True] and not debrid.home.LEFT_OVER
 
 def test_fair_use_bar_comes_back_after_playback(debrid, window):
     window.paint_account({'status': 'success', 'premium_until': 0, 'limit_used': 0.5, 'space_used': 0})
