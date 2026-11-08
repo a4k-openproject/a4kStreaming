@@ -600,8 +600,6 @@ def play(core, params):
 
     item = core.kodi.xbmcgui.ListItem(path=link, offscreen=True)
     item.setProperty('IsPlayable', 'true')
-    if params.start:
-        item.setProperty('StartOffset', str(params.start))
     item.setContentLookup(False)
 
     video_meta = provider_params.title.copy()
@@ -617,6 +615,7 @@ def play(core, params):
     info_tag = core.kodi.set_info_tag(item, video_meta)
     info_tag.add_stream_info('video', { 'codec': result['videocodec'], 'duration': result['ref'].duration })
 
-    skip.hand_off(provider_params.title, entry)
+    # Resume from: the service seeks once the stream plays (a StartOffset on the resolved item is not applied, seen live)
+    skip.hand_off(provider_params.title, dict(entry, start=params.start) if entry and params.start else entry)
     core.utils.end_action(core, True, item)
     return link

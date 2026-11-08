@@ -49,6 +49,7 @@ def start(api):
     # the play the add-on started (the hand-off's Continue Watching entry), None for any other
     ours = lambda: None
     ours.meta = None
+    ours.start = 0  # Resume from: seconds to seek to once the stream plays (Kodi starts a resolved plugin play at 0)
     ours.saved = 0
     ours.back = BackStop()
 
@@ -74,7 +75,7 @@ def start(api):
             ours.meta = None  # a hand-off whose stream never started, taken by another play
 
     def save_progress(finished=False):
-        if not ours.meta or not watched.total_time:
+        if not ours.meta or not watched.total_time or ours.start:  # a resume not reached yet keeps the old position
             return
         ours.saved = core.time.time()
         store = progress.record(progress.load(), ours.meta, watched.time_played or 0, watched.total_time, progress.now(), finished)
@@ -92,7 +93,7 @@ def start(api):
             core.profile(core, core.utils.DictAsObject({ 'type': 'mark_as_watched', 'id': watched.playing_imdb_id, 'silent': True }))
         finally:
             reset_vars()
-            ours.meta = None
+            ours.meta, ours.start = None, 0
 
     # intro / recap skip and the next episode for the playing episode (ui/skip.py)
     skip_watch = lambda: None
@@ -105,6 +106,7 @@ def start(api):
         skip_watch.current = skip.start(core, player, monitor, handoff, on_next=lambda: mark_as_watched(finished=True))
         reset_vars()
         ours.meta, ours.saved, ours.back = handoff.get('progress'), core.time.time(), BackStop()
+        ours.start = (ours.meta or {}).get('start', 0)
         update_playing_imdb_id(retry=True)
 
     def ended(natural):
@@ -145,6 +147,14 @@ def start(api):
         except: pass
 
         if not ours.meta:
+            continue
+        if ours.start:
+            try:
+                if player.getVideoInfoTag().getIMDBNumber() == ours.meta.get('id'):
+                    player.seekTime(ours.start)
+            except Exception:
+                pass
+            ours.start = 0
             continue
         if ours.back.step(core.kodi.xbmcgui.getCurrentWindowId(), core.kodi.get_setting('general.back_stops') != 'false'):
             player.stop()  # onPlayBackStopped records the position

@@ -64,6 +64,7 @@ def record(store, meta, pos, dur, now, finished=False):
         return store
     previous = store.get(key(meta)) or {}
     entry = dict(meta, pos=float(dur if finished else pos), dur=float(dur), t=now)
+    entry.pop('start', None)  # the play's Resume from, not the entry's
     entry['watched'] = bool(previous.get('watched')) or percent(entry) > IN_PROGRESS[1]
     store[key(meta)] = entry
     return prune(store, now)
