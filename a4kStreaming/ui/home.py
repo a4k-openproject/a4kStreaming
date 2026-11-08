@@ -4,6 +4,7 @@
 # fills the row slots from the Appearance settings and turns the top shelf.
 
 import threading
+import time
 import traceback
 from types import SimpleNamespace
 
@@ -13,7 +14,9 @@ from . import app, appearance
 
 ROWS = (301, 302, 303, 304, 305, 306, 307)  # slots for the rows that are on, in their order (a4k.row.30n, a4k.title.30n)
 CONTINUE = 308  # Continue Watching (its own landscape row under Browse, a4k.row.308)
-CONTINUE_SETTLE = 1.5  # s after the window comes back before the row reloads (see Home.onInit)
+CONTINUE_SETTLE = 1.5  # s after the player went before the row reloads (see after_play)
+PLAYER_WAIT = 10  # s a reload waits for the player to go; one still playing (Back stops playback off) skips it
+PLAYER_LOOK = 0.5
 HERO_PLAY = 201
 HERO_INFO = 202
 HERO_ROW = 301
@@ -186,16 +189,19 @@ class Home(kodi.xbmcgui.WindowXML):
             if self.stopped is None:
                 self.stopped = threading.Event()
                 threading.Thread(target=self.rotate).start()
-            elif self.getProperty('a4k.row.%s' % CONTINUE) not in ('', continue_url()):
-                # back from a play (or a detail window that played): the Continue Watching row reloads once, a moment
-                # later and only with nothing over the window. Rows reloading next to a running plugin call, or right as
-                # a window of this interpreter closes, crashed Kodi (a4k-home.xml, ui/settings.py).
-                threading.Timer(CONTINUE_SETTLE, self.reload_continue).start()
+            elif self.getProperty('a4k.row.%s' % CONTINUE) and (playing() or self.getProperty('a4k.row.%s' % CONTINUE) != continue_url()):
+                # back from a play (or a detail window that played): the Continue Watching row reloads once, after the
+                # player went and only with nothing over the window. Rows reloading next to a running plugin call or
+                # the player's stop, or right as a window of this interpreter closes, crashed Kodi (a4k-home.xml,
+                # ui/settings.py).
+                threading.Thread(target=self.reload_continue).start()
         except Exception:
             self.__fail()
 
     def reload_continue(self):
         try:
+            if not after_play(self.stopped.is_set):
+                return
             url = continue_url()
             if self.stopped.is_set() or not self.idle() or self.getProperty('a4k.row.%s' % CONTINUE) == url:
                 return  # the next return to the window looks again
@@ -448,6 +454,21 @@ def replace_current(window_id):
     # holds each window id once: with Videos under the home window, opening a listing in Videos cuts the home window out
     # of it, and Back from the listing lands on Kodi's Home screen. Back from the home window now goes to Home, too.
     kodi.xbmc.executebuiltin('ReplaceWindow(%s)' % window_id, True)
+
+def playing():
+    return bool(kodi.xbmc.getCondVisibility('Player.HasMedia'))
+
+def after_play(gone):
+    # Back from the video shows the window before the player stops and records the position (service.py): wait until
+    # the player went, then a settle. False when the window went (gone()) or the player stays
+    waited = 0
+    while playing():
+        if gone() or waited >= PLAYER_WAIT:
+            return False
+        time.sleep(PLAYER_LOOK)
+        waited += PLAYER_LOOK
+    time.sleep(CONTINUE_SETTLE)
+    return not gone()
 
 def modal(window):
     # doModal for a window opened over another a4k window (detail, grid). It takes the open-window slot in its onInit;

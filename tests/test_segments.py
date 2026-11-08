@@ -410,6 +410,17 @@ def test_watch_key_cancels_the_countdown_and_press_plays_next(watch, skip):
     w.step(0.5)
     assert len(w.log['builtins']) == 1 and w.log['next'] == 1
 
+def test_watch_back_hides_the_next_button_and_cancels_the_countdown(watch, skip):
+    # the pill consumes Back: the first hides it, so the next one reaches the video (Back stops playback)
+    w = watch()
+    w.player.pos = 1380
+    w.step(0)
+    w.window.onAction(Action(skip.ACTION_NAV_BACK))
+    w.step(0.5)
+    assert w.log['shown'] is None and not w.model.countdown_active()
+    w.ended()
+    assert w.log['builtins'] == []
+
 def test_watch_pause_does_not_cancel_and_the_natural_end_plays_next(watch, skip):
     w = watch()
     w.player.pos = 1380

@@ -271,15 +271,18 @@ class Detail(kodi.xbmcgui.WindowXML):
                 self.started = True
                 self.stamp = progress.stamp()
                 threading.Thread(target=self.fill).start()
-            elif self.title and self.stamp != progress.stamp():
+            elif self.title and (home.playing() or self.stamp != progress.stamp()):
                 threading.Thread(target=self.refresh).start()  # back from a play: the bars and marks move
         except Exception:
             self.__fail()
 
     def refresh(self):
         # the store changed under the window: the season marks and the Play label again, and the shown season's
-        # episodes reload under a new URL (once, from onInit, never next to a running plugin call)
+        # episodes reload under a new URL (once, from onInit, after the player went: never next to a running plugin
+        # call or the player's stop)
         try:
+            if not home.after_play(lambda: self.closed) or self.stamp == progress.stamp():
+                return
             self.stamp = progress.stamp()
             vm = view_model(plugin_core(), self.title, self.vm['seasons'][self.season_index()]['key'] if self.vm['seasons'] else None)
             if self.closed:

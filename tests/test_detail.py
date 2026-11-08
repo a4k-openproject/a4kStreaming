@@ -405,3 +405,19 @@ def test_movie_in_progress_reads_resume(core, detail, opened, progress_store):
     assert opened[0].getProperty('a4k.playlabel') == 'Resume'
     progress_store.save({})
     assert detail.play_label(MOVIE) == 'Play'
+
+def test_return_after_a_play_refreshes_once_the_player_went(core, detail, home, opened, progress_store, monkeypatch):
+    media, sleeps = [], []
+    monkeypatch.setattr(home.time, 'sleep', sleeps.append)
+    monkeypatch.setattr(core.kodi.xbmc, 'getCondVisibility', lambda cond: cond == 'Player.HasMedia' and bool(media and media.pop()))
+    detail.open(card())
+    win = opened[0]
+    win.closed = False
+    assert win.getProperty('a4k.playlabel') == 'Play'
+    win.onInit()  # back from a trailer: nothing moved
+    assert sleeps == []
+    media[:] = [True, True]  # Back from the video (onInit looks, then the wait): the stop's save lands after the window shows
+    progress_store.save({MOVIE: {'pos': 600, 'dur': 6000}})
+    win.onInit()
+    assert sleeps == [home.PLAYER_LOOK, home.CONTINUE_SETTLE] and win.getProperty('a4k.playlabel') == 'Resume'
+    assert win.stamp == progress_store.stamp()

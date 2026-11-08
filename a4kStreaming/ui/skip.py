@@ -155,7 +155,7 @@ class Watch(object):
             window.pressed = window.back = window.key = False
             if back or key:
                 self.model.cancel_countdown()
-            if back and tick.button in ('intro', 'recap'):
+            if back and tick.button in ('intro', 'recap', 'next'):  # the next Back reaches the video and stops it (service.py)
                 self.dismissed = tick.button
             if pressed and tick.button == 'next':
                 return self.play_next()

@@ -196,17 +196,31 @@ def test_a_card_opens_the_detail_at_its_episode(core, home, monkeypatch):
     assert detail.at({}) is None
 
 def test_the_row_reloads_on_return_only_when_the_store_moved(core, home, progress, monkeypatch):
-    timers = []
-    monkeypatch.setattr(home.threading, 'Timer', lambda seconds, target, args=(): type('T', (), {'start': lambda self: timers.append(target)})())
-    monkeypatch.setattr(home.threading, 'Thread', lambda target: type('T', (), {'start': lambda self: None})())
+    threads, sleeps, media = [], [], []
+    monkeypatch.setattr(home.threading, 'Thread', lambda target: type('T', (), {'start': lambda self: threads.append(target)})())
+    monkeypatch.setattr(home.threading, 'Timer', lambda *a: type('T', (), {'start': lambda self: None})())
+    monkeypatch.setattr(home.time, 'sleep', sleeps.append)
+    monkeypatch.setattr(home.kodi.xbmc, 'getCondVisibility', lambda cond: cond == 'Player.HasMedia' and bool(media and media.pop()))
     monkeypatch.setattr(home.kodi.xbmcgui, 'getCurrentWindowId', lambda: window.own_id)
     window = home.Home('a4k-home.xml', '', 'Default', '1080i')
     home.apply(window)
     window.onInit()
+    threads.clear()  # the top shelf's rotation
     window.onInit()  # back, nothing played
-    assert timers == []
+    assert threads == []
     progress.save({'tt5': {'pos': 1, 'dur': 2}})
     window.onInit()  # back from a play
-    assert timers == [window.reload_continue]
+    assert threads == [window.reload_continue]
+    media[:] = [True, True]  # Back from the video: the player stops a moment after the window shows
     window.reload_continue()
+    assert sleeps == [home.PLAYER_LOOK, home.PLAYER_LOOK, home.CONTINUE_SETTLE]
     assert window.getProperty('a4k.row.308') == PLUGIN + '?action=continue&widget=1&t=' + progress.stamp()
+
+def test_after_play_gives_up_on_a_player_that_stays_or_a_closed_window(home, monkeypatch):
+    sleeps = []
+    monkeypatch.setattr(home.time, 'sleep', sleeps.append)
+    monkeypatch.setattr(home.kodi.xbmc, 'getCondVisibility', lambda cond: True)
+    assert home.after_play(lambda: False) is False and sum(sleeps) == home.PLAYER_WAIT
+    assert home.after_play(lambda: True) is False
+    monkeypatch.setattr(home.kodi.xbmc, 'getCondVisibility', lambda cond: False)
+    assert home.after_play(lambda: False) is True and home.after_play(lambda: True) is False
