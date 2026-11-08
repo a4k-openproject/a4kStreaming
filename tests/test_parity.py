@@ -91,13 +91,17 @@ def test_category_tabs_open_the_category_grids(core, home, grid, monkeypatch):
     assert [title for _, title in shown] == ['Trending Movies', 'Trending TV Shows', 'Animations', 'Animated TV', 'Reality TV']
     assert window.error is None
 
-def test_watch_now_focuses_play_and_settings_opens_the_addon_settings(core, home, monkeypatch, calls):
+def test_watch_now_focuses_play_and_settings_opens_the_settings_window(core, home, monkeypatch, calls):
+    from types import SimpleNamespace
+    settings_window = importlib.import_module('a4kStreaming.ui.settings')
+    opened = []
+    monkeypatch.setattr(settings_window, 'open', lambda: opened.append(1) or SimpleNamespace(changed=set(), native=False))
     window = home.Home('a4k-home.xml', '', 'Default', '1080i')
     window.setFocusId(home.WATCH_NOW)
     window.onClick(home.WATCH_NOW)
     assert window.getFocusId() == home.HERO_PLAY
     window.onClick(home.SETTINGS)
-    assert calls == ['Addon.OpenSettings(plugin.video.a4kstreaming)'] and window.error is None
+    assert opened == [1] and calls == [] and window.error is None
 
 # 2. search window
 
@@ -687,7 +691,7 @@ def test_hero_series_reads_go_to_show_and_opens_its_detail(core, home, monkeypat
     window.onClick(home.HERO_PLAY)
     assert [info['Property(a4k.id)'] for info in opened_detail] == ['tt5'] and calls == []
 
-def test_settings_gear_applies_the_new_appearance_once_the_dialog_closes(core, home, monkeypatch, calls):
+def test_kodis_settings_dialog_applies_the_new_appearance_once_it_closes(core, home, monkeypatch, calls):
     import threading
     values = {}
     settings(core, monkeypatch, values)
@@ -707,7 +711,7 @@ def test_settings_gear_applies_the_new_appearance_once_the_dialog_closes(core, h
     monkeypatch.setattr(window.stopped, 'wait', lambda seconds: False)
     home.apply(window)
     window.hero = 3
-    window.onClick(home.SETTINGS)
+    window.native_settings()  # the settings window failed or asked for Kodi's own dialog
     # opened without waiting (a blocking builtin holds Python's lock), watched from a thread
     assert calls == ['Addon.OpenSettings(plugin.video.a4kstreaming)'] and threads == [window.settings_closed]
     assert window.getProperty('a4k.title.303') == ''
@@ -735,18 +739,6 @@ def test_settings_watch_stops_looking_for_the_dialog_after_two_seconds(core, hom
 class SimpleTimer(object):
     def __init__(self, log, target): self.log, self.target = log, target
     def start(self): self.log.append(self.target)
-
-def test_home_order_moves_the_picked_row_up_until_back(core, monkeypatch):
-    appearance = importlib.import_module('a4kStreaming.ui.appearance')
-    sheets = importlib.import_module('a4kStreaming.ui.sheets')
-    picks = iter([2, 1, 3, -1])  # Reality TV up twice, then Animations up once, then Back
-    asked = []
-    monkeypatch.setattr(sheets, 'select', lambda heading, labels, preselect=-1: asked.append((labels[:5], preselect)) or next(picks))
-    saved = {}
-    monkeypatch.setattr(core.kodi.addon, 'setSetting', lambda key, value: saved.update({key: value}), raising=False)
-    appearance.edit_order()
-    assert saved == {'appearance.order': 'reality,trending_movies,animations,trending_tv,animation_tv,my_list,watchlist'}
-    assert [preselect for _, preselect in asked] == [0, 1, 0, 2]  # the picked row stays picked at its new place
 
 def test_my_list_picker_offers_the_title_lists(core, monkeypatch):
     import json

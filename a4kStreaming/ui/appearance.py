@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 # The Appearance settings, the Apple TV skin options with its defaults: the Browse row, which home rows show and in
-# what order, the category tabs, what the top shelf shows and how often it turns. Also the two settings actions (Home
-# order and My List), run by ui.py from the settings dialog.
+# what order, the category tabs, what the top shelf shows and how often it turns. Also the My List picker, run by the
+# settings window and by ui.py from Kodi's settings dialog (the Home order editor is the settings window's).
 
 import json
 
@@ -90,21 +90,7 @@ def public_types():
     # the listing types of the rows that are on and need no login (the service keeps them warm)
     return [ROWS[key][1] for key in order() if on(key) and key not in ACCOUNT]
 
-# settings actions (RunScript from resources/settings.xml)
-
-def edit_order():
-    # Home order: pick a row to move it up one place; it stays picked, so picking it again moves it further. Back saves.
-    from . import sheets
-    keys = order()
-    picked = 0
-    while True:
-        picked = sheets.select('Home order: pick a row to move it up', [ROWS[key][0] for key in keys], preselect=picked)
-        if picked is None or picked < 0:
-            break
-        if picked > 0:
-            keys[picked - 1], keys[picked] = keys[picked], keys[picked - 1]
-            picked -= 1
-    kodi.xbmcaddon.Addon(kodi.addon_id).setSetting('appearance.order', ','.join(keys))
+# the My List settings action
 
 def lists():
     # the signed-in user's title lists, as the Lists listing gives them: [(id, name)]

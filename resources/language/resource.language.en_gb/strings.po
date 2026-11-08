@@ -8,56 +8,48 @@ msgstr ""
 
 # Categories
 msgctxt "#33001"
-msgid "General"
+msgid "Playback"
 msgstr ""
 
 msgctxt "#33003"
-msgid "Provider"
-msgstr ""
-
-msgctxt "#33004"
-msgid "Debrid"
+msgid "Sources"
 msgstr ""
 
 msgctxt "#33005"
-msgid "IMDb"
+msgid "Accounts"
 msgstr ""
 
-msgctxt "#33006"
-msgid "Misc"
-msgstr ""
-
-# General
+# Playback and sources
 msgctxt "#33101"
-msgid "Max quality of sources"
+msgid "Highest quality"
 msgstr ""
 
 msgctxt "#33102"
-msgid "Autoplay"
+msgid "Play the best source automatically"
 msgstr ""
 
 msgctxt "#33103"
-msgid "Mark as watched effective title rating"
+msgid "Rating that marks a title watched"
 msgstr ""
 
 msgctxt "#33104"
-msgid "General views page size"
+msgid "Page size: browsing"
 msgstr ""
 
 msgctxt "#33105"
-msgid "Watchlist, Lists page size"
+msgid "Page size: lists"
 msgstr ""
 
 msgctxt "#33108"
-msgid "Max movie size (GB)"
+msgid "Largest movie file"
 msgstr ""
 
 msgctxt "#33109"
-msgid "Allow Dolby Vision sources"
+msgid "Dolby Vision sources"
 msgstr ""
 
 msgctxt "#33110"
-msgid "Source search time limit (seconds)"
+msgid "Search time limit"
 msgstr ""
 
 # Max Quality
@@ -78,7 +70,7 @@ msgid "4K"
 msgstr ""
 
 msgctxt "#33140"
-msgid "Search all providers by default"
+msgid "Search every provider first"
 msgstr ""
 
 msgctxt "#33141"
@@ -165,65 +157,51 @@ msgctxt "#33161"
 msgid "Next episode in %s"
 msgstr ""
 
-# Provider
+# Sources
 msgctxt "#33301"
-msgid "Install"
+msgid "Install providers"
 msgstr ""
 
 msgctxt "#33303"
-msgid "Manage"
+msgid "Manage providers"
 msgstr ""
 
 msgctxt "#33304"
-msgid "Check for an update"
+msgid "Check for a provider update"
 msgstr ""
 
-# Debrid
-msgctxt "#33401"
+# Accounts
+msgctxt "#33402"
 msgid "Premiumize"
 msgstr ""
 
-msgctxt "#33402"
-msgid "API key: "
-msgstr ""
-
-# IMDb
-msgctxt "#33501"
-msgid "Authentication"
-msgstr ""
-
 msgctxt "#33502"
-msgid "Cookie[at-main]: "
-msgstr ""
-
-# Misc
-msgctxt "#33601"
-msgid "Migrate Trakt.tv's watched status to IMDb (via rating)"
+msgid "IMDb"
 msgstr ""
 
 msgctxt "#33602"
-msgid "Trakt API key/Client ID (!used only for migration!): "
+msgid "Trakt client ID"
 msgstr ""
 
 msgctxt "#33603"
-msgid "Trakt username/slug (!used only for migration!): "
+msgid "Trakt username"
 msgstr ""
 
 msgctxt "#33604"
-msgid "Migrate Status"
-msgstr ""
-
-msgctxt "#33605"
-msgid "Migrate Trakt.tv's collections to IMDb (requires existing lists)"
+msgid "Import watched titles from Trakt"
 msgstr ""
 
 msgctxt "#33606"
-msgid "Migrate Collections"
+msgid "Import collections from Trakt"
 msgstr ""
 
-# Appearance
+# Home and Advanced
 msgctxt "#33007"
-msgid "Appearance"
+msgid "Home"
+msgstr ""
+
+msgctxt "#33008"
+msgid "Advanced"
 msgstr ""
 
 msgctxt "#33701"
@@ -255,7 +233,7 @@ msgid "Watchlist"
 msgstr ""
 
 msgctxt "#33708"
-msgid "My List (one of your IMDb lists as a row)"
+msgid "My List"
 msgstr ""
 
 msgctxt "#33709"
@@ -263,11 +241,11 @@ msgid "Category tabs"
 msgstr ""
 
 msgctxt "#33710"
-msgid "Hero rotation"
+msgid "Top shelf rotation"
 msgstr ""
 
 msgctxt "#33711"
-msgid "Hero shows"
+msgid "Top shelf shows"
 msgstr ""
 
 msgctxt "#33712"

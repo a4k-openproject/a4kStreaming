@@ -82,3 +82,11 @@ def premiumize_resolve(apikey, link):
             'src': link
         },
     }
+
+def premiumize_account(apikey):
+    # the settings window's key check: answers status success for a working key
+    return {
+        'method': 'GET',
+        'url': 'https://www.premiumize.me/api/account/info?apikey=%s' % apikey,
+        'timeout': 10,
+    }

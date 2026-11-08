@@ -38,7 +38,7 @@ HERO_RELOAD = 1.0  # after the settings change the sources: the new listings' ti
 HERO_FADE = 0.25
 FRESH = 'a4k.fresh'
 FRESH_TIME = 5  # a hidden list never loads; once loading, a slot stays shown by Container.IsUpdating
-SETTINGS_LOOK = 0.25  # how often the home window looks whether the settings it opened have closed
+SETTINGS_LOOK = 0.25  # how often the home window looks whether Kodi's settings dialog it opened has closed
 SETTINGS_SETTLE = 1  # seen live: read at once, the Home order just saved was still the old one
 SETTINGS_OPEN = 8  # looks for the dialog to open (2 s)
 SETTINGS_WAIT = 4 * 3600 * 4  # looks while it stays open (4 h)  # the hero text's fade-out in a4k-home.xml (a4k.hero.shown), before the next title is set
@@ -230,7 +230,17 @@ class Home(kodi.xbmcgui.WindowXML):
             grid.show(app.row_url(TABS[control_id][0]), TABS[control_id][1])
 
     def settings(self):
-        # the add-on settings over the window; once they close the Appearance ones take effect here. Watched from a
+        # the settings window (ui/settings.py) over this one, which takes the Home and IMDb settings once it closes;
+        # every change is already written. Kodi's own dialog when ours fails or its last row asks for it.
+        from . import settings
+        window = settings.open()
+        if window is None or window.native:
+            return self.native_settings()
+        if settings.touches_home(window.changed):
+            self.reapply()
+
+    def native_settings(self):
+        # Kodi's settings dialog over the window; once it closes the Home settings take effect here. Watched from a
         # thread: a blocking executebuiltin holds Python's lock, and the settings actions (ui.py) then could not run
         # until the dialog closed (seen live).
         run('Addon.OpenSettings(%s)' % kodi.addon_id)
