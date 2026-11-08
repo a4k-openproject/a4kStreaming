@@ -93,7 +93,10 @@ def main(url, handle, paramstring):
         return
 
     elif action == 'play':
-        play(core, params)
+        # Kodi waits on this call behind its own busy dialog (PlayMedia of the play URL): over the add-on's windows the
+        # loader stands in for it, from the start until Kodi has the stream. Not native: Kodi's is already up elsewhere.
+        with kodi.busy_dialog(native=False):
+            play(core, params)
         return
 
     elif action == 'provider':

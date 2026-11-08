@@ -409,8 +409,11 @@ def test_windows_draw_the_loader_while_the_add_on_is_busy(name):
     root = xml(name)
     assert not [c for c in root.iter('control') if c.get('type') == 'multiimage']
     assert [c for c in root.iter('control') if c.findtext('texture') == 'loader/comet.apng']
-    busy = [c for c in root.iter('control') if c.findtext('visible') == '!String.IsEmpty(Window(Home).Property(a4k.busy))']
+    # hidden under any modal dialog: Kodi's busy dialog is one, so the two are never drawn together
+    busy = [c for c in root.iter('control')
+            if c.findtext('visible') == '!String.IsEmpty(Window(Home).Property(a4k.busy)) + !System.HasActiveModalDialog']
     assert len(busy) == 2  # the dim layer and the loader
+    assert 'Property(a4k.busy))</visible>' not in open(os.path.join(WINDOWS, name)).read()
     assert 'Loading…' not in open(os.path.join(WINDOWS, name)).read()
 
 def test_home_waits_behind_the_loader_until_the_top_shelf_has_a_title(core, home, monkeypatch):
@@ -435,15 +438,70 @@ def test_the_first_top_shelf_title_ends_the_loading(core, monkeypatch, items):
     assert win.getProperty('a4k.loading') == '' and win.getProperty('a4k.hero.label') == 'Heat'
     assert waits == ([] if items == '5' else [0.1] * 150) + [module.HERO_TURN]  # 100 ms looks, 15 s at most
 
-@pytest.mark.parametrize('current,expected_builtin,busy', [('42', [], 'true'), ('13', ['ActivateWindow(busydialognocancel)'], '')])
-def test_busy_draws_the_windows_loader_over_an_a4k_window(core, calls, monkeypatch, current, expected_builtin, busy):
-    home_window = core.kodi.xbmcgui.Window(10000)
-    home_window.setProperty('a4k.ui.window', '42')
-    monkeypatch.setattr(core.kodi.xbmcgui, 'getCurrentWindowId', lambda: int(current))
+@pytest.fixture
+def on_screen(core, monkeypatch):
+    # an a4k window (42) open; returns a setter for the window on screen
+    core.kodi.xbmcgui.Window(10000).setProperty('a4k.ui.window', '42')
+    current = [42]
+    monkeypatch.setattr(core.kodi.xbmcgui, 'getCurrentWindowId', lambda: current[0])
+    return lambda id: current.__setitem__(0, id)
+
+def busy(core):
+    return core.kodi.xbmcgui.Window(10000).getProperty('a4k.busy')
+
+def test_busy_draws_the_windows_loader_over_an_a4k_window(core, calls, on_screen):
     core.kodi.open_busy_dialog()
-    assert calls == expected_builtin and home_window.getProperty('a4k.busy') == busy
+    assert calls == [] and busy(core) == 'true'
     core.kodi.close_busy_dialog()
-    assert home_window.getProperty('a4k.busy') == '' and calls[-1] == 'Dialog.Close(busydialognocancel)'
+    assert calls == [] and busy(core) == ''
+
+def test_busy_falls_back_to_kodis_dialog_when_the_open_window_is_stale(core, calls, on_screen):
+    on_screen(13)  # OPEN_WINDOW still names 42, but Kodi's Videos window (or playback) is on screen
+    with core.kodi.busy_dialog():
+        assert calls == ['ActivateWindow(busydialognocancel)'] and busy(core) == ''
+    assert calls[-1] == 'Dialog.Close(busydialognocancel)'
+    del calls[:]
+    with core.kodi.busy_dialog(native=False):  # the play action: Kodi's own busy dialog is already up there
+        with core.kodi.busy_dialog():
+            pass
+    assert calls == [] and busy(core) == ''
+
+def test_nested_busy_keeps_the_outer_loader_until_the_outer_closes(core, calls, on_screen):
+    with core.kodi.busy_dialog(native=False):
+        with core.kodi.busy_dialog():
+            assert busy(core) == 'true'
+        assert busy(core) == 'true'  # the inner close (quick sources, the split) leaves the play's loader up
+        with core.kodi.busy_dialog():
+            on_screen(13)  # opened while nested: the outer's indicator holds, no second one
+        assert calls == [] and busy(core) == 'true'
+    assert busy(core) == ''
+    core.kodi.close_busy_dialog()  # an error path closing what it never opened: nothing to undo
+    on_screen(42)
+    with core.kodi.busy_dialog():
+        assert busy(core) == 'true'
+    assert calls == [] and busy(core) == ''
+
+@pytest.mark.parametrize('screen, loader', [(42, 'true'), (13, '')])
+def test_the_play_action_runs_behind_the_loader_over_an_a4k_window(core, calls, on_screen, monkeypatch, screen, loader):
+    # from the start of the call Kodi waits on until Kodi has the stream; elsewhere Kodi's own busy dialog alone
+    on_screen(screen)
+    seen = []
+    monkeypatch.setattr(core, 'play', lambda core, params: seen.append(busy(core)))
+    core.main(PLUGIN, 1, 'action=play&type=&id=tt1')
+    assert seen == [loader] and calls == [] and busy(core) == ''
+
+def test_busy_over_an_a4k_window_closes_kodis_busy_dialog(core, monkeypatch, on_screen):
+    # Kodi opens its busy dialog 220 ms into a PlayMedia it waits on, often after the loader is up: closed as it shows
+    import threading
+    up = {'busydialog': [False, False, True]}  # a few looks in
+    closed = threading.Event()
+    log = []
+    monkeypatch.setattr(core.kodi.xbmc, 'getCondVisibility',
+                        lambda condition: bool(up.get(condition[16:-1]) and up[condition[16:-1]].pop(0)))
+    monkeypatch.setattr(core.kodi.xbmc, 'executebuiltin', lambda builtin, wait=False: log.append(builtin) or closed.set())
+    with core.kodi.busy_dialog():
+        assert closed.wait(2)
+    assert log == ['Dialog.Close(busydialog,true)']
 
 # 6. appearance settings (the reference app's options and defaults)
 

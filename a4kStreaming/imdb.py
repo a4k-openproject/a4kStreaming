@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+from contextlib import nullcontext
 from .listing import (
     __handle_request_error,
     __add_lists,
@@ -1237,9 +1238,6 @@ def trailer(core, params):
             return
         vi = videos[selection]
 
-    if params.play == 'true':
-        core.kodi.open_busy_dialog()
-
     request = {
         'method': 'POST',
         'url': 'https://graphql.imdb.com',
@@ -1263,21 +1261,21 @@ def trailer(core, params):
     }
     request.update(core.utils.imdb_auth_request_props())
 
-    response = core.request.execute(core, request, False)
-    if response.status_code != 200:
-        core.kodi.close_busy_dialog()
-        core.utils.end_action(core, False)
-        core.logger.notice(response.text)
-        core.kodi.notification('Trailer not found')
-        return
+    # the loader (or Kodi's busy dialog) until the stream is known, closed on every way out
+    with core.kodi.busy_dialog() if params.play == 'true' else nullcontext():
+        response = core.request.execute(core, request, False)
+        trailerUrl = None
+        if response.status_code == 200:
+            try:
+                all = core.json.loads(response.content)['data']['video']['playbackURLs']
+                filtered = filter(lambda v: v['displayName']['value'] != 'AUTO', all)
+                trailerUrl = next(iter(filtered), iter(all))['url']
+            except:
+                pass
+        else:
+            core.logger.notice(response.text)
 
-    parsed_response = core.json.loads(response.content)
-    try:
-        all = parsed_response['data']['video']['playbackURLs']
-        filtered = filter(lambda v: v['displayName']['value'] != 'AUTO', all)
-        trailerUrl = next(iter(filtered), iter(all))['url']
-    except:
-        core.kodi.close_busy_dialog()
+    if not trailerUrl:
         core.utils.end_action(core, False)
         core.kodi.notification('Trailer not found')
         return []
@@ -1285,7 +1283,6 @@ def trailer(core, params):
     item = core.kodi.xbmcgui.ListItem(path=trailerUrl, offscreen=True)
     core.kodi.set_info_tag(item, {'mediatype': 'video'})
     if params.play == 'true':
-        core.kodi.close_busy_dialog()
         core.kodi.xbmc.Player().play(item=trailerUrl, listitem=item)
     else:
         core.utils.end_action(core, True, item)

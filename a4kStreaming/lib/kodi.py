@@ -6,7 +6,7 @@ import json
 import re
 import importlib
 from contextlib import contextmanager
-from threading import Timer
+from threading import Event, Thread, Timer
 
 kodi = sys.modules[__name__]
 api_mode = os.getenv('A4KSTREAMING_API_MODE')
@@ -80,24 +80,58 @@ def notification(text, time=3000):
     notification.t.start()
 
 BUSY = 'a4k.busy'  # on Kodi's Home window: the add-on's own windows draw their traced-D loader while it is set
+NATIVE_BUSY = ('busydialog', 'busydialognocancel')
+NATIVE_LOOK = 0.05  # s between looks for Kodi's busy dialog while the loader stands in for it
+__busy = {'depth': 0, 'done': None, 'native': False}
 
-def open_busy_dialog():
-    # over one of the add-on's windows (ui/app.py OPEN_WINDOW is the one on screen), that window's loader; elsewhere
-    # Kodi's busy dialog
-    home = xbmcgui.Window(10000)
-    window = home.getProperty('a4k.ui.window')
-    if window and window == str(xbmcgui.getCurrentWindowId()):
-        home.setProperty(BUSY, 'true')
-    else:
+def __over_window():
+    # one of the add-on's windows is on screen (ui/app.py OPEN_WINDOW holds the one on top)
+    window = xbmcgui.Window(10000).getProperty('a4k.ui.window')
+    return bool(window) and window == str(xbmcgui.getCurrentWindowId())
+
+def __keep_native_closed(done):
+    # Kodi opens its busy dialog 220 ms into a plugin call it waits on (PlayMedia of a plugin:// URL) and keeps it
+    # until the call ends, drawn whenever no other modal dialog is above it. Over the add-on's windows the loader is
+    # the one indicator, so Kodi's is closed as soon as it shows (its wait goes on without it and never reopens it).
+    while True:
+        for name in NATIVE_BUSY:
+            if xbmc.getCondVisibility('Window.IsActive(%s)' % name):
+                xbmc.executebuiltin('Dialog.Close(%s,true)' % name)
+        if done.wait(NATIVE_LOOK):
+            return
+
+def open_busy_dialog(native=True):
+    # Nested opens share the outermost one's indicator. Over one of the add-on's windows, that window's loader, with
+    # Kodi's own busy dialog kept closed (the skins hide the loader under any modal dialog, so the two never show
+    # together). Elsewhere Kodi's busy dialog when native.
+    __busy['depth'] += 1
+    if __busy['depth'] > 1:
+        return
+    if __over_window():
+        xbmcgui.Window(10000).setProperty(BUSY, 'true')
+        __busy['done'] = done = Event()
+        Thread(target=__keep_native_closed, args=(done,), daemon=True).start()
+    elif native:
+        __busy['native'] = True
         xbmc.executebuiltin('ActivateWindow(busydialognocancel)')
 
 def close_busy_dialog():
+    if __busy['depth'] == 0:  # nothing open: an error path closing what it never opened
+        return
+    __busy['depth'] -= 1
+    if __busy['depth']:
+        return
+    if __busy['done']:
+        __busy['done'].set()
+        __busy['done'] = None
     xbmcgui.Window(10000).clearProperty(BUSY)
-    xbmc.executebuiltin('Dialog.Close(busydialognocancel)')
+    if __busy['native']:
+        __busy['native'] = False
+        xbmc.executebuiltin('Dialog.Close(busydialognocancel)')
 
 @contextmanager
-def busy_dialog():
-    open_busy_dialog()
+def busy_dialog(native=True):
+    open_busy_dialog(native)
     try:
         yield
     finally:
