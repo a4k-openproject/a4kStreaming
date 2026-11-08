@@ -7,6 +7,7 @@ import copy
 import threading
 import time
 import traceback
+from datetime import date
 from types import SimpleNamespace
 
 from ..lib import kodi, logger
@@ -20,10 +21,6 @@ EPISODES = 530
 CAST = 540
 PLOT = 510  # the plot's focus frame: select opens the whole plot
 
-ACTION_MOVE_LEFT = 1
-ACTION_MOVE_RIGHT = 2
-
-SEASON_DWELL = 0.3  # seconds a season pill keeps focus before its episodes load
 EPISODE_LOOK = 0.1  # s between looks for the opened season's episodes, to focus the one asked for
 EPISODE_LOOKS = 50
 
@@ -169,14 +166,54 @@ def season_marks(season, finished=()):
     progress = rated * 100 // len(season.episode_list) if not watched and 0 < rated < len(season.episode_list) else 0
     return 'true' if watched else '', str(progress) if progress else ''
 
-def seasons(core, title, wanted=None):
-    # [{label, url, watched, progress}] for the season pills, and the one to open on: the wanted season, else the latest
-    # season with an aired episode
+def next_up(episodes, store, show, today):
+    # (season, episode, focus) a series opens on, the reference app's pick: the first season after the furthest one
+    # seen (its last aired episode watched), at the episode after the last watched one there. An episode in progress
+    # past the last watched one wins. Never watched: the first episode; every season seen: the last aired episode when
+    # more are coming (caught up), else the first (a rewatch). focus: the shelf takes focus, only with history and not
+    # when caught up. Watched is season_marks' seen; unaired episodes and specials are left out. None: nothing aired.
+    finished = progress.watched_episodes(store, show)
+    aired, coming = [], []
+    for ep in episodes:
+        series = ep.get('series', None) or {}
+        key = series.get('seasonNumber', None), series.get('episodeNumber', None)
+        if not (isinstance(key[0], int) and isinstance(key[1], int) and key[0] > 0):
+            continue
+        try:
+            released = date(ep['releaseDate']['year'], ep['releaseDate']['month'], ep['releaseDate']['day']) <= today
+        except Exception:
+            released = False
+        if released:
+            aired.append(key + (ep.get('userRating', None) is not None or ep.get('id', None) in finished,))
+        else:
+            coming.append(key)
+    if not aired:
+        return None
+    aired.sort()
+    last = max([(s, e) for s, e, seen in aired if seen] or [(0, 0)])
+    keys = {(s, e) for s, e, _ in aired}
+    for entry in sorted(store.values(), key=lambda entry: -entry.get('t', 0)):
+        key = entry.get('season', None), entry.get('episode', None)
+        if entry.get('show', None) == show and progress.in_progress(entry) and key in keys and key > last:
+            return key + (True,)
+    seasons = {}
+    for s, e, seen in aired:
+        seasons.setdefault(s, []).append((e, seen))
+    done = [s for s, eps in seasons.items() if eps[-1][1]]
+    later = [s for s in seasons if not done or s > max(done)]
+    if not later:
+        if any(key > aired[-1][:2] for key in coming):
+            return aired[-1][0], aired[-1][1], False
+        return aired[0][0], aired[0][1], False
+    eps = seasons[later[0]]
+    watched = [i for i, (_, seen) in enumerate(eps) if seen]
+    return later[0], eps[watched[-1] + 1 if watched else 0][0], last > (0, 0)
+
+def seasons(core, title, *wanted):
+    # [{label, url, watched, progress}] for the season pills, and the one to open on: the first wanted season it has
     from .. import listing
     finished = progress.watched_episodes(progress.load(), title['id'])
     episodes = (title.get('episodes', None) or {}).get('episodes', None) or []
-    released = [ep['series']['seasonNumber'] for ep in episodes
-                if ep.get('series', None) and ep.get('releaseDate', None) and __released(core, ep['releaseDate'])]
     grouped = listing.group_seasons(core, copy.deepcopy(episodes))  # it rewrites release dates; the cache keeps its own
     pills = []
     for key, season in grouped.items():
@@ -184,11 +221,8 @@ def seasons(core, title, wanted=None):
         watched, share = season_marks(season, finished)
         pills.append({'key': key, 'label': 'Season %s' % key, 'watched': watched, 'progress': share,
                       'url': listing.season_url(core, title['id'], key, season) + '&widget=1'})
-    latest = max(released) if released else None
-    selected = next((i for i, pill in enumerate(pills) if pill['key'] == wanted), None)
-    if selected is None:
-        selected = next((i for i, pill in enumerate(pills) if pill['key'] == latest), 0)
-    return pills, selected
+    keys = [pill['key'] for pill in pills]
+    return pills, next((keys.index(key) for key in wanted if key in keys), 0)
 
 def view_model(core, title, wanted=None):
     # strings and URLs for the window, from a TitleFull (query type=browse, or type=seasons with every episode)
@@ -200,7 +234,10 @@ def view_model(core, title, wanted=None):
     rating = (title.get('ratingsSummary', None) or {}).get('aggregateRating', None)
     genres = title.get('genres', None) or []
     title = dict(title, **{'a4k.show_watched': show_watched(core, title)})
-    pills, selected = seasons(core, title, wanted) if series else ([], 0)
+    # the open season: the wanted one (Continue Watching, a refresh), else the next up
+    up = next_up((title.get('episodes', None) or {}).get('episodes', None) or [], progress.load(), title['id'],
+                 core.date.today()) if series else None
+    pills, selected = seasons(core, title, wanted, up and up[0]) if series else ([], 0)
     # the TV skin's line: an ended series' years, else the release date (else the year); Unaired before it; the
     # signed-in user's own rating as its own mark
     year, end = title.get('releaseYear', None), title.get('releaseEndYear', None)
@@ -223,6 +260,7 @@ def view_model(core, title, wanted=None):
         'playlabel': play_label(title['id']),
         'seasons': pills,
         'season': selected,
+        'up': up,
         'cast': cast(core, title),
     }
     vm.update(buttons(core, title))
@@ -255,7 +293,7 @@ class Detail(kodi.xbmcgui.WindowXML):
     closed = False
     stopped = None  # set in open(); every thread of the window ends on it (home.spawn)
     threads = ()
-    dwelling = None  # the running season dwell's cancel
+    open = 0  # the open season pill: OK on a pill opens it, focus alone only moves the list's cursor
     title = None  # the fetched title, for the season marks again after a play
     stamp = None  # the progress store's change time the episodes listing was asked with (its t param)
 
@@ -287,7 +325,7 @@ class Detail(kodi.xbmcgui.WindowXML):
             if not home.after_play(self.stopped) or self.closed or self.stamp == progress.stamp():
                 return
             self.stamp = progress.stamp()
-            vm = view_model(plugin_core(), self.title, self.vm['seasons'][self.season_index()]['key'] if self.vm['seasons'] else None)
+            vm = view_model(plugin_core(), self.title, self.vm['seasons'][self.open]['key'] if self.vm['seasons'] else None)
             if self.closed:
                 return
             self.vm = dict(self.vm, playlabel=vm['playlabel'], seasons=vm['seasons'])
@@ -297,12 +335,9 @@ class Detail(kodi.xbmcgui.WindowXML):
                 item = control.getListItem(index)
                 for key in ('watched', 'progress'):
                     item.setProperty(key, pill[key])
-            self.select_season(self.season_index())
+            self.select_season(self.open)
         except Exception:
             self.__fail()
-
-    def season_index(self):
-        return max(self.getControl(SEASONS).getSelectedPosition(), 0)
 
     def fill(self):
         try:
@@ -320,6 +355,8 @@ class Detail(kodi.xbmcgui.WindowXML):
             self.fill_lists(vm)
             if wanted:
                 self.focus_episode(*wanted)
+            elif vm['up'] and vm['up'][2]:
+                self.focus_episode(*vm['up'][:2])
         except Exception:
             self.__fail()
 
@@ -351,15 +388,16 @@ class Detail(kodi.xbmcgui.WindowXML):
             return
         if index is None:
             index = self.getControl(SEASONS).getSelectedPosition()
-        pill = self.vm['seasons'][max(index, 0)]
+        self.open = max(index, 0)
+        pill = self.vm['seasons'][self.open]
         url = '%s&t=%s' % (pill['url'], self.stamp)
         if self.getProperty('a4k.episodes') != url:
             self.setProperty('a4k.season', pill['label'])
             self.setProperty('a4k.episodes', url)
 
     def focus_episode(self, season, episode):
-        # a Continue Watching card's episode: focused once the opened season's listing is in (a bounded wait, given
-        # up when the window closes)
+        # a Continue Watching card's episode, or the next up: focused once the opened season's listing is in (a bounded
+        # wait, given up when the window closes)
         label = 'S%s E%s' % (season, episode)
         for _ in range(EPISODE_LOOKS):
             if self.closed:
@@ -372,27 +410,13 @@ class Detail(kodi.xbmcgui.WindowXML):
             if count or self.stopped.wait(EPISODE_LOOK):
                 return  # the listing is in and the episode is not in it, or the window went
 
-    def __dwell(self):
-        # a season's episodes load once its pill keeps focus for a moment, so arrowing across pills starts no listings
-        if self.dwelling:
-            self.dwelling.set()
-        self.dwelling = home.spawn(self, self.__guard_select, delay=SEASON_DWELL)
-
-    def __guard_select(self):
-        try:
-            self.select_season()
-        except Exception:
-            self.__fail()
-
     def onAction(self, action):
         try:
             action_id = action.getId()
             if action_id in (home.ACTION_PREVIOUS_MENU, home.ACTION_NAV_BACK):
                 return self.close()
             focus = self.getFocusId()
-            if focus == SEASONS and action_id in (ACTION_MOVE_LEFT, ACTION_MOVE_RIGHT):
-                self.__dwell()
-            elif focus == EPISODES and action_id in (home.ACTION_SELECT_ITEM, home.ACTION_MOUSE_LEFT_CLICK):
+            if focus == EPISODES and action_id in (home.ACTION_SELECT_ITEM, home.ACTION_MOUSE_LEFT_CLICK):
                 # a provider row: Kodi sends no click to Python (spike 2c); the item's path is its play URL
                 home.run(home.click_builtin(home.labels('Container(%s).ListItem' % EPISODES)))
             elif focus in BUTTONS and action_id == home.ACTION_CONTEXT_MENU:

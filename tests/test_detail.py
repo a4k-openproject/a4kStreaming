@@ -7,6 +7,7 @@ import os
 import re
 import json
 import importlib
+from datetime import date
 from xml.etree import ElementTree
 from .common import pytest, api
 from .utils import Spawned
@@ -139,12 +140,12 @@ def test_series_view_model(core, detail):
     assert vm['trailers'] == 'Trailers' and vm['trailer'] == 'RunPlugin(%s?action=trailer&id=%s&vi=%s&play=true)' % (
         PLUGIN, SERIES, 'vi3510815001_vi3562195225_vi1720502553')
     # the pills are the listing's seasons (season 3 has only year dates, so neither lists it, and the count says what
-    # can be opened, not IMDb's 3); the latest aired opens
+    # can be opened, not IMDb's 3); never watched: season 1 opens, focus stays on the buttons
     assert [(p['label'], p['url']) for p in vm['seasons']] == [
         ('Season %s' % (i + 1), PLUGIN + url + '&widget=1') for i, (url, _) in enumerate(GOLDEN[SERIES])]
     # signed out: no ratings, so no season is marked
     assert [(p['watched'], p['progress']) for p in vm['seasons']] == [('', ''), ('', '')]
-    assert vm['season'] == 1
+    assert vm['season'] == 0 and vm['up'] == (1, 1, False)
     assert vm['cast'][0]['name'] == 'Adam Scott' and vm['cast'][0]['role']
 
 def test_view_model_leaves_the_cached_title_alone(core, detail):
@@ -220,18 +221,42 @@ def test_movie_window_paints_and_fills(core, detail, opened, calls):
     assert win.getControl(detail.SEASONS).items == [] and win.getProperty('a4k.episodes') == ''
     assert calls == []
 
-def test_series_window_opens_the_latest_season_and_switches_on_dwell(core, detail, opened):
+def watch(progress_store, *keys):
+    # the series' episodes played to the end, by (season, episode)
+    store = {}
+    for ep in fixture()['series']['episodes']['episodes']:
+        s, e = ep['series']['seasonNumber'], ep['series']['episodeNumber']
+        if (s, e) in keys:
+            store = progress_store.record(store, {'type': 'episode', 'id': ep['id'], 'show': SERIES, 'season': s, 'episode': e}, 3000, 3000, 100)
+    progress_store.save(store)
+
+def test_series_window_opens_on_the_next_up_and_switches_on_ok(core, detail, home, opened, calls, monkeypatch, progress_store):
+    watch(progress_store, *[(1, e) for e in range(1, 10)] + [(2, 1), (2, 2)])
+    labels = {'Container(530).NumItems': '3', 'Container(530).ListItemAbsolute(2).Property(a4k.label)': 'S2 E3'}
+    monkeypatch.setattr(core.kodi.xbmc, 'getInfoLabel', lambda label: labels.get(label, ''))
     detail.open(card('tvSeries', SERIES))
     win = opened[0]
+    stamp = progress_store.stamp()
+    season = lambda i: PLUGIN + GOLDEN[SERIES][i][0] + '&widget=1&t=' + stamp  # noqa: E731
     assert win.getProperty('a4k.series') == 'true'
     assert [i.label for i in win.getControl(detail.SEASONS).items] == ['Season 1', 'Season 2']
-    assert win.getProperty('a4k.season') == 'Season 2' and win.getProperty('a4k.episodes') == PLUGIN + GOLDEN[SERIES][1][0] + '&widget=1&t=0'
-    # the mock list reports position 0: a pill that keeps focus loads its season (the mock doModal has returned, so the
-    # window counts as closed; reopen it)
+    assert win.getProperty('a4k.season') == 'Season 2' and win.getProperty('a4k.episodes') == season(1) and win.open == 1
+    assert calls == ['Control.SetFocus(530,2,absolute)']
+    # the mock list's cursor is on Season 1: moving along the pills loads nothing, OK opens the cursor's season (the
+    # mock doModal has returned, so the window counts as closed; reopen it)
     win.closed = False
     win.setFocusId(detail.SEASONS)
-    win.onAction(Action(detail.ACTION_MOVE_LEFT))
-    assert win.getProperty('a4k.season') == 'Season 1' and win.getProperty('a4k.episodes') == PLUGIN + GOLDEN[SERIES][0][0] + '&widget=1&t=0'
+    for move in (1, 2):
+        win.onAction(Action(move))
+    assert win.getProperty('a4k.episodes') == season(1)
+    win.onClick(detail.SEASONS)
+    assert win.getProperty('a4k.season') == 'Season 1' and win.getProperty('a4k.episodes') == season(0) and win.open == 0
+    # back from a play with the cursor left on Season 1 and Season 2 open: the open season reloads
+    win.select_season(1)
+    monkeypatch.setattr(home, 'after_play', lambda stopped: True)
+    win.stamp = '-1'
+    win.refresh()
+    assert win.getProperty('a4k.season') == 'Season 2' and win.getProperty('a4k.episodes') == season(1) and win.error is None
 
 def test_on_init_again_does_not_refetch(core, detail, opened, monkeypatch):
     detail.open(card())
@@ -372,6 +397,7 @@ def test_focusable_controls_navigate_explicitly(detail):
 # F. Continue Watching (#029): opened at a season and episode, marks from the progress store
 
 def test_continue_watching_opens_the_season_and_focuses_the_episode(core, detail, opened, calls, monkeypatch, progress_store):
+    watch(progress_store, *[(1, e) for e in range(1, 10)])  # the next up is S2 E1: the card's episode wins
     labels = {'Container(530).NumItems': '2', 'Container(530).ListItemAbsolute(1).Property(a4k.label)': 'S1 E2'}
     monkeypatch.setattr(core.kodi.xbmc, 'getInfoLabel', lambda label: labels.get(label, ''))
     detail.open(card('tvSeries', SERIES, **{'Property(a4k.at)': '1:2'}))
@@ -412,3 +438,46 @@ def test_return_after_a_play_refreshes_once_the_player_went(core, detail, home, 
     win.onInit()
     assert sleeps == [home.PLAYER_LOOK, home.CONTINUE_SETTLE] and win.getProperty('a4k.playlabel') == 'Resume'
     assert win.stamp == progress_store.stamp()
+
+# G. next up (#035): the season and episode a series opens on, the reference app's pick
+
+TODAY = date(2024, 6, 1)
+SHOW = [episode('a%s' % e, 1, e, (2020, 1, e)) for e in (1, 2, 3)] + [episode('b%s' % e, 2, e, (2021, 1, e)) for e in (1, 2, 3)]
+EVERY = ('a1', 'a2', 'a3', 'b1', 'b2', 'b3')
+
+def show(rated=(), extra=()):
+    episodes = json.loads(json.dumps(SHOW + list(extra)))
+    for ep in episodes:
+        ep['userRating'] = 8 if ep['id'] in rated else None
+    return episodes
+
+@pytest.mark.parametrize('rated, extra, expected', [
+    ((), (), (1, 1, False)),  # never watched: the first episode, the buttons keep focus
+    (('a1', 'a2'), (), (1, 3, True)),  # mid-season
+    (('a1', 'a2', 'a3'), (), (2, 1, True)),  # a season done, the next one aired
+    (('a3', 'b1'), (), (2, 2, True)),  # a gap before the furthest done season is skipped
+    (('a1', 'b2'), (), (1, 2, True)),  # a stray episode in a later season: the first season not done keeps its place
+    (EVERY, (episode('c1', 3, 1, (2025, 1, 1)),), (2, 3, False)),  # caught up: the last aired episode
+    (EVERY, (), (1, 1, False)),  # every season seen, nothing coming: a rewatch
+    # unaired (future, no date, year only) and specials are left out; an unaired finale leaves the season caught up
+    ((), (episode('s0', 0, 1, (2019, 1, 1)), episode('c1', 3, 1, None)), (1, 1, False)),
+    (EVERY[:5], (episode('b4', 2, 4, (2024, 6, 2)), {'id': 'b5', 'series': {'seasonNumber': 2, 'episodeNumber': 5},
+                                                     'releaseDate': {'year': 2024, 'month': None, 'day': None}}), (2, 3, True)),
+    (EVERY, (episode('b4', 2, 4, (2024, 6, 2)),), (2, 3, False)),
+])
+def test_next_up(detail, rated, extra, expected):
+    assert detail.next_up(show(rated, extra), {}, 'tt0', TODAY) == expected
+
+def test_next_up_counts_plays_to_the_end_and_an_episode_in_progress_past_them(detail, progress_store):
+    def played(store, id, s, e, pos, t):
+        return progress_store.record(store, {'type': 'episode', 'id': id, 'show': 'tt0', 'season': s, 'episode': e}, pos, 3000, t)
+    store = played(played({}, 'a1', 1, 1, 3000, 1), 'a2', 1, 2, 3000, 2)
+    assert detail.next_up(show(), store, 'tt0', TODAY) == (1, 3, True)  # signed out: played to the end is watched
+    assert detail.next_up(show(), store, 'tt1', TODAY) == (1, 1, False)  # another show's plays
+    store = played(store, 'b2', 2, 2, 600, 3)
+    assert detail.next_up(show(), store, 'tt0', TODAY) == (2, 2, True)  # in progress past the last watched one wins
+    store = played(store, 'a1', 1, 1, 600, 4)  # a rewatch behind it, newer: the frontier's one stays
+    assert detail.next_up(show(), store, 'tt0', TODAY) == (2, 2, True)
+    assert detail.next_up(show(EVERY[:4]), store, 'tt0', TODAY) == (2, 2, True)
+    assert detail.next_up(show(EVERY[:5]), store, 'tt0', TODAY) == (2, 3, True)  # behind the frontier: ignored
+    assert detail.next_up([], store, 'tt0', TODAY) is None

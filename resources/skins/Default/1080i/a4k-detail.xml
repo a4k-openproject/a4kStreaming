@@ -7,7 +7,7 @@
 
   The text is window properties: painted from the selected card before the window opens, then from the title's own
   request. The season pills and the cast are filled from Python; the episodes shelf is the plugin's episodes listing for
-  the open season (a4k.episodes, set once a pill keeps focus), its cards read the listing's a4k.* episode properties
+  the open season (a4k.episodes, set when OK opens a pill), its cards read the listing's a4k.* episode properties
   (listing.episode_properties). The blurred backdrop (the 64x36 still, stretched) fades in once focus leaves the
   buttons, as the TV skin's glass does. A focused episode with a plot shows its label, title and plot in a glass panel
   on the right, and the title's info and buttons fade out under it.
@@ -299,7 +299,8 @@
 				</control>
 			</control>
 
-			<!-- Season pills (series): 192 x 64 at a 208 pitch; the open season is lighter. -->
+			<!-- Season pills (series): 192 x 64 at a 208 pitch. Three looks, as the reference app draws them: idle (10 %, dim
+			     label), open (28 %, white label: its url is a4k.episodes, so focus alone never moves it) and focused (solid). -->
 			<control type="group" id="320">
 				<left>0</left>
 				<top>0</top>
@@ -344,7 +345,19 @@
 							<aligny>center</aligny>
 							<textcolor>B8FFFFFF</textcolor>
 							<label>$INFO[ListItem.Label]</label>
-							<visible>String.IsEmpty(ListItem.Property(watched))</visible>
+							<visible>String.IsEmpty(ListItem.Property(watched)) + !String.IsEqual(ListItem.Property(url),Window.Property(a4k.episodes))</visible>
+						</control>
+						<control type="label">
+							<left>96</left>
+							<top>20</top>
+							<width>192</width>
+							<height>64</height>
+							<font>font25_title</font>
+							<align>center</align>
+							<aligny>center</aligny>
+							<textcolor>FFFFFFFF</textcolor>
+							<label>$INFO[ListItem.Label]</label>
+							<visible>String.IsEmpty(ListItem.Property(watched)) + String.IsEqual(ListItem.Property(url),Window.Property(a4k.episodes))</visible>
 						</control>
 						<control type="label">
 							<left>96</left>
@@ -356,7 +369,19 @@
 							<aligny>center</aligny>
 							<textcolor>B8FFFFFF</textcolor>
 							<label>$INFO[ListItem.Label]</label>
-							<visible>!String.IsEmpty(ListItem.Property(watched))</visible>
+							<visible>!String.IsEmpty(ListItem.Property(watched)) + !String.IsEqual(ListItem.Property(url),Window.Property(a4k.episodes))</visible>
+						</control>
+						<control type="label">
+							<left>96</left>
+							<top>20</top>
+							<width>150</width>
+							<height>64</height>
+							<font>font25_title</font>
+							<align>center</align>
+							<aligny>center</aligny>
+							<textcolor>FFFFFFFF</textcolor>
+							<label>$INFO[ListItem.Label]</label>
+							<visible>!String.IsEmpty(ListItem.Property(watched)) + String.IsEqual(ListItem.Property(url),Window.Property(a4k.episodes))</visible>
 						</control>
 						<control type="image">
 							<left>236</left>
@@ -463,9 +488,33 @@
 								<font>font25_title</font>
 								<align>center</align>
 								<aligny>center</aligny>
+								<textcolor>B8FFFFFF</textcolor>
+								<label>$INFO[ListItem.Label]</label>
+								<visible>!Control.HasFocus(520) + String.IsEmpty(ListItem.Property(watched)) + !String.IsEqual(ListItem.Property(url),Window.Property(a4k.episodes))</visible>
+							</control>
+							<control type="label">
+								<left>96</left>
+								<top>20</top>
+								<width>192</width>
+								<height>64</height>
+								<font>font25_title</font>
+								<align>center</align>
+								<aligny>center</aligny>
 								<textcolor>FFFFFFFF</textcolor>
 								<label>$INFO[ListItem.Label]</label>
-								<visible>!Control.HasFocus(520) + String.IsEmpty(ListItem.Property(watched))</visible>
+								<visible>!Control.HasFocus(520) + String.IsEmpty(ListItem.Property(watched)) + String.IsEqual(ListItem.Property(url),Window.Property(a4k.episodes))</visible>
+							</control>
+							<control type="label">
+								<left>96</left>
+								<top>20</top>
+								<width>150</width>
+								<height>64</height>
+								<font>font25_title</font>
+								<align>center</align>
+								<aligny>center</aligny>
+								<textcolor>B8FFFFFF</textcolor>
+								<label>$INFO[ListItem.Label]</label>
+								<visible>!Control.HasFocus(520) + !String.IsEmpty(ListItem.Property(watched)) + !String.IsEqual(ListItem.Property(url),Window.Property(a4k.episodes))</visible>
 							</control>
 							<control type="label">
 								<left>96</left>
@@ -477,7 +526,7 @@
 								<aligny>center</aligny>
 								<textcolor>FFFFFFFF</textcolor>
 								<label>$INFO[ListItem.Label]</label>
-								<visible>!Control.HasFocus(520) + !String.IsEmpty(ListItem.Property(watched))</visible>
+								<visible>!Control.HasFocus(520) + !String.IsEmpty(ListItem.Property(watched)) + String.IsEqual(ListItem.Property(url),Window.Property(a4k.episodes))</visible>
 							</control>
 							<control type="image">
 								<left>236</left>
