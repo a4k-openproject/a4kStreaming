@@ -109,7 +109,7 @@ def png_size(path):
     return struct.unpack('>II', head[16:24])
 
 def test_skin_has_the_windows_and_sheets():
-    assert [os.path.basename(path) for path in windows()] == ['a4k-detail.xml', 'a4k-grid.xml', 'a4k-home.xml', 'a4k-progress.xml', 'a4k-search.xml', 'a4k-sheet.xml']
+    assert [os.path.basename(path) for path in windows()] == ['a4k-detail.xml', 'a4k-grid.xml', 'a4k-home.xml', 'a4k-progress.xml', 'a4k-search.xml', 'a4k-sheet.xml', 'a4k-skip.xml']
 
 @pytest.mark.parametrize('path', windows())
 def test_window_xml_parses_with_unique_control_ids(path):

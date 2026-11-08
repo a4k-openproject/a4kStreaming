@@ -151,6 +151,54 @@ msgctxt "#33142"
 msgid "Show uncached sources (%s)"
 msgstr ""
 
+msgctxt "#33150"
+msgid "Skip intros"
+msgstr ""
+
+msgctxt "#33151"
+msgid "Skip recaps"
+msgstr ""
+
+msgctxt "#33152"
+msgid "Next episode at credits"
+msgstr ""
+
+msgctxt "#33153"
+msgid "Auto"
+msgstr ""
+
+msgctxt "#33154"
+msgid "Button"
+msgstr ""
+
+msgctxt "#33155"
+msgid "Off"
+msgstr ""
+
+msgctxt "#33156"
+msgid "Skip intro"
+msgstr ""
+
+msgctxt "#33157"
+msgid "Skip recap"
+msgstr ""
+
+msgctxt "#33158"
+msgid "Next episode"
+msgstr ""
+
+msgctxt "#33159"
+msgid "Skipped intro"
+msgstr ""
+
+msgctxt "#33160"
+msgid "Skipped recap"
+msgstr ""
+
+msgctxt "#33161"
+msgid "Next episode in %s"
+msgstr ""
+
 # Views
 msgctxt "#33200"
 msgid "Menu views"

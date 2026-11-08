@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  a4kStreaming skip button over the playing video: "Skip intro", "Skip recap" or "Next episode" (with its countdown),
+  bottom right, shown without blocking (show()) by a4kStreaming/ui/skip.py while the position is inside a segment.
+  The same rules as a4k-home.xml: no includes and no named colours, Estuary font names, every control places itself.
+  The button sets no navigation, so the arrows are not caught here.
+-->
+<window>
+	<defaultcontrol always="true">800</defaultcontrol>
+	<controls>
+		<control type="group">
+			<left>1380</left>
+			<top>900</top>
+			<width>440</width>
+			<height>80</height>
+			<animation effect="fade" start="0" end="100" time="200">WindowOpen</animation>
+			<animation effect="slide" start="0,24" end="0,0" time="200" tween="cubic" easing="out">WindowOpen</animation>
+			<animation effect="fade" start="100" end="0" time="150">WindowClose</animation>
+			<control type="button" id="800">
+				<left>0</left>
+				<top>0</top>
+				<width>440</width>
+				<height>80</height>
+				<font>font30_title</font>
+				<label>$INFO[Window.Property(a4k.label)]</label>
+				<align>center</align>
+				<aligny>center</aligny>
+				<textcolor>FFFFFFFF</textcolor>
+				<focusedcolor>FF0C0D12</focusedcolor>
+				<texturefocus border="20" colordiffuse="FFF5F6FA">a4k/rr20.png</texturefocus>
+				<texturenofocus border="20" colordiffuse="47FFFFFF">a4k/rr20.png</texturenofocus>
+			</control>
+		</control>
+	</controls>
+</window>

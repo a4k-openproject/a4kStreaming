@@ -7,7 +7,7 @@ from .listing import (
 from .imdb import (
     query,
 )
-from .ui import sheets
+from .ui import sheets, skip
 
 def cache_sources(core, params, results=None):
     pm_apikey = core.utils.get_premiumize_apikey(core)
@@ -483,5 +483,6 @@ def play(core, params):
     info_tag = core.kodi.set_info_tag(item, video_meta)
     info_tag.add_stream_info('video', { 'codec': result['videocodec'], 'duration': result['ref'].duration })
 
+    skip.hand_off(provider_params.title)
     core.utils.end_action(core, True, item)
     return link

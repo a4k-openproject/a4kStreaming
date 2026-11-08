@@ -4,6 +4,7 @@ def start(api):
     core = api.core
     from .imdb import cursor_ttl
     from .ui import app as ui_app
+    from .ui import skip
     monitor = core.kodi.xbmc.Monitor()
 
     class XBMCPlayer(core.kodi.xbmc.Player):
@@ -38,20 +39,38 @@ def start(api):
             watched.play_count = video_meta.getPlayCount()
         except: update_playing_imdb_id(retry=False) if retry else None
 
-    def mark_as_watched():
+    def mark_as_watched(finished=False):
+        # finished: the next episode starts from the credits, which counts as watching to the end
         try:
-            if not watched.playing_imdb_id or not watched.time_played or not watched.total_time:
+            if not watched.playing_imdb_id or (finished and watched.play_count):
                 return
-            percent_played = watched.time_played / watched.total_time
-            if percent_played < 0.90:
+            if not finished and (not watched.time_played or not watched.total_time or watched.time_played / watched.total_time < 0.90):
                 return
             core.profile(core, core.utils.DictAsObject({ 'type': 'mark_as_watched', 'id': watched.playing_imdb_id, 'silent': True }))
         finally:
             reset_vars()
 
-    player.onPlayBackStarted = lambda: update_playing_imdb_id(retry=True)
-    player.onPlayBackEnded = lambda: mark_as_watched()
-    player.onPlayBackStopped = lambda: mark_as_watched()
+    # intro / recap skip and the next episode for the playing episode (ui/skip.py)
+    skip_watch = lambda: None
+    skip_watch.current = None
+
+    def started():
+        if skip_watch.current:
+            skip_watch.current.stopped = True
+        skip_watch.current = skip.start(core, player, monitor, on_next=lambda: mark_as_watched(finished=True))
+        update_playing_imdb_id(retry=True)
+
+    def ended(natural):
+        current, skip_watch.current = skip_watch.current, None
+        if current and natural:
+            current.ended()
+        elif current:
+            current.stopped = True
+        mark_as_watched()
+
+    player.onPlayBackStarted = started
+    player.onPlayBackEnded = lambda: ended(natural=True)
+    player.onPlayBackStopped = lambda: ended(natural=False)
 
     while not monitor.abortRequested():
         if monitor.waitForAbort(2):
