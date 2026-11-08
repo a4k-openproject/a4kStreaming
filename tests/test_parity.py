@@ -447,7 +447,8 @@ def on_screen(core, monkeypatch):
     return lambda id: current.__setitem__(0, id)
 
 def busy(core):
-    return core.kodi.xbmcgui.Window(10000).getProperty('a4k.busy')
+    # 'true' while the loader is up (the property holds a time stamp then)
+    return 'true' if core.kodi.xbmcgui.Window(10000).getProperty('a4k.busy') else ''
 
 def test_busy_draws_the_windows_loader_over_an_a4k_window(core, calls, on_screen):
     core.kodi.open_busy_dialog()
@@ -493,14 +494,30 @@ def test_the_play_action_runs_behind_the_loader_over_an_a4k_window(core, calls, 
     core.main(PLUGIN, 1, 'action=play&type=&id=tt1')
     assert seen == [loader] + (['wait %s' % loader] if link else []) and calls == [] and busy(core) == ''
 
-def test_windows_start_nothing_new_while_the_loader_is_up(core, calls, home):
-    # Kodi's busy dialog took the keys during a play; it is kept closed now, so a second Play is dropped here
-    core.kodi.xbmcgui.Window(10000).setProperty('a4k.busy', 'true')
+@pytest.mark.parametrize('age, runs', [(None, True), (1, False), (59, False), (61, True)])
+def test_windows_start_nothing_new_while_the_loader_is_up(core, calls, home, age, runs):
+    # Kodi's busy dialog took the keys during a play; it is kept closed now, so a second Play is dropped here. A stamp
+    # older than 60 s was left by a killed plugin call: the action runs and the stale loader goes.
+    home_window = core.kodi.xbmcgui.Window(10000)
+    if age is not None:
+        home_window.setProperty('a4k.busy', str(core.kodi.time.time() - age))
     home.run('PlayMedia(%s?action=play&type=&id=tt1)' % PLUGIN)
-    assert calls == []
-    core.kodi.xbmcgui.Window(10000).clearProperty('a4k.busy')
-    home.run('PlayMedia(%s?action=play&type=&id=tt1)' % PLUGIN)
-    assert calls == ['PlayMedia(%s?action=play&type=&id=tt1)' % PLUGIN]
+    assert calls == (['PlayMedia(%s?action=play&type=&id=tt1)' % PLUGIN] if runs else [])
+    assert bool(home_window.getProperty('a4k.busy')) == (not runs)
+
+def test_the_loader_stamp_stays_fresh_while_the_scope_lives(core, on_screen, monkeypatch):
+    # a play spans the source sheet, which can take minutes: the watcher renews the stamp, and its last renewal never
+    # lands after the close
+    monkeypatch.setattr(core.kodi, 'BUSY_BEAT', 0)
+    home_window = core.kodi.xbmcgui.Window(10000)
+    with core.kodi.busy_dialog():
+        home_window.setProperty('a4k.busy', str(core.kodi.time.time() - 61))
+        for _ in range(100):
+            if core.kodi.busy_live():
+                break
+            core.kodi.time.sleep(0.01)
+        assert core.kodi.busy_live()
+    assert home_window.getProperty('a4k.busy') == ''
 
 @pytest.mark.parametrize('states, looks', [
     ([False, True, True, False], 4),  # the player takes the stream, then stops (failed): the loader goes

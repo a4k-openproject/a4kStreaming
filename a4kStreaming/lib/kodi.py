@@ -4,6 +4,7 @@ import os
 import sys
 import json
 import re
+import time
 import importlib
 from contextlib import contextmanager
 from threading import Event, Thread, Timer
@@ -82,21 +83,41 @@ def notification(text, time=3000):
 BUSY = 'a4k.busy'  # on Kodi's Home window: the add-on's own windows draw their traced-D loader while it is set
 NATIVE_BUSY = ('busydialog', 'busydialognocancel')
 NATIVE_LOOK = 0.05  # s between looks for Kodi's busy dialog while the loader stands in for it
-__busy = {'depth': 0, 'done': None, 'native': False}
+BUSY_BEAT = 1  # s between fresh time stamps in BUSY while the loader is up
+BUSY_STALE = 60  # s: an older stamp was left by a plugin call killed before it could clear it
+__busy = {'depth': 0, 'done': None, 'watch': None, 'native': False}
 
 def __over_window():
     # one of the add-on's windows is on screen (ui/app.py OPEN_WINDOW holds the one on top)
     window = xbmcgui.Window(10000).getProperty('a4k.ui.window')
     return bool(window) and window == str(xbmcgui.getCurrentWindowId())
 
+def busy_live():
+    # the loader is up for a live call: BUSY holds a stamp its watcher renews every BUSY_BEAT. A stale stamp (a plugin
+    # call killed mid-scope) is cleared here, so it neither blocks the windows nor keeps the loader drawn.
+    stamp = xbmcgui.Window(10000).getProperty(BUSY)
+    try:
+        if time.time() - float(stamp) < BUSY_STALE:
+            return True
+    except ValueError:
+        pass
+    if stamp:
+        xbmcgui.Window(10000).clearProperty(BUSY)
+    return False
+
 def __keep_native_closed(done):
     # Kodi opens its busy dialog 220 ms into a plugin call it waits on (PlayMedia of a plugin:// URL) and keeps it
     # until the call ends, drawn whenever no other modal dialog is above it. Over the add-on's windows the loader is
     # the one indicator, so Kodi's is closed as soon as it shows (its wait goes on without it and never reopens it).
+    # It also renews the stamp in BUSY, for as long as the scope (a play spans the source sheet too) is alive.
+    stamped = time.time()
     while True:
         for name in NATIVE_BUSY:
             if xbmc.getCondVisibility('Window.IsActive(%s)' % name):
                 xbmc.executebuiltin('Dialog.Close(%s,true)' % name)
+        if time.time() - stamped >= BUSY_BEAT:
+            stamped = time.time()
+            xbmcgui.Window(10000).setProperty(BUSY, str(stamped))
         if done.wait(NATIVE_LOOK):
             return
 
@@ -108,9 +129,10 @@ def open_busy_dialog(native=True):
     if __busy['depth'] > 1:
         return
     if __over_window():
-        xbmcgui.Window(10000).setProperty(BUSY, 'true')
+        xbmcgui.Window(10000).setProperty(BUSY, str(time.time()))
         __busy['done'] = done = Event()
-        Thread(target=__keep_native_closed, args=(done,), daemon=True).start()
+        __busy['watch'] = Thread(target=__keep_native_closed, args=(done,), daemon=True)
+        __busy['watch'].start()
     elif native:
         __busy['native'] = True
         xbmc.executebuiltin('ActivateWindow(busydialognocancel)')
@@ -123,7 +145,8 @@ def close_busy_dialog():
         return
     if __busy['done']:
         __busy['done'].set()
-        __busy['done'] = None
+        __busy['watch'].join()  # its last stamp lands before the clear below, never after it
+        __busy['done'] = __busy['watch'] = None
     xbmcgui.Window(10000).clearProperty(BUSY)
     if __busy['native']:
         __busy['native'] = False
