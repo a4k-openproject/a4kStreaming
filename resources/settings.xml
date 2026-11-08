@@ -2,32 +2,43 @@
 <!--
   The add-on's settings. Kodi's own dialog shows them as they are here, and the settings window (a4k-settings.xml,
   a4kStreaming/ui/settings.py) reads this file for its categories, rows, types, defaults, ranges and options, so both
-  show the same grouping. option="hidden" marks a secret: masked in Kodi's dialog, shown as Set / Not set in ours.
+  show the same grouping. A labelled separator (lsep) starts a group: Kodi's dialog draws its label as the group's
+  heading and the window as a sub-header with space above it. option="hidden" marks a secret: masked in Kodi's
+  dialog, shown as Set / Not set in ours.
 -->
 <settings>
     <category label="33001">
+        <setting type="lsep" label="33020"/>
         <setting id="general.max_quality"            label="33101" type="enum"   default="3" lvalues='33120|33121|33122|33123'/>
         <setting id="general.max_movie_size"         label="33108" type="slider" default="200" option="int" range="5,200"/>
         <setting id="general.dolby_vision_allowed"   label="33109" type="bool"   default="false"/>
         <setting id="general.autoplay"               label="33102" type="bool"   default="false"/>
+        <setting type="lsep" label="33021"/>
         <setting id="general.skip_intro"             label="33150" type="enum"   default="0" lvalues='33153|33154|33155'/>
         <setting id="general.skip_recap"             label="33151" type="enum"   default="0" lvalues='33153|33154|33155'/>
         <setting id="general.skip_credits"           label="33152" type="enum"   default="0" lvalues='33153|33154|33155'/>
+        <setting type="lsep" label="33022"/>
         <setting id="general.back_stops"             label="33162" type="bool"   default="true"/>
     </category>
     <category label="33003">
+        <setting type="lsep" label="33023"/>
         <setting id="general.search_all_providers"   label="33140" type="bool"   default="false"/>
         <setting id="general.search_timeout"         label="33110" type="slider" default="40" option="int" range="10,120"/>
         <setting id="general.remembered_searches"    label="33143" type="slider" default="20" option="int" range="0,10,500"/>
+        <setting type="lsep" label="33024"/>
         <setting id="provider.install"         type="action" label="33301" action="RunPlugin(plugin://plugin.video.a4kstreaming/?action=provider&type=install)"/>
         <setting id="provider.manage"          type="action" label="33303" action="RunPlugin(plugin://plugin.video.a4kstreaming/?action=provider&type=manage)"/>
         <setting id="provider.check"           type="action" label="33304" action="RunPlugin(plugin://plugin.video.a4kstreaming/?action=provider&type=new_version_check)"/>
     </category>
     <!-- Home: the home window's options and defaults (a4kStreaming/ui/appearance.py) -->
     <category label="33007">
-        <setting id="appearance.browse"          label="33701" type="bool"   default="true"/>
+        <setting type="lsep" label="33025"/>
         <setting id="appearance.tabs"            label="33709" type="bool"   default="true"/>
+        <setting id="appearance.hero_source"     label="33711" type="enum"   default="0" lvalues="33725|33726|33727|33728"/>
+        <setting id="appearance.hero_turn"       label="33710" type="enum"   default="1" lvalues="33720|33721|33722|33723|33724"/>
+        <setting type="lsep" label="33026"/>
         <setting id="appearance.continue_watching" label="33713" type="bool" default="true"/>
+        <setting id="appearance.browse"          label="33701" type="bool"   default="true"/>
         <setting id="appearance.trending_movies" label="33702" type="bool"   default="true"/>
         <setting id="appearance.trending_tv"     label="33703" type="bool"   default="true"/>
         <setting id="appearance.reality"         label="33704" type="bool"   default="false"/>
@@ -38,21 +49,24 @@
         <setting id="appearance.my_list"         type="text" default="" visible="false"/>
         <setting id="appearance.order_pick"      label="33712" type="action" action="RunScript(plugin.video.a4kstreaming,order)"/>
         <setting id="appearance.order"           type="text" default="" visible="false"/>
-        <setting id="appearance.hero_source"     label="33711" type="enum"   default="0" lvalues="33725|33726|33727|33728"/>
-        <setting id="appearance.hero_turn"       label="33710" type="enum"   default="1" lvalues="33720|33721|33722|33723|33724"/>
     </category>
     <category label="33005">
+        <setting type="lsep" label="33027"/>
         <setting id="imdb.at-main"                   label="33502" type="text"   default="" option="hidden"/>
         <setting id="general.mark_as_watched_rating" label="33103" type="slider" default="7"  option="int" range="1,10"/>
+        <setting type="lsep" label="33028"/>
         <setting id="premiumize.apikey"              label="33402" type="text"   default="" option="hidden"/>
+        <setting type="lsep" label="33029"/>
         <setting id="trakt.username"                 label="33603" type="text"   default=""/>
         <setting id="trakt.clientid"                 label="33602" type="text"   default="" option="hidden"/>
         <setting id="trakt.migrate_status"      type="action" label="33604" action="RunPlugin(plugin://plugin.video.a4kstreaming/?action=trakt&type=migrate_status)"/>
         <setting id="trakt.migrate_collections" type="action" label="33606" action="RunPlugin(plugin://plugin.video.a4kstreaming/?action=trakt&type=migrate_collections)"/>
     </category>
     <category label="33008">
+        <setting type="lsep" label="33030"/>
         <setting id="general.page_size"              label="33104" type="slider" default="29" option="int" range="10,100"/>
         <setting id="general.lists_page_size"        label="33105" type="slider" default="29" option="int" range="10,100"/>
+        <setting type="lsep" label="33031"/>
         <!-- Kodi setup mode (a4kStreaming/kodi_mode.py); prompted: its one-time question on the home window was asked -->
         <setting id="kodi.mode"                      label="33801" type="action" action="RunScript(plugin.video.a4kstreaming,kodi_mode)"/>
         <setting id="kodi_mode.prompted"             type="bool"   default="false" visible="false"/>

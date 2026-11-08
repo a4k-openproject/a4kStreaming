@@ -42,6 +42,14 @@ def shadow():
     out.putalpha(alpha)
     return out
 
+def outline(size, radius, width):
+    # a rounded outline of `width` px, transparent inside (the settings window's Off chip and focused row)
+    w, h = size
+    img = Image.new('RGBA', (w * SS, h * SS), (0, 0, 0, 0))
+    ImageDraw.Draw(img).rounded_rectangle((0, 0, w * SS - 1, h * SS - 1), radius * SS, outline=(255, 255, 255, 255),
+                                          width=width * SS)
+    return img.resize(size, Image.LANCZOS)
+
 def placeholder(size, radius, a=(44, 44, 48), b=(26, 26, 30)):
     # card placeholder: linear-gradient(160deg, #2c2c30, #1a1a1e), rounded
     w, h = size
@@ -238,6 +246,10 @@ def main():
     save(icon(space), 'icon_space.png')
     save(icon(keyboard), 'icon_keyboard.png')
     save(icon(check), 'check.png')
+    # settings window: value chips 60px tall (border 30 stretches them sideways only), the focused row's outline
+    save(rounded((120, 60), 30), 'chip.png')
+    save(outline((120, 60), 30, 3), 'chip_line.png')
+    save(outline((64, 64), 20, 3), 'rr20_line.png')
 
 if __name__ == '__main__':
     main()

@@ -19,6 +19,55 @@ msgctxt "#33005"
 msgid "Accounts"
 msgstr ""
 
+# Groups inside the categories (settings.xml lsep)
+msgctxt "#33020"
+msgid "Source choice"
+msgstr ""
+
+msgctxt "#33021"
+msgid "Skipping"
+msgstr ""
+
+msgctxt "#33022"
+msgid "Remote"
+msgstr ""
+
+msgctxt "#33023"
+msgid "Search"
+msgstr ""
+
+msgctxt "#33024"
+msgid "Providers"
+msgstr ""
+
+msgctxt "#33025"
+msgid "Top of the screen"
+msgstr ""
+
+msgctxt "#33026"
+msgid "Rows"
+msgstr ""
+
+msgctxt "#33027"
+msgid "IMDb"
+msgstr ""
+
+msgctxt "#33028"
+msgid "Premiumize"
+msgstr ""
+
+msgctxt "#33029"
+msgid "Trakt"
+msgstr ""
+
+msgctxt "#33030"
+msgid "Page size"
+msgstr ""
+
+msgctxt "#33031"
+msgid "Kodi"
+msgstr ""
+
 # Playback and sources
 msgctxt "#33101"
 msgid "Highest quality"
@@ -33,11 +82,11 @@ msgid "Rating that marks a title watched"
 msgstr ""
 
 msgctxt "#33104"
-msgid "Page size: browsing"
+msgid "Rows and grids"
 msgstr ""
 
 msgctxt "#33105"
-msgid "Page size: lists"
+msgid "Watchlist and lists"
 msgstr ""
 
 msgctxt "#33108"
@@ -184,27 +233,27 @@ msgstr ""
 
 # Accounts
 msgctxt "#33402"
-msgid "Premiumize"
+msgid "API key"
 msgstr ""
 
 msgctxt "#33502"
-msgid "IMDb"
+msgid "Sign-in cookie"
 msgstr ""
 
 msgctxt "#33602"
-msgid "Trakt client ID"
+msgid "Client ID"
 msgstr ""
 
 msgctxt "#33603"
-msgid "Trakt username"
+msgid "Username"
 msgstr ""
 
 msgctxt "#33604"
-msgid "Import watched titles from Trakt"
+msgid "Import watched titles"
 msgstr ""
 
 msgctxt "#33606"
-msgid "Import collections from Trakt"
+msgid "Import collections"
 msgstr ""
 
 # Home and Advanced

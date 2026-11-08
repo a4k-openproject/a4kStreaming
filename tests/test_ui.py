@@ -28,6 +28,8 @@ FONTS = {'font10', 'font12', 'font13', 'font14', 'font27', 'font32', 'font37', '
 TEXTURES = {
     'a4k/bg_home.png': (960, 540),
     'a4k/check.png': (64, 64),
+    'a4k/chip.png': (120, 60),
+    'a4k/chip_line.png': (120, 60),
     'a4k/fade_bottom.png': (8, 256),
     'a4k/icon_delete.png': (64, 64),
     'a4k/icon_gear.png': (64, 64),
@@ -44,6 +46,7 @@ TEXTURES = {
     'a4k/ring.png': (128, 128),
     'a4k/ring_face.png': (188, 188),
     'a4k/rr20.png': (64, 64),
+    'a4k/rr20_line.png': (64, 64),
     'a4k/rr24.png': (64, 64),
     'a4k/rr4.png': (8, 8),
     'a4k/scrim_bottom.png': (1, 512),

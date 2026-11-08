@@ -95,7 +95,27 @@ def test_every_visible_setting_is_in_exactly_one_pane(settings):
                if n.get('id') and n.get('visible') != 'false']
     shown = [row['id'] for pane in settings.shown(settings.categories()) for row in pane if row['id']]
     assert sorted(shown) == sorted(visible) and len(shown) == len(set(shown))
-    assert set(settings.HELP) == set(visible)  # one help line per row, none left over
+    assert set(settings.HELP) <= set(visible)  # none left over; only the Home row toggles go without
+    assert set(visible) - set(settings.HELP) == {'appearance.' + key for key in
+                                                 ('trending_movies', 'trending_tv', 'reality', 'animations', 'animation_tv')}
+
+def test_groups_come_from_the_labelled_separators(settings):
+    groups = [[(label, [row['id'] for row in rows if row['group'] == label and row['kind'] != 'hidden'])
+               for label in dict.fromkeys(row['group'] for row in rows)] for _, _, rows in settings.categories()]
+    assert [[label for label, _ in cat] for cat in groups] == [
+        ['Source choice', 'Skipping', 'Remote'], ['Search', 'Providers'], ['Top of the screen', 'Rows'],
+        ['IMDb', 'Premiumize', 'Trakt'], ['Page size', 'Kodi']]
+    assert groups[0][1][1] == ['general.skip_intro', 'general.skip_recap', 'general.skip_credits']
+    assert groups[3][2][1] == ['trakt.username', 'trakt.clientid', 'trakt.migrate_status', 'trakt.migrate_collections']
+
+def test_panes_put_a_header_over_each_group_and_a_blank_one_over_the_windows_own_rows(settings):
+    panes = settings.shown(settings.categories())
+    kinds = lambda pane: [(row['kind'], row['label']) for row in pane if row['kind'] in ('header', 'reset', 'native')]
+    assert kinds(panes[0]) == [('header', 'Source choice'), ('header', 'Skipping'), ('header', 'Remote'),
+                               ('header', ''), ('reset', 'Reset this section')]
+    assert kinds(panes[3]) == [('header', 'IMDb'), ('header', 'Premiumize'), ('header', 'Trakt')]  # no reset here
+    assert kinds(panes[4])[-3:] == [('header', ''), ('reset', 'Reset this section'), ('native', "Kodi's settings dialog")]
+    assert all(pane[0]['kind'] == 'header' and pane[-1]['kind'] != 'header' for pane in panes)
 
 def test_categories_kinds_and_ranges_come_from_settings_xml(settings):
     cats = settings.categories()
@@ -121,8 +141,9 @@ def test_reset_rows_skip_accounts_and_kodis_dialog_is_last(settings):
 def test_first_open_shows_playback_on_the_rail(window):
     win = window()
     assert [item.label for item in win.rail.items] == ['Playback', 'Sources', 'Home', 'Accounts', 'Advanced']
-    assert win.getFocusId() == 100 and win.cat == 0 and labels(win)[0] == 'Highest quality'
-    assert win.getProperty('a4k.desc') == 'What plays, and what happens around it.'
+    assert win.getFocusId() == 100 and win.cat == 0 and labels(win)[:2] == ['SOURCE CHOICE', 'Highest quality']
+    assert win.pane.getSelectedPosition() == 1  # the first row, under its header
+    assert win.getProperty('a4k.desc') == 'Playback' and win.pane.items[0].getProperty('a4k.header') == 'true'
 
 def test_bool_toggles_and_writes_true_false(window, values):
     win = window()
@@ -273,7 +294,7 @@ def test_secret_entry_is_hidden_unprefilled_and_checked(window, values, settings
     assert item.label2 == 'Not set'
     typed.append('   ')  # nothing typed: nothing changes
     win.onClick(200)
-    assert 'premiumize.apikey' not in values and asked == [('Premiumize', '', 2)]
+    assert 'premiumize.apikey' not in values and asked == [('Premiumize API key', '', 2)]
     typed.append(SECRET)
     win.onClick(200)
     assert values['premiumize.apikey'] == SECRET and item.label2 == 'Rejected'
@@ -391,7 +412,7 @@ def test_rail_moves_switch_the_pane_and_back_steps_out_one_level(window):
     win = window()
     win.rail.selectItem(2)
     press(win, 4)
-    assert win.cat == 2 and labels(win)[0] == 'Browse row'
+    assert win.cat == 2 and labels(win)[:2] == ['TOP OF THE SCREEN', 'Category tabs']
     win.onClick(100)
     assert win.getFocusId() == 200
     press(win, 92)
@@ -402,9 +423,48 @@ def test_rail_moves_switch_the_pane_and_back_steps_out_one_level(window):
 def test_right_on_the_rail_enters_the_pane_without_stepping_its_first_row(window, values):
     win = window()  # Playback, whose first row is an enum
     assert win.getFocusId() == 100
-    before = win.pane.items[0].label2
+    before = win.pane.items[1].label2
     press(win, 2)
-    assert win.getFocusId() == 200 and win.pane.items[0].label2 == before and 'general.max_quality' not in values
+    assert win.getFocusId() == 200 and win.pane.items[1].label2 == before and 'general.max_quality' not in values
+
+def test_up_and_down_step_over_the_group_headers(window):
+    win = window()
+    go(win, 'general.autoplay')
+    win.pane.selectItem(win.pane.getSelectedPosition() + 1)  # Kodi moved Down onto the Skipping header
+    press(win, 4)
+    assert win.rows[win.pane.getSelectedPosition()]['id'] == 'general.skip_intro'
+    win.pane.selectItem(win.pane.getSelectedPosition() - 1)  # and Up onto it again
+    press(win, 3)
+    assert win.rows[win.pane.getSelectedPosition()]['id'] == 'general.autoplay'
+    win.pane.selectItem(0)  # Up onto the first header: nothing above it, back down to the first row
+    press(win, 3)
+    assert win.pane.getSelectedPosition() == 1
+
+def test_ok_on_a_header_does_nothing(window, values):
+    win = window()
+    win.setFocusId(200)
+    win.pane.selectItem(0)
+    win.onClick(200)
+    assert values == {} and win.error is None and not win.closed
+
+def test_the_window_lands_past_a_header_it_was_asked_to_show(window):
+    win = window()
+    win.show(0, 5)  # the Skipping header
+    assert win.rows[win.pane.getSelectedPosition()]['id'] == 'general.skip_intro'
+
+def test_values_are_chips_by_kind(window, values):
+    win = window()
+    tone = lambda id: (go(win, id).getProperty('a4k.tone'), go(win, id).getProperty('a4k.chip'))
+    values['general.autoplay'] = 'true'
+    assert tone('general.autoplay') == ('on', 's') and tone('general.dolby_vision_allowed') == ('off', 's')
+    assert tone('general.max_quality') == ('value', 'l') and tone('general.remembered_searches') == ('value', 'l')
+    assert tone('premiumize.apikey') == ('off', 's') and go(win, 'trakt.username').label2 == 'Not set'
+    values['premiumize.apikey'] = SECRET
+    assert tone('premiumize.apikey') == ('value', 's')
+    win.rejected.add('premiumize.apikey')
+    assert tone('premiumize.apikey') == ('warn', 's')
+    assert tone('provider.manage') == ('', '') and tone('appearance.watchlist') == ('', '')  # signed out: plain text
+    assert tone('kodi.mode') == ('off', 'l') and tone('appearance.my_list_pick') == ('', '')
 
 def test_the_window_reopens_on_the_last_category_and_row(window):
     win = window()

@@ -1,16 +1,22 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-  a4kStreaming settings (tvOS-like). The same rules as a4k-home.xml: 1080p pixels = reference app units x2, no includes
-  and no named colours, Estuary font names, every control places itself (left/top).
+  a4kStreaming settings (tvOS-like, read from 3 m). The same rules as a4k-home.xml: 1080p pixels, no includes and no
+  named colours, Estuary font names, every control places itself (left/top).
 
-  A rail of categories on the left, the current category's rows on the right, both filled from Python
+  The add-on's page (bg_home, a little of the window behind showing through), a rail of categories on the left, and the
+  current category's rows on a raised glass panel (sheet.png) on the right, both lists filled from Python
   (a4kStreaming/ui/settings.py). Up/Down on the rail switches the pane at once; Right or OK enters it. Python owns
-  Left/Right in the pane (it steps an option or a number, or goes back to the rail), so the pane's edges say noop; Up and
-  Down stop at the ends. The selected item of a list that has no focus keeps its focusedlayout, so the highlight shows
-  only while the list has focus; the rail's current category keeps a faint fill.
+  Left/Right in the pane (it steps an option or a number, or goes back to the rail) and steps Up/Down over the group
+  headers, so the pane's edges say noop; Up and Down stop at the ends. The selected item of a list that has no focus
+  keeps its focusedlayout, so the raised look shows only while the list has focus; the rail's current category keeps a
+  faint fill.
 
-  Row properties: a4k.step (Left/Right change the value: drawn as < value >), a4k.off (needs the IMDb login: dimmed),
-  a4k.grabbed (the Home order row being moved: lifted further), a4k.help (the line under the pane).
+  Rows: label left, value right as a chip. a4k.tone: on (accent fill, dark text), off (outline, light text), value
+  (neutral fill; white with dark text on the focused row), warn (red fill), empty (plain text: an arrow, or "Sign in to
+  IMDb first"). a4k.chip: s (On / Off / Set) or l (options, numbers, names). The focused row is a lighter surface with
+  a white outline, lifted 1.02. a4k.step (Left/Right change the value: ‹ › inside the chip), a4k.off (needs the IMDb
+  sign-in: dimmed), a4k.header (a group header: accent capitals, the row's top left blank as the gap between groups),
+  a4k.grabbed (the Home order row being moved: accent outline, shadow), a4k.help (the line under the pane).
   No defaultcontrol: the lists are empty when the window inits; onInit fills them and then focuses one.
 -->
 <window>
@@ -22,80 +28,79 @@
 			<top>0</top>
 			<width>1920</width>
 			<height>1080</height>
-			<texture colordiffuse="FF07080C">a4k/white.png</texture>
+			<texture colordiffuse="E6FFFFFF">a4k/bg_home.png</texture>
 		</control>
 		<control type="label">
-			<left>0</left>
-			<top>52</top>
-			<width>1920</width>
-			<height>88</height>
-			<font>font52_title</font>
-			<align>center</align>
+			<left>96</left>
+			<top>56</top>
+			<width>400</width>
+			<height>80</height>
+			<font>font45_title</font>
 			<aligny>center</aligny>
 			<textcolor>FFFFFFFF</textcolor>
 			<label>Settings</label>
 		</control>
 		<control type="list" id="100">
-			<left>128</left>
-			<top>172</top>
-			<width>440</width>
-			<height>640</height>
+			<left>64</left>
+			<top>176</top>
+			<width>424</width>
+			<height>768</height>
 			<onleft>noop</onleft>
 			<onright>noop</onright>
 			<onup>noop</onup>
 			<ondown>noop</ondown>
 			<orientation>vertical</orientation>
 			<scrolltime tween="cubic" easing="out">220</scrolltime>
-			<itemlayout width="440" height="88">
+			<itemlayout width="424" height="96">
 				<control type="label">
-					<left>32</left>
+					<left>40</left>
 					<top>0</top>
-					<width>376</width>
-					<height>88</height>
-					<font>font32_title</font>
+					<width>352</width>
+					<height>96</height>
+					<font>font36_title</font>
 					<aligny>center</aligny>
 					<textcolor>B8FFFFFF</textcolor>
 					<label>$INFO[ListItem.Label]</label>
 				</control>
 			</itemlayout>
-			<focusedlayout width="440" height="88">
+			<focusedlayout width="424" height="96">
 				<control type="group">
 					<left>0</left>
 					<top>0</top>
-					<animation effect="zoom" start="100" end="103" time="220" tween="cubic" easing="out" center="220,44" condition="Control.HasFocus(100)">Conditional</animation>
+					<animation effect="zoom" start="100" end="103" time="220" tween="cubic" easing="out" center="212,48" condition="Control.HasFocus(100)">Conditional</animation>
 					<control type="image">
-						<left>4</left>
-						<top>4</top>
-						<width>432</width>
-						<height>80</height>
+						<left>8</left>
+						<top>6</top>
+						<width>408</width>
+						<height>84</height>
 						<texture border="20" colordiffuse="FFF5F6FA">a4k/rr20.png</texture>
 						<visible>Control.HasFocus(100)</visible>
 					</control>
 					<control type="image">
-						<left>4</left>
-						<top>4</top>
-						<width>432</width>
-						<height>80</height>
-						<texture border="20" colordiffuse="24FFFFFF">a4k/rr20.png</texture>
+						<left>8</left>
+						<top>6</top>
+						<width>408</width>
+						<height>84</height>
+						<texture border="20" colordiffuse="29FFFFFF">a4k/rr20.png</texture>
 						<visible>!Control.HasFocus(100)</visible>
 					</control>
 					<control type="label">
-						<left>32</left>
+						<left>40</left>
 						<top>0</top>
-						<width>376</width>
-						<height>88</height>
-						<font>font32_title</font>
+						<width>352</width>
+						<height>96</height>
+						<font>font36_title</font>
 						<aligny>center</aligny>
 						<textcolor>FF0C0D12</textcolor>
 						<label>$INFO[ListItem.Label]</label>
 						<visible>Control.HasFocus(100)</visible>
 					</control>
 					<control type="label">
-						<left>32</left>
+						<left>40</left>
 						<top>0</top>
-						<width>376</width>
-						<height>88</height>
-						<font>font32_title</font>
+						<width>352</width>
+						<height>96</height>
+						<font>font36_title</font>
 						<aligny>center</aligny>
 						<textcolor>FFFFFFFF</textcolor>
 						<label>$INFO[ListItem.Label]</label>
@@ -104,172 +109,561 @@
 				</control>
 			</focusedlayout>
 		</control>
-		<control type="label">
-			<left>680</left>
-			<top>172</top>
-			<width>1112</width>
-			<height>44</height>
-			<font>font27</font>
-			<textcolor>80FFFFFF</textcolor>
-			<label>$INFO[Window.Property(a4k.desc)]</label>
-		</control>
-		<control type="list" id="200">
-			<left>640</left>
-			<top>224</top>
-			<width>1152</width>
-			<height>704</height>
-			<onleft>noop</onleft>
-			<onright>noop</onright>
-			<onup>noop</onup>
-			<ondown>noop</ondown>
-			<orientation>vertical</orientation>
-			<scrolltime tween="cubic" easing="out">220</scrolltime>
-			<itemlayout width="1152" height="88">
-				<control type="label">
-					<left>40</left>
-					<top>0</top>
-					<width>660</width>
-					<height>88</height>
-					<font>font30_title</font>
-					<aligny>center</aligny>
-					<textcolor>FFFFFFFF</textcolor>
-					<label>$INFO[ListItem.Label]</label>
-					<visible>String.IsEmpty(ListItem.Property(a4k.off))</visible>
-				</control>
-				<control type="label">
-					<left>40</left>
-					<top>0</top>
-					<width>660</width>
-					<height>88</height>
-					<font>font30_title</font>
-					<aligny>center</aligny>
-					<textcolor>47FFFFFF</textcolor>
-					<label>$INFO[ListItem.Label]</label>
-					<visible>!String.IsEmpty(ListItem.Property(a4k.off))</visible>
-				</control>
-				<control type="label">
-					<left>712</left>
-					<top>0</top>
-					<width>400</width>
-					<height>88</height>
-					<font>font27</font>
-					<align>right</align>
-					<aligny>center</aligny>
-					<textcolor>8CFFFFFF</textcolor>
-					<label>$INFO[ListItem.Label2]</label>
-				</control>
-			</itemlayout>
-			<focusedlayout width="1152" height="88">
-				<control type="group">
-					<left>0</left>
-					<top>0</top>
-					<animation effect="zoom" start="100" end="103" time="220" tween="cubic" easing="out" center="576,44" condition="Control.HasFocus(200)">Conditional</animation>
-					<animation effect="zoom" start="100" end="104" time="220" tween="cubic" easing="out" center="576,44" condition="Control.HasFocus(200) + !String.IsEmpty(ListItem.Property(a4k.grabbed))">Conditional</animation>
-					<control type="image">
-						<left>8</left>
-						<top>4</top>
-						<width>1136</width>
-						<height>80</height>
-						<texture border="20" colordiffuse="FFF5F6FA">a4k/rr20.png</texture>
-						<visible>Control.HasFocus(200)</visible>
-					</control>
-					<control type="image">
-						<left>-8</left>
-						<top>-8</top>
-						<width>1168</width>
-						<height>104</height>
-						<texture border="48" colordiffuse="99000000">a4k/shadow.png</texture>
-						<visible>Control.HasFocus(200) + !String.IsEmpty(ListItem.Property(a4k.grabbed))</visible>
-					</control>
-					<control type="image">
-						<left>8</left>
-						<top>4</top>
-						<width>1136</width>
-						<height>80</height>
-						<texture border="20" colordiffuse="FFFFFFFF">a4k/rr20.png</texture>
-						<visible>Control.HasFocus(200) + !String.IsEmpty(ListItem.Property(a4k.grabbed))</visible>
+		<control type="group">
+			<left>520</left>
+			<top>40</top>
+			<control type="image">
+				<left>-24</left>
+				<top>-16</top>
+				<width>1408</width>
+				<height>1048</height>
+				<texture border="96" colordiffuse="99000000">a4k/shadow.png</texture>
+			</control>
+			<control type="image">
+				<left>0</left>
+				<top>0</top>
+				<width>1360</width>
+				<height>1000</height>
+				<texture border="48" colordiffuse="FFFFFFFF">a4k/sheet.png</texture>
+			</control>
+			<control type="label">
+				<left>72</left>
+				<top>28</top>
+				<width>1000</width>
+				<height>72</height>
+				<font>font40_title</font>
+				<aligny>center</aligny>
+				<textcolor>FFFFFFFF</textcolor>
+				<label>$INFO[Window.Property(a4k.desc)]</label>
+			</control>
+			<control type="list" id="200">
+				<left>32</left>
+				<top>104</top>
+				<width>1296</width>
+				<height>768</height>
+				<onleft>noop</onleft>
+				<onright>noop</onright>
+				<onup>noop</onup>
+				<ondown>noop</ondown>
+				<orientation>vertical</orientation>
+				<scrolltime tween="cubic" easing="out">220</scrolltime>
+				<itemlayout width="1296" height="96">
+					<control type="label">
+						<left>48</left>
+						<top>34</top>
+						<width>1200</width>
+						<height>62</height>
+						<font>font25_title</font>
+						<aligny>center</aligny>
+						<textcolor>FF8CC4FF</textcolor>
+						<label>$INFO[ListItem.Label]</label>
+						<visible>!String.IsEmpty(ListItem.Property(a4k.header))</visible>
 					</control>
 					<control type="label">
-						<left>40</left>
+						<left>48</left>
 						<top>0</top>
-						<width>660</width>
-						<height>88</height>
-						<font>font30_title</font>
+						<width>780</width>
+						<height>96</height>
+						<font>font36_title</font>
+						<aligny>center</aligny>
+						<textcolor>F2FFFFFF</textcolor>
+						<label>$INFO[ListItem.Label]</label>
+						<visible>String.IsEmpty(ListItem.Property(a4k.header)) + String.IsEmpty(ListItem.Property(a4k.off))</visible>
+					</control>
+					<control type="label">
+						<left>48</left>
+						<top>0</top>
+						<width>780</width>
+						<height>96</height>
+						<font>font36_title</font>
+						<aligny>center</aligny>
+						<textcolor>59FFFFFF</textcolor>
+						<label>$INFO[ListItem.Label]</label>
+						<visible>!String.IsEmpty(ListItem.Property(a4k.off))</visible>
+					</control>
+					<control type="image">
+						<left>1064</left>
+						<top>18</top>
+						<width>184</width>
+						<height>60</height>
+						<texture border="30" colordiffuse="FF409CFF">a4k/chip.png</texture>
+						<visible>String.IsEqual(ListItem.Property(a4k.chip),s) + String.IsEqual(ListItem.Property(a4k.tone),on)</visible>
+					</control>
+					<control type="image">
+						<left>1064</left>
+						<top>18</top>
+						<width>184</width>
+						<height>60</height>
+						<texture border="30" colordiffuse="A6FFFFFF">a4k/chip_line.png</texture>
+						<visible>String.IsEqual(ListItem.Property(a4k.chip),s) + String.IsEqual(ListItem.Property(a4k.tone),off)</visible>
+					</control>
+					<control type="image">
+						<left>1064</left>
+						<top>18</top>
+						<width>184</width>
+						<height>60</height>
+						<texture border="30" colordiffuse="33FFFFFF">a4k/chip.png</texture>
+						<visible>String.IsEqual(ListItem.Property(a4k.chip),s) + String.IsEqual(ListItem.Property(a4k.tone),value)</visible>
+					</control>
+					<control type="image">
+						<left>1064</left>
+						<top>18</top>
+						<width>184</width>
+						<height>60</height>
+						<texture border="30" colordiffuse="FFFF6B6B">a4k/chip.png</texture>
+						<visible>String.IsEqual(ListItem.Property(a4k.chip),s) + String.IsEqual(ListItem.Property(a4k.tone),warn)</visible>
+					</control>
+					<control type="image">
+						<left>848</left>
+						<top>18</top>
+						<width>400</width>
+						<height>60</height>
+						<texture border="30" colordiffuse="FF409CFF">a4k/chip.png</texture>
+						<visible>String.IsEqual(ListItem.Property(a4k.chip),l) + String.IsEqual(ListItem.Property(a4k.tone),on)</visible>
+					</control>
+					<control type="image">
+						<left>848</left>
+						<top>18</top>
+						<width>400</width>
+						<height>60</height>
+						<texture border="30" colordiffuse="A6FFFFFF">a4k/chip_line.png</texture>
+						<visible>String.IsEqual(ListItem.Property(a4k.chip),l) + String.IsEqual(ListItem.Property(a4k.tone),off)</visible>
+					</control>
+					<control type="image">
+						<left>848</left>
+						<top>18</top>
+						<width>400</width>
+						<height>60</height>
+						<texture border="30" colordiffuse="33FFFFFF">a4k/chip.png</texture>
+						<visible>String.IsEqual(ListItem.Property(a4k.chip),l) + String.IsEqual(ListItem.Property(a4k.tone),value)</visible>
+					</control>
+					<control type="label">
+						<left>1064</left>
+						<top>0</top>
+						<width>184</width>
+						<height>96</height>
+						<font>font32_title</font>
+						<align>center</align>
 						<aligny>center</aligny>
 						<textcolor>FF0C0D12</textcolor>
-						<label>$INFO[ListItem.Label]</label>
-						<visible>Control.HasFocus(200)</visible>
-					</control>
-					<control type="label">
-						<left>40</left>
-						<top>0</top>
-						<width>660</width>
-						<height>88</height>
-						<font>font30_title</font>
-						<aligny>center</aligny>
-						<textcolor>FFFFFFFF</textcolor>
-						<label>$INFO[ListItem.Label]</label>
-						<visible>!Control.HasFocus(200) + String.IsEmpty(ListItem.Property(a4k.off))</visible>
-					</control>
-					<control type="label">
-						<left>40</left>
-						<top>0</top>
-						<width>660</width>
-						<height>88</height>
-						<font>font30_title</font>
-						<aligny>center</aligny>
-						<textcolor>47FFFFFF</textcolor>
-						<label>$INFO[ListItem.Label]</label>
-						<visible>!Control.HasFocus(200) + !String.IsEmpty(ListItem.Property(a4k.off))</visible>
-					</control>
-					<control type="label">
-						<left>712</left>
-						<top>0</top>
-						<width>400</width>
-						<height>88</height>
-						<font>font27</font>
-						<align>right</align>
-						<aligny>center</aligny>
-						<textcolor>8C0C0D12</textcolor>
 						<label>$INFO[ListItem.Label2]</label>
-						<visible>Control.HasFocus(200) + String.IsEmpty(ListItem.Property(a4k.step))</visible>
+						<visible>String.IsEqual(ListItem.Property(a4k.chip),s) + [String.IsEqual(ListItem.Property(a4k.tone),on) | String.IsEqual(ListItem.Property(a4k.tone),warn)]</visible>
 					</control>
 					<control type="label">
-						<left>712</left>
+						<left>1064</left>
 						<top>0</top>
-						<width>400</width>
-						<height>88</height>
-						<font>font27</font>
-						<align>right</align>
+						<width>184</width>
+						<height>96</height>
+						<font>font32_title</font>
+						<align>center</align>
 						<aligny>center</aligny>
-						<textcolor>B30C0D12</textcolor>
-						<label>‹   $INFO[ListItem.Label2]   ›</label>
-						<visible>Control.HasFocus(200) + !String.IsEmpty(ListItem.Property(a4k.step))</visible>
+						<textcolor>D9FFFFFF</textcolor>
+						<label>$INFO[ListItem.Label2]</label>
+						<visible>String.IsEqual(ListItem.Property(a4k.chip),s) + [String.IsEqual(ListItem.Property(a4k.tone),off) | String.IsEqual(ListItem.Property(a4k.tone),value)]</visible>
 					</control>
 					<control type="label">
-						<left>712</left>
+						<left>888</left>
 						<top>0</top>
-						<width>400</width>
-						<height>88</height>
-						<font>font27</font>
+						<width>320</width>
+						<height>96</height>
+						<font>font32_title</font>
+						<align>center</align>
+						<aligny>center</aligny>
+						<textcolor>FF0C0D12</textcolor>
+						<label>$INFO[ListItem.Label2]</label>
+						<visible>String.IsEqual(ListItem.Property(a4k.chip),l) + [String.IsEqual(ListItem.Property(a4k.tone),on) | String.IsEqual(ListItem.Property(a4k.tone),warn)]</visible>
+					</control>
+					<control type="label">
+						<left>888</left>
+						<top>0</top>
+						<width>320</width>
+						<height>96</height>
+						<font>font32_title</font>
+						<align>center</align>
+						<aligny>center</aligny>
+						<textcolor>D9FFFFFF</textcolor>
+						<label>$INFO[ListItem.Label2]</label>
+						<visible>String.IsEqual(ListItem.Property(a4k.chip),l) + [String.IsEqual(ListItem.Property(a4k.tone),off) | String.IsEqual(ListItem.Property(a4k.tone),value)]</visible>
+					</control>
+					<control type="label">
+						<left>768</left>
+						<top>0</top>
+						<width>480</width>
+						<height>96</height>
+						<font>font32_title</font>
 						<align>right</align>
 						<aligny>center</aligny>
 						<textcolor>8CFFFFFF</textcolor>
 						<label>$INFO[ListItem.Label2]</label>
-						<visible>!Control.HasFocus(200)</visible>
+						<visible>String.IsEmpty(ListItem.Property(a4k.header)) + String.IsEmpty(ListItem.Property(a4k.tone))</visible>
 					</control>
-				</control>
-			</focusedlayout>
-		</control>
-		<control type="textbox">
-			<left>680</left>
-			<top>948</top>
-			<width>1072</width>
-			<height>80</height>
-			<font>font12</font>
-			<textcolor>80FFFFFF</textcolor>
-			<label>$INFO[Container(200).ListItem.Property(a4k.help)]</label>
-			<visible>Control.HasFocus(200)</visible>
+				</itemlayout>
+				<focusedlayout width="1296" height="96">
+					<control type="group">
+						<left>0</left>
+						<top>0</top>
+						<animation effect="zoom" start="100" end="102" time="220" tween="cubic" easing="out" center="648,48" condition="Control.HasFocus(200) + String.IsEmpty(ListItem.Property(a4k.header))">Conditional</animation>
+						<animation effect="zoom" start="100" end="102" time="220" tween="cubic" easing="out" center="648,48" condition="Control.HasFocus(200) + !String.IsEmpty(ListItem.Property(a4k.grabbed))">Conditional</animation>
+						<control type="image">
+							<left>0</left>
+							<top>-10</top>
+							<width>1296</width>
+							<height>116</height>
+							<texture border="48" colordiffuse="99000000">a4k/shadow.png</texture>
+							<visible>Control.HasFocus(200) + !String.IsEmpty(ListItem.Property(a4k.grabbed))</visible>
+						</control>
+						<control type="image">
+							<left>16</left>
+							<top>6</top>
+							<width>1264</width>
+							<height>84</height>
+							<texture border="20" colordiffuse="33FFFFFF">a4k/rr20.png</texture>
+							<visible>Control.HasFocus(200) + String.IsEmpty(ListItem.Property(a4k.header)) + String.IsEmpty(ListItem.Property(a4k.grabbed))</visible>
+						</control>
+						<control type="image">
+							<left>16</left>
+							<top>6</top>
+							<width>1264</width>
+							<height>84</height>
+							<texture border="20" colordiffuse="4DFFFFFF">a4k/rr20.png</texture>
+							<visible>Control.HasFocus(200) + !String.IsEmpty(ListItem.Property(a4k.grabbed))</visible>
+						</control>
+						<control type="image">
+							<left>16</left>
+							<top>6</top>
+							<width>1264</width>
+							<height>84</height>
+							<texture border="20" colordiffuse="FFF5F6FA">a4k/rr20_line.png</texture>
+							<visible>Control.HasFocus(200) + String.IsEmpty(ListItem.Property(a4k.header)) + String.IsEmpty(ListItem.Property(a4k.grabbed))</visible>
+						</control>
+						<control type="image">
+							<left>16</left>
+							<top>6</top>
+							<width>1264</width>
+							<height>84</height>
+							<texture border="20" colordiffuse="FF409CFF">a4k/rr20_line.png</texture>
+							<visible>Control.HasFocus(200) + !String.IsEmpty(ListItem.Property(a4k.grabbed))</visible>
+						</control>
+						<control type="label">
+							<left>48</left>
+							<top>34</top>
+							<width>1200</width>
+							<height>62</height>
+							<font>font25_title</font>
+							<aligny>center</aligny>
+							<textcolor>FF8CC4FF</textcolor>
+							<label>$INFO[ListItem.Label]</label>
+							<visible>!String.IsEmpty(ListItem.Property(a4k.header))</visible>
+						</control>
+						<control type="label">
+							<left>48</left>
+							<top>0</top>
+							<width>780</width>
+							<height>96</height>
+							<font>font36_title</font>
+							<aligny>center</aligny>
+							<textcolor>FFFFFFFF</textcolor>
+							<label>$INFO[ListItem.Label]</label>
+							<visible>Control.HasFocus(200) + String.IsEmpty(ListItem.Property(a4k.header))</visible>
+						</control>
+						<control type="label">
+							<left>48</left>
+							<top>0</top>
+							<width>780</width>
+							<height>96</height>
+							<font>font36_title</font>
+							<aligny>center</aligny>
+							<textcolor>F2FFFFFF</textcolor>
+							<label>$INFO[ListItem.Label]</label>
+							<visible>!Control.HasFocus(200) + String.IsEmpty(ListItem.Property(a4k.header)) + String.IsEmpty(ListItem.Property(a4k.off))</visible>
+						</control>
+						<control type="label">
+							<left>48</left>
+							<top>0</top>
+							<width>780</width>
+							<height>96</height>
+							<font>font36_title</font>
+							<aligny>center</aligny>
+							<textcolor>59FFFFFF</textcolor>
+							<label>$INFO[ListItem.Label]</label>
+							<visible>!Control.HasFocus(200) + !String.IsEmpty(ListItem.Property(a4k.off))</visible>
+						</control>
+						<control type="image">
+							<left>1064</left>
+							<top>18</top>
+							<width>184</width>
+							<height>60</height>
+							<texture border="30" colordiffuse="FF409CFF">a4k/chip.png</texture>
+							<visible>!Control.HasFocus(200) + String.IsEqual(ListItem.Property(a4k.chip),s) + String.IsEqual(ListItem.Property(a4k.tone),on)</visible>
+						</control>
+						<control type="image">
+							<left>1064</left>
+							<top>18</top>
+							<width>184</width>
+							<height>60</height>
+							<texture border="30" colordiffuse="A6FFFFFF">a4k/chip_line.png</texture>
+							<visible>!Control.HasFocus(200) + String.IsEqual(ListItem.Property(a4k.chip),s) + String.IsEqual(ListItem.Property(a4k.tone),off)</visible>
+						</control>
+						<control type="image">
+							<left>1064</left>
+							<top>18</top>
+							<width>184</width>
+							<height>60</height>
+							<texture border="30" colordiffuse="33FFFFFF">a4k/chip.png</texture>
+							<visible>!Control.HasFocus(200) + String.IsEqual(ListItem.Property(a4k.chip),s) + String.IsEqual(ListItem.Property(a4k.tone),value)</visible>
+						</control>
+						<control type="image">
+							<left>1064</left>
+							<top>18</top>
+							<width>184</width>
+							<height>60</height>
+							<texture border="30" colordiffuse="FFFF6B6B">a4k/chip.png</texture>
+							<visible>!Control.HasFocus(200) + String.IsEqual(ListItem.Property(a4k.chip),s) + String.IsEqual(ListItem.Property(a4k.tone),warn)</visible>
+						</control>
+						<control type="image">
+							<left>848</left>
+							<top>18</top>
+							<width>400</width>
+							<height>60</height>
+							<texture border="30" colordiffuse="FF409CFF">a4k/chip.png</texture>
+							<visible>!Control.HasFocus(200) + String.IsEqual(ListItem.Property(a4k.chip),l) + String.IsEqual(ListItem.Property(a4k.tone),on)</visible>
+						</control>
+						<control type="image">
+							<left>848</left>
+							<top>18</top>
+							<width>400</width>
+							<height>60</height>
+							<texture border="30" colordiffuse="A6FFFFFF">a4k/chip_line.png</texture>
+							<visible>!Control.HasFocus(200) + String.IsEqual(ListItem.Property(a4k.chip),l) + String.IsEqual(ListItem.Property(a4k.tone),off)</visible>
+						</control>
+						<control type="image">
+							<left>848</left>
+							<top>18</top>
+							<width>400</width>
+							<height>60</height>
+							<texture border="30" colordiffuse="33FFFFFF">a4k/chip.png</texture>
+							<visible>!Control.HasFocus(200) + String.IsEqual(ListItem.Property(a4k.chip),l) + String.IsEqual(ListItem.Property(a4k.tone),value)</visible>
+						</control>
+						<control type="label">
+							<left>1064</left>
+							<top>0</top>
+							<width>184</width>
+							<height>96</height>
+							<font>font32_title</font>
+							<align>center</align>
+							<aligny>center</aligny>
+							<textcolor>FF0C0D12</textcolor>
+							<label>$INFO[ListItem.Label2]</label>
+							<visible>!Control.HasFocus(200) + String.IsEqual(ListItem.Property(a4k.chip),s) + [String.IsEqual(ListItem.Property(a4k.tone),on) | String.IsEqual(ListItem.Property(a4k.tone),warn)]</visible>
+						</control>
+						<control type="label">
+							<left>1064</left>
+							<top>0</top>
+							<width>184</width>
+							<height>96</height>
+							<font>font32_title</font>
+							<align>center</align>
+							<aligny>center</aligny>
+							<textcolor>D9FFFFFF</textcolor>
+							<label>$INFO[ListItem.Label2]</label>
+							<visible>!Control.HasFocus(200) + String.IsEqual(ListItem.Property(a4k.chip),s) + [String.IsEqual(ListItem.Property(a4k.tone),off) | String.IsEqual(ListItem.Property(a4k.tone),value)]</visible>
+						</control>
+						<control type="label">
+							<left>888</left>
+							<top>0</top>
+							<width>320</width>
+							<height>96</height>
+							<font>font32_title</font>
+							<align>center</align>
+							<aligny>center</aligny>
+							<textcolor>FF0C0D12</textcolor>
+							<label>$INFO[ListItem.Label2]</label>
+							<visible>!Control.HasFocus(200) + String.IsEqual(ListItem.Property(a4k.chip),l) + [String.IsEqual(ListItem.Property(a4k.tone),on) | String.IsEqual(ListItem.Property(a4k.tone),warn)]</visible>
+						</control>
+						<control type="label">
+							<left>888</left>
+							<top>0</top>
+							<width>320</width>
+							<height>96</height>
+							<font>font32_title</font>
+							<align>center</align>
+							<aligny>center</aligny>
+							<textcolor>D9FFFFFF</textcolor>
+							<label>$INFO[ListItem.Label2]</label>
+							<visible>!Control.HasFocus(200) + String.IsEqual(ListItem.Property(a4k.chip),l) + [String.IsEqual(ListItem.Property(a4k.tone),off) | String.IsEqual(ListItem.Property(a4k.tone),value)]</visible>
+						</control>
+						<control type="label">
+							<left>768</left>
+							<top>0</top>
+							<width>480</width>
+							<height>96</height>
+							<font>font32_title</font>
+							<align>right</align>
+							<aligny>center</aligny>
+							<textcolor>8CFFFFFF</textcolor>
+							<label>$INFO[ListItem.Label2]</label>
+							<visible>!Control.HasFocus(200) + String.IsEmpty(ListItem.Property(a4k.header)) + String.IsEmpty(ListItem.Property(a4k.tone))</visible>
+						</control>
+						<control type="image">
+							<left>1064</left>
+							<top>18</top>
+							<width>184</width>
+							<height>60</height>
+							<texture border="30" colordiffuse="FF6CB6FF">a4k/chip.png</texture>
+							<visible>Control.HasFocus(200) + String.IsEqual(ListItem.Property(a4k.chip),s) + String.IsEqual(ListItem.Property(a4k.tone),on)</visible>
+						</control>
+						<control type="image">
+							<left>1064</left>
+							<top>18</top>
+							<width>184</width>
+							<height>60</height>
+							<texture border="30" colordiffuse="FFFFFFFF">a4k/chip_line.png</texture>
+							<visible>Control.HasFocus(200) + String.IsEqual(ListItem.Property(a4k.chip),s) + String.IsEqual(ListItem.Property(a4k.tone),off)</visible>
+						</control>
+						<control type="image">
+							<left>1064</left>
+							<top>18</top>
+							<width>184</width>
+							<height>60</height>
+							<texture border="30" colordiffuse="FFF5F6FA">a4k/chip.png</texture>
+							<visible>Control.HasFocus(200) + String.IsEqual(ListItem.Property(a4k.chip),s) + String.IsEqual(ListItem.Property(a4k.tone),value)</visible>
+						</control>
+						<control type="image">
+							<left>1064</left>
+							<top>18</top>
+							<width>184</width>
+							<height>60</height>
+							<texture border="30" colordiffuse="FFFF8A8A">a4k/chip.png</texture>
+							<visible>Control.HasFocus(200) + String.IsEqual(ListItem.Property(a4k.chip),s) + String.IsEqual(ListItem.Property(a4k.tone),warn)</visible>
+						</control>
+						<control type="image">
+							<left>848</left>
+							<top>18</top>
+							<width>400</width>
+							<height>60</height>
+							<texture border="30" colordiffuse="FF6CB6FF">a4k/chip.png</texture>
+							<visible>Control.HasFocus(200) + String.IsEqual(ListItem.Property(a4k.chip),l) + String.IsEqual(ListItem.Property(a4k.tone),on)</visible>
+						</control>
+						<control type="image">
+							<left>848</left>
+							<top>18</top>
+							<width>400</width>
+							<height>60</height>
+							<texture border="30" colordiffuse="FFFFFFFF">a4k/chip_line.png</texture>
+							<visible>Control.HasFocus(200) + String.IsEqual(ListItem.Property(a4k.chip),l) + String.IsEqual(ListItem.Property(a4k.tone),off)</visible>
+						</control>
+						<control type="image">
+							<left>848</left>
+							<top>18</top>
+							<width>400</width>
+							<height>60</height>
+							<texture border="30" colordiffuse="FFF5F6FA">a4k/chip.png</texture>
+							<visible>Control.HasFocus(200) + String.IsEqual(ListItem.Property(a4k.chip),l) + String.IsEqual(ListItem.Property(a4k.tone),value)</visible>
+						</control>
+						<control type="label">
+							<left>1064</left>
+							<top>0</top>
+							<width>184</width>
+							<height>96</height>
+							<font>font32_title</font>
+							<align>center</align>
+							<aligny>center</aligny>
+							<textcolor>FF0C0D12</textcolor>
+							<label>$INFO[ListItem.Label2]</label>
+							<visible>Control.HasFocus(200) + String.IsEqual(ListItem.Property(a4k.chip),s) + [String.IsEqual(ListItem.Property(a4k.tone),on) | String.IsEqual(ListItem.Property(a4k.tone),warn) | String.IsEqual(ListItem.Property(a4k.tone),value)]</visible>
+						</control>
+						<control type="label">
+							<left>1064</left>
+							<top>0</top>
+							<width>184</width>
+							<height>96</height>
+							<font>font32_title</font>
+							<align>center</align>
+							<aligny>center</aligny>
+							<textcolor>FFFFFFFF</textcolor>
+							<label>$INFO[ListItem.Label2]</label>
+							<visible>Control.HasFocus(200) + String.IsEqual(ListItem.Property(a4k.chip),s) + [String.IsEqual(ListItem.Property(a4k.tone),off)]</visible>
+						</control>
+						<control type="label">
+							<left>888</left>
+							<top>0</top>
+							<width>320</width>
+							<height>96</height>
+							<font>font32_title</font>
+							<align>center</align>
+							<aligny>center</aligny>
+							<textcolor>FF0C0D12</textcolor>
+							<label>$INFO[ListItem.Label2]</label>
+							<visible>Control.HasFocus(200) + String.IsEqual(ListItem.Property(a4k.chip),l) + [String.IsEqual(ListItem.Property(a4k.tone),on) | String.IsEqual(ListItem.Property(a4k.tone),warn) | String.IsEqual(ListItem.Property(a4k.tone),value)]</visible>
+						</control>
+						<control type="label">
+							<left>888</left>
+							<top>0</top>
+							<width>320</width>
+							<height>96</height>
+							<font>font32_title</font>
+							<align>center</align>
+							<aligny>center</aligny>
+							<textcolor>FFFFFFFF</textcolor>
+							<label>$INFO[ListItem.Label2]</label>
+							<visible>Control.HasFocus(200) + String.IsEqual(ListItem.Property(a4k.chip),l) + [String.IsEqual(ListItem.Property(a4k.tone),off)]</visible>
+						</control>
+						<control type="label">
+							<left>768</left>
+							<top>0</top>
+							<width>480</width>
+							<height>96</height>
+							<font>font32_title</font>
+							<align>right</align>
+							<aligny>center</aligny>
+							<textcolor>FFFFFFFF</textcolor>
+							<label>$INFO[ListItem.Label2]</label>
+							<visible>Control.HasFocus(200) + String.IsEmpty(ListItem.Property(a4k.header)) + String.IsEmpty(ListItem.Property(a4k.tone))</visible>
+						</control>
+						<control type="label">
+							<left>856</left>
+							<top>0</top>
+							<width>40</width>
+							<height>96</height>
+							<font>font32_title</font>
+							<align>center</align>
+							<aligny>center</aligny>
+							<textcolor>990C0D12</textcolor>
+							<label>‹</label>
+							<visible>Control.HasFocus(200) + !String.IsEmpty(ListItem.Property(a4k.step))</visible>
+						</control>
+						<control type="label">
+							<left>1200</left>
+							<top>0</top>
+							<width>40</width>
+							<height>96</height>
+							<font>font32_title</font>
+							<align>center</align>
+							<aligny>center</aligny>
+							<textcolor>990C0D12</textcolor>
+							<label>›</label>
+							<visible>Control.HasFocus(200) + !String.IsEmpty(ListItem.Property(a4k.step))</visible>
+						</control>
+					</control>
+				</focusedlayout>
+			</control>
+			<control type="image">
+				<left>64</left>
+				<top>888</top>
+				<width>1232</width>
+				<height>2</height>
+				<texture colordiffuse="1FFFFFFF">a4k/white.png</texture>
+			</control>
+			<control type="textbox">
+				<left>72</left>
+				<top>904</top>
+				<width>1216</width>
+				<height>80</height>
+				<font>font27</font>
+				<textcolor>CCFFFFFF</textcolor>
+				<label>$INFO[Container(200).ListItem.Property(a4k.help)]</label>
+				<visible>Control.HasFocus(200)</visible>
+			</control>
 		</control>
 	</controls>
 </window>

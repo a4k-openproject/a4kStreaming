@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 # The settings window (a4k-settings.xml): the categories of resources/settings.xml on a rail, the current one's rows in
-# a pane. The rows are read from that file (ids, types, defaults, ranges, options, order), so Kodi's own dialog and
-# this window cannot drift apart; only the help lines and value formats live here. Two rows are the window's own: Reset
+# a pane. The rows are read from that file (ids, types, defaults, ranges, options, order, and the groups its labelled
+# separators start), so Kodi's own dialog and this window cannot drift apart; only the help lines and value formats
+# live here. A group is a header row in the pane that the focus steps over. Two rows are the window's own: Reset
 # this section (not on a category with secrets: accounts are never reset) and, last, Kodi's own settings dialog.
 # Every change is written at once. It runs in an interpreter of its own (RunScript, ui.py), as Kodi's own dialog does;
 # the home window reapplies its settings once the window has closed.
@@ -23,55 +24,41 @@ LEFT, RIGHT, UP, DOWN = 1, 2, 3, 4  # Kodi's ACTION_MOVE_*
 SESSION = 'a4k.settings.'  # on Kodi's Home window: the last category and its row, for this Kodi session
 PICKER = 3  # an enum with more options than this opens the sheet picker on OK; fewer cycle
 MORE = '›'  # the value of a row that opens something
+CHIP = {'bool': 's', 'secret': 's'}  # the value chip's width (a4k-settings.xml): short On / Off / Set, the rest long
 
-HELP = {
+HELP = {  # one line each; none where the row and its group say it all (the Home row toggles)
     'general.max_quality': 'Sources above this quality are left out.',
-    'general.max_movie_size': 'Movie sources larger than this are left out. Left or Right to change, OK to type it.',
-    'general.dolby_vision_allowed': 'Off leaves Dolby Vision sources out, for a TV or player that shows them in the wrong colours.',
-    'general.autoplay': 'Plays the best source without showing the source list.',
-    'general.skip_intro': 'Auto skips the intro, Button shows a Skip button, Off does neither.',
-    'general.skip_recap': 'Auto skips the recap, Button shows a Skip button, Off does neither.',
-    'general.skip_credits': 'At the credits Auto plays the next episode, Button shows a Next episode button.',
-    'general.back_stops': 'Back from the video stops it and keeps its place for Continue Watching. Off leaves it playing behind the menus.',
-    'general.search_all_providers': 'Off: with a Premiumize key a quick search runs first, and every provider is searched '
-                                    'when it finds nothing or when you ask for it.',
-    'general.search_timeout': 'How long a source search waits for the providers. Left or Right to change, OK to type it.',
-    'general.remembered_searches': 'Searches kept, so a title opened again lists its sources at once. Off keeps none.',
-    'provider.install': 'Installs a provider package from a URL or a file.',
+    'general.max_movie_size': 'Larger movie sources are left out. OK to type a size.',
+    'general.dolby_vision_allowed': 'Off leaves Dolby Vision out, for a TV that shows it in the wrong colours.',
+    'general.autoplay': 'Starts the best source without showing the source list.',
+    'general.skip_intro': 'Auto skips the intro, Button shows a Skip button.',
+    'general.skip_recap': 'Auto skips the recap, Button shows a Skip button.',
+    'general.skip_credits': 'Auto plays the next episode, Button shows a Next episode button.',
+    'general.back_stops': 'Back stops the video and keeps its place. Off leaves it playing behind the menus.',
+    'general.search_all_providers': 'Off: with a Premiumize key a quick search runs first, then every provider if needed.',
+    'general.search_timeout': 'How long a search waits for the providers. OK to type it.',
+    'general.remembered_searches': 'A title opened again lists its sources at once. Off keeps none.',
+    'provider.install': 'A provider package from a URL or a file.',
     'provider.manage': 'Turns installed providers on or off.',
-    'provider.check': 'Looks for a newer version of the installed provider package.',
-    'appearance.browse': 'The Browse row of category tiles.',
+    'provider.check': 'Looks for a newer provider package.',
     'appearance.tabs': 'The category tabs in the top menu.',
-    'appearance.continue_watching': 'The movies and episodes you stopped partway, as the first row on Home.',
-    'appearance.trending_movies': 'Shows this row on Home.',
-    'appearance.trending_tv': 'Shows this row on Home.',
-    'appearance.reality': 'Shows this row on Home.',
-    'appearance.animations': 'Shows this row on Home.',
-    'appearance.animation_tv': 'Shows this row on Home.',
-    'appearance.watchlist': 'Your IMDb Watchlist as a row on Home.',
-    'appearance.my_list_pick': 'One of your IMDb lists as a row on Home.',
-    'appearance.order_pick': 'The order of the rows on Home.',
     'appearance.hero_source': 'Which titles the big top shelf turns through.',
     'appearance.hero_turn': 'How often the top shelf turns to its next title.',
-    'imdb.at-main': 'Optional. Watchlist, your lists, ratings and watched marks need it: the at-main cookie of a signed-in '
-                    'imdb.com in a browser.',
-    'general.mark_as_watched_rating': 'IMDb has no watched mark, so marking a title watched rates it this.',
-    'premiumize.apikey': 'Optional. The API key from premiumize.me/account; checked when you enter it.',
+    'appearance.continue_watching': 'What you stopped partway, as the first row.',
+    'appearance.browse': 'The row of category tiles.',
+    'appearance.watchlist': 'Your IMDb Watchlist.',
+    'appearance.my_list_pick': 'One of your IMDb lists.',
+    'appearance.order_pick': 'The order of these rows.',
+    'imdb.at-main': 'Optional, for Watchlist, lists and ratings: the at-main cookie of a signed-in imdb.com.',
+    'general.mark_as_watched_rating': 'IMDb has no watched mark: marking a title watched rates it this.',
+    'premiumize.apikey': 'Optional. The key from premiumize.me/account, checked when you enter it.',
     'trakt.username': 'The Trakt profile the imports read.',
     'trakt.clientid': 'A Trakt API app client ID, for the imports only.',
     'trakt.migrate_status': 'Rates every title watched on Trakt, which marks it watched on IMDb.',
-    'trakt.migrate_collections': 'Adds your Trakt collections to the IMDb lists Movies Collection and Shows Collection, which must exist.',
+    'trakt.migrate_collections': 'Into the IMDb lists Movies Collection and Shows Collection, which must exist.',
     'general.page_size': 'Titles per page in the rows and grids.',
     'general.lists_page_size': 'Titles per page in the Watchlist and your lists.',
-    'kodi.mode': 'Makes Kodi an a4kStreaming device: opens it at start, home shows only a4kStreaming, menu sounds off. '
-                 'Lists each change first; turning it off puts them back.',
-}
-DESCRIPTIONS = {  # by the category's label id
-    '33001': 'What plays, and what happens around it.',
-    '33003': 'Where titles play from, and how long to look.',
-    '33007': 'What the home screen shows.',
-    '33005': 'Sign-ins. Nothing here is needed to browse.',
-    '33008': 'Rarely needed.',
+    'kodi.mode': 'Kodi starts into a4kStreaming, its home shows only it, sounds off. Lists each change first.',
 }
 STEPS = {'general.max_movie_size': 5, 'general.search_timeout': 5, 'general.page_size': 5, 'general.lists_page_size': 5}
 FORMATS = {
@@ -109,13 +96,15 @@ def categories():
         root = ElementTree.fromstring(re.sub(r'&(?!amp;)', '&amp;', f.read()))  # Kodi takes a bare &
     found = []
     for category in root.iter('category'):
-        rows = []
+        rows, group = [], ''
         for node in category.iter('setting'):
             id = node.get('id')
-            if not id:  # a separator
+            if not id:  # a separator: a labelled one starts a group
+                group = text(node.get('label')) if node.get('type') == 'lsep' and node.get('label') else ''
                 continue
             row = {'id': id, 'kind': kind(node), 'label': text(node.get('label')) if node.get('label') else '',
-                   'default': node.get('default'), 'action': node.get('action'), 'help': HELP.get(id, '')}
+                   'default': node.get('default'), 'action': node.get('action'), 'help': HELP.get(id, ''),
+                   'group': group}
             if node.get('lvalues'):
                 row['options'] = [text(value) for value in node.get('lvalues').split('|')]
             if row['kind'] == 'number':
@@ -125,19 +114,49 @@ def categories():
         found.append((category.get('label'), text(category.get('label')), rows))
     return found
 
+def header(label):
+    return {'id': '', 'kind': 'header', 'label': label, 'help': '', 'group': label}
+
 def shown(categories):
-    # the pane's rows per category: the visible settings, Reset this section, Kodi's dialog at the very end
+    # the pane's rows per category: a header row where a group starts, the visible settings, then after a blank header
+    # the window's own rows: Reset this section, and Kodi's dialog at the very end
     panes = []
     for index, (_, label, rows) in enumerate(categories):
-        pane = [row for row in rows if row['kind'] != 'hidden']
+        pane, group = [], None
+        for row in rows:
+            if row['kind'] == 'hidden':
+                continue
+            if row['group'] != group:
+                group = row['group']
+                pane.append(header(group))
+            pane.append(row)
+        own = []
         if not any(row['kind'] == 'secret' for row in rows):
-            pane.append({'id': '', 'kind': 'reset', 'label': 'Reset this section',
-                         'help': 'Sets every %s setting back to its default.' % label})
+            own.append({'id': '', 'kind': 'reset', 'label': 'Reset this section', 'group': '',
+                        'help': 'Every %s setting back to its default.' % label})
         if index == len(categories) - 1:
-            pane.append({'id': '', 'kind': 'native', 'label': "Kodi's settings dialog",
-                         'help': 'The same settings in the dialog Kodi draws.'})
-        panes.append(pane)
+            own.append({'id': '', 'kind': 'native', 'label': "Kodi's settings dialog", 'group': '',
+                        'help': "The same settings, in Kodi's own dialog."})
+        panes.append(pane + [header('')] + own if own else pane)
     return panes
+
+def title(row):
+    # a row named with its group, for a dialog's heading: "Premiumize API key"
+    return ('%s %s' % (row['group'], row['label'])).strip()
+
+def chip(row, value):
+    # the value's look (a4k-settings.xml): on (accent fill), off (outline), value (neutral fill), warn (red fill), or
+    # '' for plain text; and the chip's width
+    kind = row['kind']
+    if kind in ('header', 'enum', 'number'):
+        return ('', '') if kind == 'header' else ('value', 'l')
+    if value in ('', MORE, SIGN_IN):
+        return '', ''
+    if kind == 'bool' or row['id'] == 'kodi.mode':
+        tone = 'off' if value == 'Off' else 'on'
+    else:  # a secret, the Trakt username, My List
+        tone = {'Rejected': 'warn', 'Not set': 'off', 'None': 'off'}.get(value, 'value')
+    return tone, CHIP.get(kind, 'l')
 
 def get(id, default=''):
     return kodi.get_setting(id) or (default or '')
@@ -206,11 +225,17 @@ class Window(kodi.xbmcgui.WindowXMLDialog):
         self.cat = cat
         self.rows = self.panes[cat]
         self.rail.selectItem(cat)
-        self.setProperty('a4k.desc', DESCRIPTIONS.get(self.cats[cat][0], ''))
+        self.setProperty('a4k.desc', self.cats[cat][1])
         self.pane.reset()
         self.pane.addItems([self.item(r) for r in self.rows])
         row = int(row) if str(row).isdigit() else 0
-        self.pane.selectItem(min(row, len(self.rows) - 1))
+        self.pane.selectItem(self.land(min(row, len(self.rows) - 1)))
+
+    def land(self, position, down=True):
+        # the nearest row at or past position that is not a header, the other way at an end
+        rows = range(position, len(self.rows)) if down else range(position, -1, -1)
+        back = range(position, -1, -1) if down else range(position, len(self.rows))
+        return next((i for i in list(rows) + list(back) if self.rows[i]['kind'] != 'header'), position)
 
     def item(self, row):
         item = kodi.xbmcgui.ListItem(label=row['label'], offscreen=True)
@@ -218,10 +243,18 @@ class Window(kodi.xbmcgui.WindowXMLDialog):
         return item
 
     def paint(self, item, row):
+        if row['kind'] == 'header':
+            item.setLabel(row['label'].upper())
+            item.setProperty('a4k.header', 'true')
+            return
         off = needs_login(row)
-        item.setLabel2(SIGN_IN if off else self.value(row))
+        value = SIGN_IN if off else self.value(row)
+        tone, size = chip(row, value)
+        item.setLabel2(value)
         item.setProperty('a4k.off', 'true' if off else '')
         item.setProperty('a4k.step', 'true' if row['kind'] in ('enum', 'number') and not off else '')
+        item.setProperty('a4k.tone', tone)
+        item.setProperty('a4k.chip', size)
         item.setProperty('a4k.help', row['help'])
 
     def value(self, row):
@@ -234,7 +267,7 @@ class Window(kodi.xbmcgui.WindowXMLDialog):
             n = number(row)
             return FORMATS.get(id, str)(n)
         if kind == 'text':
-            return get(id)
+            return get(id) or 'Not set'
         if kind == 'secret':  # never the value itself
             return 'Rejected' if id in self.rejected else 'Set' if get(id) else 'Not set'
         if id == 'appearance.my_list_pick':
@@ -284,6 +317,10 @@ class Window(kodi.xbmcgui.WindowXMLDialog):
             elif focus == PANE and self.order is not None:
                 if action_id in (UP, DOWN) and self.grab is not None:
                     self.move(self.pane.getSelectedPosition())
+            elif focus == PANE and action_id in (UP, DOWN):  # Kodi moved onto a header: on past it
+                position = self.pane.getSelectedPosition()
+                if self.rows[position]['kind'] == 'header':
+                    self.pane.selectItem(self.land(position, action_id == DOWN))
             elif focus == PANE and action_id in (LEFT, RIGHT):
                 row = self.rows[self.pane.getSelectedPosition()]
                 if row['kind'] in ('enum', 'number') and not needs_login(row):
@@ -316,6 +353,8 @@ class Window(kodi.xbmcgui.WindowXMLDialog):
 
     def activate(self, row):
         kind, id = row['kind'], row['id']
+        if kind == 'header':  # Kodi's focus can sit on one until the step past it
+            return
         if needs_login(row):  # to the IMDb row
             cat, index = self.find(IMDB)
             self.remember()
@@ -334,7 +373,7 @@ class Window(kodi.xbmcgui.WindowXMLDialog):
             if typed:
                 self.set(id, str(min(max(int(typed), row['min']), row['max'])))
         elif kind == 'text':
-            typed = kodi.xbmcgui.Dialog().input(row['label'], defaultt=get(id)).strip()
+            typed = kodi.xbmcgui.Dialog().input(title(row), defaultt=get(id)).strip()
             if typed:
                 self.set(id, typed)
         elif kind == 'secret':
@@ -372,14 +411,14 @@ class Window(kodi.xbmcgui.WindowXMLDialog):
         id = row['id']
         if get(id):
             from . import sheets
-            choice = sheets.select(row['label'], ['Replace', 'Remove'])
-            if choice == 1 and confirm('Remove the %s key?' % row['label'], 'Remove'):
+            choice = sheets.select(title(row), ['Replace', 'Remove'])
+            if choice == 1 and confirm('Remove the %s?' % title(row), 'Remove'):
                 self.rejected.discard(id)
                 self.set(id, '')
             if choice != 0:
                 return
         gui = kodi.xbmcgui
-        typed = gui.Dialog().input(row['label'], type=getattr(gui, 'INPUT_ALPHANUM', 0),
+        typed = gui.Dialog().input(title(row), type=getattr(gui, 'INPUT_ALPHANUM', 0),
                                    option=getattr(gui, 'ALPHANUM_HIDE_INPUT', 2)).strip()
         if not typed:
             return
@@ -407,7 +446,7 @@ class Window(kodi.xbmcgui.WindowXMLDialog):
     def open_order(self):
         self.order = appearance.order()
         self.grab = None
-        self.setProperty('a4k.desc', 'The order of the rows on Home.')
+        self.setProperty('a4k.desc', 'Home order')
         self.pane.reset()
         self.pane.addItems([kodi.xbmcgui.ListItem(label='', offscreen=True) for _ in self.order])
         self.relabel()
@@ -419,7 +458,10 @@ class Window(kodi.xbmcgui.WindowXMLDialog):
             item = self.pane.getListItem(index)
             item.setLabel(chosen[1] if key == 'my_list' and chosen else appearance.ROWS[key][0])
             grabbed = index == self.grab
-            item.setLabel2('Moving' if grabbed else '' if appearance.on(key) else 'Off')
+            value = 'Moving' if grabbed else '' if appearance.on(key) else 'Off'
+            item.setLabel2(value)
+            item.setProperty('a4k.tone', {'Moving': 'value', 'Off': 'off'}.get(value, ''))
+            item.setProperty('a4k.chip', 's')
             item.setProperty('a4k.grabbed', 'true' if grabbed else '')
             item.setProperty('a4k.help', GRAB_HELP if self.grab is not None else ORDER_HELP)
 
