@@ -104,29 +104,30 @@ def tiles():
         prop = node.find("property[@name='a4k.grid']")
         yield node.findtext('label'), prop.text if prop is not None else None, node.findtext('onclick')
 
-def test_tiles_open_the_grid_and_debrid_keeps_its_directory(core, grid, home, labels, shown, calls, monkeypatch):
+def test_tiles_open_the_grid_and_debrid_its_window(core, grid, home, labels, shown, calls, monkeypatch):
     flows = []
     monkeypatch.setattr(grid, 'search', lambda: flows.append('search'))
     monkeypatch.setattr(grid, 'years', lambda: flows.append('years'))
+    monkeypatch.setattr(importlib.import_module('a4kStreaming.ui.debrid'), 'open', lambda: flows.append('debrid'))
     win = home.Home('a4k-home.xml', '', 'Default', '1080i')
     win.setFocusId(home.TILES)
     expected = []
     for label, tile, onclick in tiles():
         labels.update({'Container(400).ListItem.Property(a4k.grid)': tile or '', 'Container(400).ListItem.Label': label})
         win.onAction(Action(home.ACTION_SELECT_ITEM))
-        assert (tile is None) == (onclick is not None), label  # a tile either opens the grid or runs its own onclick
-        if tile and tile not in ('search', 'years'):
+        assert tile and onclick is None, label  # every tile is Python's: the grid, or the Debrid window
+        if tile not in ('search', 'years', 'debrid'):
             expected.append((PLUGIN + '?action=query&type=%s&widget=1' % tile, label, ''))
-    assert flows == ['years'] and shown == expected and calls == [] and win.error is None
+    assert flows == ['years', 'debrid'] and shown == expected and calls == [] and win.error is None
     # Search and Settings are in the top menu
     assert [label for label, _, _ in tiles()][:4] == ['Watchlist', 'Recommended', 'Lists', 'By Year']
     assert not {'Search', 'Settings'} & {label for label, _, _ in tiles()}
     assert dict((label, tile) for label, tile, _ in tiles())['Lists'] == 'lists'
-    assert 'action=cloud' in dict((label, onclick) for label, _, onclick in tiles())['Debrid']
+    assert dict((label, tile) for label, tile, _ in tiles())['Debrid'] == 'debrid'
 
 def test_tile_listing_types_are_queries_the_plugin_knows(core):
     imdb = importlib.import_module('a4kStreaming.imdb')
-    types = {tile for _, tile, _ in tiles() if tile not in (None, 'search', 'years')}
+    types = {tile for _, tile, _ in tiles() if tile not in (None, 'search', 'years', 'debrid')}
     assert types <= set(imdb.gallery_types) | {'watchlist', 'top_picks', 'lists'}
 
 def test_home_row_next_item_opens_the_rest_of_the_row(core, home, labels, shown):

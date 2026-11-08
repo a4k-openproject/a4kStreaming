@@ -12,15 +12,22 @@ def premiumize_transfers(apikey):
     }
 
 def premiumize_files(apikey, id):
-    if id != '':
-        id = 'id=%s&' % id
-
+    # a cloud folder (the root without an id) with its breadcrumbs
+    query = {'id': id} if id else {}
+    query.update(includebreadcrumbs='true', apikey=apikey)
     return {
         'method': 'GET',
-        'url': 'https://www.premiumize.me/api/folder/list?%sincludebreadcrumbs=false&apikey=%s' % (id, apikey),
+        'url': 'https://www.premiumize.me/api/folder/list?%s' % urlencode(query),
         'headers': {
             'content-type': 'application/json',
         },
+    }
+
+def premiumize_item(apikey, id):
+    # one cloud file: its name, folder and link / stream_link
+    return {
+        'method': 'GET',
+        'url': 'https://www.premiumize.me/api/item/details?%s' % urlencode({'id': id, 'apikey': apikey}),
     }
 
 def premiumize_check(apikey, hashes):
@@ -84,7 +91,7 @@ def premiumize_resolve(apikey, link):
     }
 
 def premiumize_account(apikey):
-    # the settings window's key check: answers status success for a working key
+    # the settings window's key check (status success for a working key) and the Debrid window's header
     return {
         'method': 'GET',
         'url': 'https://www.premiumize.me/api/account/info?apikey=%s' % apikey,

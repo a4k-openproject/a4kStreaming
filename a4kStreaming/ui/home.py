@@ -230,7 +230,10 @@ class Home(kodi.xbmcgui.WindowXML):
                 select(info)
             elif selected and focus == TILES:
                 tile = kodi.xbmc.getInfoLabel('Container(%s).ListItem.Property(a4k.grid)' % TILES)
-                if tile:  # Debrid and Settings run their own onclick
+                if tile == 'debrid':
+                    from . import debrid
+                    debrid.open()
+                elif tile:
                     from . import grid
                     grid.browse(tile, kodi.xbmc.getInfoLabel('Container(%s).ListItem.Label' % TILES))
             elif action_id == ACTION_CONTEXT_MENU and focus in (HERO_PLAY, HERO_INFO):

@@ -235,7 +235,7 @@
 				</control>
 			</control>
 
-			<!-- Browse (the Browse row setting, a4k.browse): the grid for the title listings, today's directory for Debrid. Four tiles a
+			<!-- Browse (the Browse row setting, a4k.browse): the grid for the title listings, the Debrid window for Debrid. Four tiles a
 			     row, two rows in view, right under the top shelf as on the reference app. Search and Settings are in the top menu. -->
 			<control type="group" id="410">
 				<onup>200</onup>
@@ -330,7 +330,7 @@
 							</control>
 						</control>
 					</focusedlayout>
-					<!-- a4k.grid: Python opens the grid (search, years, or that listing type); the others run their onclick -->
+					<!-- a4k.grid: Python opens the grid (search, years, or that listing type) or, for debrid, the Debrid window -->
 					<content>
 						<item>
 							<label>Watchlist</label>
@@ -369,7 +369,7 @@
 						</item>
 						<item>
 							<label>Debrid</label>
-							<onclick>ActivateWindow(Videos,plugin://plugin.video.a4kstreaming/?action=cloud&amp;type=root,return)</onclick>
+							<property name="a4k.grid">debrid</property>
 						</item>
 					</content>
 				</control>

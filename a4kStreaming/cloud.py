@@ -1,172 +1,70 @@
 # -*- coding: utf-8 -*-
+# action=cloud. type=play plays a Premiumize cloud file: its link / stream_link straight to Kodi's player, with the
+# subtitle files next to it. Kodi keeps the resume point against this play URL, which names the file by id, so
+# resume survives a new link. Any other type (the old listing's URLs, the widget menu's Debrid) opens the Debrid
+# window (ui/debrid.py): Downloads for the transfers, Cloud (at the folder id, if given) otherwise.
 
-from .listing import (
-    __handle_request_error,
-)
+from .ui.debrid import SUBTITLES, fetch, Failure
+
+BUSY_LOOKS = 50
+BUSY_LOOK = 20  # ms
 
 def cloud(core, params):
-    items = []
-    video_ext = list(map(lambda v: '.%s' % v.upper(), core.utils.video_containers()))
+    if params.type == 'play':
+        # Kodi waits on this call (PlayMedia of the play URL); over the add-on's windows the loader stands in for its
+        # busy dialog until the stream plays
+        with core.kodi.busy_dialog(native=False):
+            if play(core, params.id):
+                core.kodi.wait_for_playback()
+        return core.skip_end_of_dir
 
-    if params.type == 'root':
-        items.extend([
-            {
-                'label': 'Premiumize - Files',
-                'action': 'cloud',
-                'type': 'premiumize_files',
-                'info': 'Browse Premiumize files.',
-                'subitems': True
-            },
-            {
-                'label': 'Premiumize - Transfers',
-                'action': 'cloud',
-                'type': 'premiumize_transfers',
-                'info': 'See Premiumize transfers.',
-                'subitems': True
-            }
-        ])
+    # a directory Kodi asked for: none, then the window once Kodi's busy dialog for it has closed (Kodi refuses to
+    # open a window under a modal dialog)
+    core.kodi.xbmcplugin.endOfDirectory(core.handle, succeeded=False)
+    for _ in range(BUSY_LOOKS):
+        if not core.kodi.xbmc.getCondVisibility('Window.IsActive(busydialog)'):
+            break
+        core.kodi.xbmc.sleep(BUSY_LOOK)
+    from .ui import debrid
+    debrid.open('downloads' if params.type == 'premiumize_transfers' else 'cloud', params.id or '')
+    return core.skip_end_of_dir
 
-    elif params.type.startswith('premiumize_'):
-        apikey = core.utils.get_premiumize_apikey(core)
-        if not apikey or apikey == '':
-            core.kodi.notification('Missing Premiumize service API key')
-            return
+def subtitles(core, apikey, file):
+    # the links of the subtitle files beside a cloud file that share its name
+    if not file.get('folder_id'):
+        return []
+    stem = core.os.path.splitext(file.get('name') or '')[0].lower()
+    try:
+        content = fetch(core, core.debrid.premiumize_files(apikey, file['folder_id'])).get('content') or []
+    except Failure:
+        return []  # it plays without them
+    return [entry['link'] for entry in content
+            if entry.get('link') and (entry.get('name') or '').lower().startswith(stem)
+            and (entry.get('name') or '').rsplit('.', 1)[-1].lower() in SUBTITLES]
 
-        if params.type == 'premiumize_files':
-            id = params.id if params.id else ''
-            request = core.debrid.premiumize_files(apikey, id)
-            response = core.request.execute(core, request)
-            if response.status_code != 200:
-                __handle_request_error(core, params, response)
-                return
+def play(core, id):
+    apikey = core.utils.get_premiumize_apikey(core)
+    if not apikey or not id:
+        core.kodi.notification('Missing Premiumize API key' if not apikey else 'Missing file id')
+        core.utils.end_action(core, False)
+        return False
+    try:
+        file = fetch(core, core.debrid.premiumize_item(apikey, id))
+        link = file.get('link') or file.get('stream_link')
+        if not link:
+            raise Failure('This file has no link to play')
+        found = subtitles(core, apikey, file)
+    except Failure as failure:
+        core.kodi.notification(str(failure))
+        core.utils.end_action(core, False)
+        return False
 
-            parsed_response = core.json.loads(response.content)
-
-            files = parsed_response.get('content', [])
-            for file in files:
-                if not file.get('type', None):
-                    continue
-
-                if file['type'] == 'file':
-                    isvideo = core.os.path.splitext(file['name'])[1].upper() in video_ext
-                    subfile = None
-
-                    if not isvideo and not params.force_allfiles:
-                        continue
-
-                    filename_without_ext = core.os.path.splitext(file['name'])[0]
-                    subfile_ext = ['srt', 'sub', 'ass', 'smi', 'ssa']
-                    subfile_names = ['%s.%s' % (filename_without_ext, ext) for ext in subfile_ext]
-                    subfiles = [f for f in files if any(subfile_name in f['name'] for subfile_name in subfile_names)]
-                    subfile = next(iter(subfiles), None)
-
-                    items.append({
-                        'label': file['name'],
-                        'subitems': False,
-                        'url': file.get('link', file.get('stream_link', None)) if isvideo else '',
-                        'subfile': subfile.get('link', None) if subfile else None,
-                        'contextmenu': {
-                            'Premiumize: Delete': 'RunPlugin(plugin://plugin.video.a4kstreaming/?action=cloud&type=premiumize_file_delete&id=%s)' % file['id']
-                        }
-                    })
-                elif file['type'] == 'folder':
-                    items.append({
-                        'label': file['name'],
-                        'action': 'cloud',
-                        'type': 'premiumize_files',
-                        'info': '',
-                        'subitems': True,
-                        'params': {
-                            'id': file['id'],
-                        },
-                        'contextmenu': {
-                            'Premiumize: All Files': 'ActivateWindow(Videos,plugin://plugin.video.a4kstreaming/?action=cloud&type=premiumize_files&id=%s&force_allfiles=true,return)' % file['id'],
-                            'Premiumize: Delete': 'RunPlugin(plugin://plugin.video.a4kstreaming/?action=cloud&type=premiumize_folder_delete&id=%s)' % file['id'],
-                        }
-                    })
-
-        elif params.type == 'premiumize_transfers':
-            request = core.debrid.premiumize_transfers(apikey)
-            response = core.request.execute(core, request)
-            if response.status_code != 200:
-                __handle_request_error(core, params, response)
-                return
-
-            parsed_response = core.json.loads(response.content)
-
-            transfers = parsed_response.get('transfers', [])
-            for transfer in transfers:
-                isfinished = transfer['status'] == 'finished'
-                label = '[%s] %s' % (('Completed' if isfinished else transfer.get('message', ('%s%%' % transfer['progress']))), transfer['name'])
-
-                items.append({
-                    'label': label,
-                    'action': 'cloud',
-                    'type': 'premiumize_files',
-                    'info': '',
-                    'subitems': isfinished if transfer['file_id'] is None else False,
-                    'url': None if isfinished and transfer['file_id'] is None else '',
-                    'params': {
-                        'id': transfer['folder_id'],
-                    },
-                    'contextmenu': {
-                        'Premiumize: Delete': 'RunPlugin(plugin://plugin.video.a4kstreaming/?action=cloud&type=premiumize_transfer_delete&id=%s)' % transfer['id'],
-                        'Premiumize: Clear Finished': 'RunPlugin(plugin://plugin.video.a4kstreaming/?action=cloud&type=premiumize_transfer_clearfinished&id=%s)' % transfer['id']
-                    }
-                })
-
-        elif params.type == 'premiumize_file_delete':
-            request = core.debrid.premiumize_file_delete(apikey, params.id)
-            response = core.request.execute(core, request)
-            if response.status_code != 200:
-                __handle_request_error(core, params, response)
-            else:
-                core.kodi.notification('PM file removed: %s' % params.id)
-
-            core.utils.end_action(core, True)
-            return core.skip_end_of_dir
-
-        elif params.type == 'premiumize_folder_delete':
-            request = core.debrid.premiumize_folder_delete(apikey, params.id)
-            response = core.request.execute(core, request)
-            if response.status_code != 200:
-                __handle_request_error(core, params, response)
-            else:
-                core.kodi.notification('PM folder removed: %s' % params.id)
-
-            core.utils.end_action(core, True)
-            return core.skip_end_of_dir
-
-        elif params.type == 'premiumize_transfer_delete':
-            request = core.debrid.premiumize_transfer_delete(apikey, params.id)
-            response = core.request.execute(core, request)
-            if response.status_code != 200:
-                __handle_request_error(core, params, response)
-            else:
-                core.kodi.notification('PM transfer removed: %s' % params.id)
-
-            core.utils.end_action(core, True)
-            return core.skip_end_of_dir
-
-        elif params.type == 'premiumize_transfer_clearfinished':
-            request = core.debrid.premiumize_transfer_clearfinished(apikey)
-            response = core.request.execute(core, request)
-            if response.status_code != 200:
-                __handle_request_error(core, params, response)
-            else:
-                core.kodi.notification('PM cleared finished transfers')
-
-            core.utils.end_action(core, True)
-            return core.skip_end_of_dir
-
-        else:
-            core.not_supported()
-            return
-
-    else:
-        core.not_supported()
-        return
-
-    list_items = core.utils.generic_list_items(core, items)
-    core.utils.add_directory_items(core, list_items)
-    return items
+    name = file.get('name') or ''
+    item = core.kodi.xbmcgui.ListItem(label=name, path=link, offscreen=True)
+    item.setProperty('IsPlayable', 'true')
+    item.setContentLookup(False)
+    core.kodi.set_info_tag(item, {'title': core.os.path.splitext(name)[0], 'mediatype': 'video'})
+    if found:
+        item.setSubtitles(found)
+    core.utils.end_action(core, True, item)
+    return True

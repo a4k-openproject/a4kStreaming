@@ -369,27 +369,3 @@ def test_season_mark_as_unwatched():
     fn = __invoke(a4kstreaming_api, 'profile', { 'type': 'mark_as_unwatched', 'ids': 'tt3676824__tt3676822__tt3676826__tt3676830__tt3676828__tt3676832__tt3676836__tt3676834__tt3676844__tt3676840__tt3676846__tt3676848' })
 
     assert fn.results is True
-
-def test_premiumize_files():
-    a4kstreaming_api = api.A4kStreamingApi({'kodi': True})
-
-    fn = __invoke(a4kstreaming_api, 'cloud', { 'type': 'premiumize_files' })
-
-    assert len(fn.results) > 0
-
-    result = [r for r in fn.results if 'aws' in r['label'].lower()][0]
-    fn = __invoke(a4kstreaming_api, 'cloud', { 'type': 'premiumize_files', 'id': result['params']['id'] })
-
-    assert len(fn.results) > 0
-
-    result = [r for r in fn.results if 'aws' in r['label'].lower()][0]
-    fn = __invoke(a4kstreaming_api, 'cloud', { 'type': 'premiumize_files', 'id': result['params']['id'] })
-
-    assert len(fn.results) > 0
-
-def test_premiumize_transfers():
-    a4kstreaming_api = api.A4kStreamingApi({'kodi': True})
-
-    fn = __invoke(a4kstreaming_api, 'cloud', { 'type': 'premiumize_transfers' })
-
-    assert len(fn.results) > 0
