@@ -155,7 +155,7 @@ class Panel(object):
 
 def window(grid, opened, monkeypatch, path=PLUGIN + '?action=query&type=fan_picks&widget=1', title='Fan Favorites',
            kicker='Browse'):
-    assert grid.open(path, title, kicker) is True
+    grid.show(path, title, kicker)
     win = opened[0]
     win.closed = False  # the mock doModal has returned
     panel = Panel()
@@ -165,7 +165,7 @@ def window(grid, opened, monkeypatch, path=PLUGIN + '?action=query&type=fan_pick
     return win, panel
 
 def test_grid_paints_its_header_and_listing(core, grid, opened):
-    assert grid.open(PLUGIN + '?action=query&type=fan_picks&widget=1', 'Fan Favorites', 'Browse') is True
+    grid.show(PLUGIN + '?action=query&type=fan_picks&widget=1', 'Fan Favorites', 'Browse')
     win = opened[0]
     assert win.error is None and win.steps == []
     assert {k: win.getProperty('a4k.' + k) for k in ('kicker', 'title', 'page', 'path')} == {
@@ -246,29 +246,26 @@ def test_moves_outside_the_panel_are_ignored(core, grid, opened, monkeypatch):
     monkeypatch.setattr(win, 'moved', lambda: pytest.fail('moved'))
     win.onAction(Action(4))
 
-# C. fallback: one log line, then the classic listing for the rest of the session
+# C. errors: logged, and the window closes
 
-def test_window_error_falls_back_to_the_classic_listing_once(core, grid, opened, calls, errors, monkeypatch):
+def test_window_error_is_logged(core, grid, opened, calls, errors, monkeypatch):
     def broken(self, id): raise RuntimeError('no such control')
     monkeypatch.setattr(grid.Grid, 'getControl', broken)
     grid.show(PLUGIN + '?action=query&type=fan_picks&widget=1', 'Fan Favorites')
-    assert calls == ['ActivateWindow(Videos,%s?action=query&type=fan_picks,return)' % PLUGIN]
-    assert len(errors) == 1 and core.kodi.xbmcgui.Window(10000).getProperty(grid.FAILED)
-    monkeypatch.setattr(grid, 'Grid', lambda *a: pytest.fail('opened the grid again'))
-    grid.show(PLUGIN + '?action=search&query=heat&widget=1', 'heat', 'Search')
-    assert calls[-1] == 'ActivateWindow(Videos,%s?action=search&query=heat,return)' % PLUGIN and len(errors) == 1
+    grid.show(PLUGIN + '?action=query&type=find&query=heat&widget=1', 'heat', 'Search')
+    assert calls == [] and len(opened) == 2 and len(errors) == 2
 
-def test_missing_window_file_falls_back(core, grid, calls, errors, monkeypatch):
+def test_missing_window_file_is_logged(core, grid, calls, errors, monkeypatch):
     def missing(*args): raise RuntimeError('a4k-grid.xml not found')
     monkeypatch.setattr(grid, 'Grid', missing)
     grid.more_like_this('tt1', 'Heat')
-    assert calls == ['ActivateWindow(Videos,%s?action=query&type=more_like_this&id=tt1,return)' % PLUGIN] and len(errors) == 1
+    assert calls == [] and len(errors) == 1
 
 @pytest.mark.parametrize('current, expected', [(13000, []), (10000, ['ReplaceWindow(13000)'])])
 def test_closing_the_grid_returns_to_the_window_below(core, grid, opened, calls, monkeypatch, current, expected):
     core.kodi.xbmcgui.Window(10000).setProperty('a4k.ui.window', '13000')
     monkeypatch.setattr(core.kodi.xbmcgui, 'getCurrentWindowId', lambda: current)
-    grid.open(PLUGIN + '?action=query&type=fan_picks&widget=1', 'Fan Favorites')
+    grid.show(PLUGIN + '?action=query&type=fan_picks&widget=1', 'Fan Favorites')
     assert calls == expected
     assert core.kodi.xbmcgui.Window(10000).getProperty('a4k.ui.window') == '13000'
 
@@ -276,35 +273,9 @@ def test_closing_the_grid_returns_to_the_window_below(core, grid, opened, calls,
 
 def test_search_opens_the_search_window(core, grid, shown, monkeypatch):
     opened = []
-    monkeypatch.setattr(importlib.import_module('a4kStreaming.ui.search'), 'open', lambda: opened.append(True) or True)
+    monkeypatch.setattr(importlib.import_module('a4kStreaming.ui.search'), 'open', lambda: opened.append(True))
     grid.search()
     assert opened == [True] and shown == []
-
-def test_search_without_the_window_asks_then_shows_the_results(core, grid, shown, monkeypatch):
-    monkeypatch.setattr(importlib.import_module('a4kStreaming.ui.search'), 'open', lambda: False)
-    imdb = importlib.import_module('a4kStreaming.imdb')
-    asked = []
-    answers = [('the martian', True), ('', False), (None, True)]
-    monkeypatch.setattr(imdb, 'ask_search', lambda core, history, select=None: asked.append(select) or answers.pop(0))
-    for _ in range(3):
-        grid.search()
-    assert shown == [(PLUGIN + '?action=search&query=the+martian&widget=1', 'the martian', 'Search')]
-    assert asked == [importlib.import_module('a4kStreaming.ui.sheets').select] * 3  # the history as a sheet
-
-def test_ask_search_history_then_keyboard(core, monkeypatch):
-    imdb = importlib.import_module('a4kStreaming.imdb')
-    picks = []
-    def select(heading, items): return picks.pop(0)
-    picks[:] = [2]
-    assert imdb.ask_search(core, ['heat', 'alien'], select=select) == ('alien', True)
-    picks[:] = [-1]  # Back on the history
-    assert imdb.ask_search(core, ['heat'], select=select) == (None, True)
-    keyboard = core.kodi.xbmc.Keyboard('', '')
-    monkeypatch.setattr(keyboard, 'getText', lambda: 'heat')
-    monkeypatch.setattr(keyboard, 'isConfirmed', lambda: True)
-    picks[:] = [0]  # New Search
-    assert imdb.ask_search(core, ['alien'], select=select) == ('heat', True)
-    assert imdb.ask_search(core, [], select=select) == ('heat', True)
 
 def test_years_picks_a_decade_then_a_year_and_back_returns_to_the_decades(core, grid, shown, monkeypatch):
     sheets = importlib.import_module('a4kStreaming.ui.sheets')
@@ -509,7 +480,7 @@ def test_panel_lists_the_path_property(grid):
     assert content.text.strip() == '$INFO[Window.Property(a4k.path)]' and content.get('target') == 'videos'
 
 def test_every_property_the_xml_reads_is_set(core, grid, opened):
-    grid.open(NEXT, 'Fan Favorites', 'Browse')
+    grid.show(NEXT, 'Fan Favorites', 'Browse')
     read = set(re.findall(r'Window\.Property\(([\w.]+)\)', open(XML).read()))
     assert read and read - {'a4k.years'} <= set(opened[0].properties)  # a4k.years: onInit, for a category
 

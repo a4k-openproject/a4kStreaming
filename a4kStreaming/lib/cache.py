@@ -5,7 +5,6 @@ import json
 from . import kodi
 from .utils import DictAsObject, open_file_wrapper
 
-__search_filepath = os.path.join(kodi.addon_profile, 'search.json')
 __provider_filepath = os.path.join(kodi.addon_profile, 'provider.json')
 # raw provider rows (before the debrid split); the old last_results.json held split rows and is no longer read
 __last_results_filepath = os.path.join(kodi.addon_profile, 'last_search.json')
@@ -27,11 +26,6 @@ def __save_cache(filepath, cache):
         with open_file_wrapper(filepath, mode='w')() as f:
             f.write(json_data)
     except: pass
-
-def save_search(data):
-    return __save_cache(__search_filepath, data)
-def get_search():
-    return __get_cache(__search_filepath)
 
 def save_provider(data):
     return __save_cache(__provider_filepath, data)

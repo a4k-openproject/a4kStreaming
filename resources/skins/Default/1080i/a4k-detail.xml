@@ -506,7 +506,7 @@
 			</control>
 
 			<!-- Episodes of the open season: stills 400 x 224 at a 424 pitch. A provider row: a no-op onclick, Python
-			     plays the item (spike 2c); an unreleased episode keeps the classic listing's red italic label. -->
+			     plays the item (spike 2c); an unreleased episode keeps the listing's red italic label. -->
 			<control type="group" id="330">
 				<left>0</left>
 				<top>0</top>

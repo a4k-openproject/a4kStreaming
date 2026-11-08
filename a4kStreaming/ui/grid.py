@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 # Browse grid (a4k-grid.xml): one window for the Browse tiles (lists, watchlist, recommended, a year, search results,
 # the public lists), more like this, a person's known-for titles and the rest of a home row. Its items are the
-# plugin's own listing, loaded by Kodi from the a4k.path property (<content>), so they are exactly the classic items.
+# plugin's own listing, loaded by Kodi from the a4k.path property (<content>).
 # The listing's Next item pages forward and a list or a person opens in place; Back walks those steps back, then closes.
-# Any window error opens the classic listing instead, logged once per session (as detail.py and sheets.py do).
+# A window error is logged and closes the window.
 
 import re
 import threading
@@ -15,7 +15,6 @@ from . import app, home
 
 PANEL = 500
 YEARS = 520
-FAILED = 'a4k.ui.grid.failed'
 NEAR_END = 12  # two rows of six: focus this close to a Next item fetches the next page in the background
 # the category galleries (the home's tabs) take dobby's year chips: All Years, then this year back to 1970
 CATEGORIES = ('popularMovies', 'popularTVShows', 'popularAnimations', 'popularAnimationTVShows', 'popularRealityTVShows')
@@ -34,22 +33,12 @@ def year_chips():
     return [''] + [str(year) for year in range(datetime.now().year, FIRST_YEAR - 1, -1)]
 
 def widget(path):
-    # grid paths carry widget=1: the router then skips the classic view-mode wait
+    # grid paths carry widget=1, as the home rows' do
     return path if 'widget=1' in path else path + '&widget=1'
-
-def classic_path(path):
-    return path.replace('&widget=1', '')
 
 def page_of(path):
     match = re.search(r'[?&]page=(\d+)', path)
     return int(match.group(1)) if match else 1
-
-def fail(reason):
-    __home = kodi.xbmcgui.Window(app.HOME_WINDOW)
-    if __home.getProperty(FAILED):
-        return
-    __home.setProperty(FAILED, 'true')
-    logger.error('grid window failed, using the classic listing: %s' % reason)
 
 def prefetch_page(path):
     # the next page's listing, run once in the background: its IMDb answer lands in the request cache (public pages
@@ -226,10 +215,7 @@ class Grid(kodi.xbmcgui.WindowXML):
         self.error = traceback.format_exc()
         self.close()
 
-def open(path, title, kicker=''):
-    # True when the window ran; False when it failed (logged once per session) and the caller opens the classic listing
-    if kodi.xbmcgui.Window(app.HOME_WINDOW).getProperty(FAILED):
-        return False
+def show(path, title, kicker=''):
     try:
         window = Grid('a4k-grid.xml', kodi.addon_path, 'Default', '1080i')
         # a reopened add-on (after the Home key) comes back to this window, not to the one under it
@@ -241,14 +227,8 @@ def open(path, title, kicker=''):
         del window
         if error:
             raise RuntimeError(error)
-        return True
     except Exception:
-        fail(traceback.format_exc())
-        return False
-
-def show(path, title, kicker=''):
-    if not open(path, title, kicker):
-        home.run('ActivateWindow(Videos,%s,return)' % classic_path(path))
+        logger.error('grid window failed: %s' % traceback.format_exc())
 
 # entry points: the Browse tiles, the detail window's cast and More like this
 
@@ -268,22 +248,11 @@ def more_like_this(id, title):
     show('%s&id=%s' % (app.row_url('more_like_this'), id), title, 'More like this')
 
 def search():
-    # the search window; when it fails, the classic search's history select (as a sheet) and keyboard, then the results
-    # in the grid
     from . import search as window
-    if window.open():
-        return
-    from types import SimpleNamespace
-    from urllib.parse import quote_plus
-    from ..lib import cache
-    from .. import imdb
-    from . import sheets
-    query, confirmed = imdb.ask_search(SimpleNamespace(kodi=kodi), cache.get_search().history, select=sheets.select)
-    if confirmed and query:
-        show('%s?action=search&query=%s&widget=1' % (app.PLUGIN, quote_plus(query)), query, 'Search')
+    window.open()
 
 def years():
-    # a decade, then a year (Back returns to the decades), as the classic Discover by Year, newest first
+    # a decade, then a year (Back returns to the decades), newest first
     from . import sheets
     now = datetime.now().year
     decades = list(range(now - now % 10, 1899, -10))

@@ -3,7 +3,7 @@
 # chips (Type, Genre, Era, Rating, Country, Clear) and a six-column results grid that follows the typing after a 500 ms
 # pause. The results are the plugin's own listing, loaded by Kodi from the a4k.path property (<content>): text alone is
 # IMDb's title search (type=find), any facet the advanced title search (type=facets), whose page grows as focus nears the
-# end. Any window error opens the classic search instead, logged once per session (as grid.py does).
+# end. A window error is logged and closes the window.
 
 import threading
 import traceback
@@ -16,7 +16,6 @@ from . import app, home
 KEYS = 600
 FACETS = 610
 RESULTS = 620
-FAILED = 'a4k.ui.search.failed'
 HINT = 'Movies and TV shows'
 
 DEBOUNCE = 0.5  # dobby's handleSearch: the search runs once typing pauses this long
@@ -64,13 +63,6 @@ def url(query, filters, count=0):
     else:
         return ''
     return '%s?%s&widget=1' % (app.PLUGIN, urlencode([(key, value) for key, value in params if value]))
-
-def fail(reason):
-    __home = kodi.xbmcgui.Window(app.HOME_WINDOW)
-    if __home.getProperty(FAILED):
-        return
-    __home.setProperty(FAILED, 'true')
-    logger.error('search window failed, using the classic search: %s' % reason)
 
 class Search(kodi.xbmcgui.WindowXML):
     error = None
@@ -259,9 +251,6 @@ class Search(kodi.xbmcgui.WindowXML):
         self.close()
 
 def open():
-    # True when the window ran; False when it failed (logged once per session) and the caller opens the classic search
-    if kodi.xbmcgui.Window(app.HOME_WINDOW).getProperty(FAILED):
-        return False
     try:
         window = Search('a4k-search.xml', kodi.addon_path, 'Default', '1080i')
         # a reopened add-on (after the Home key) comes back to this window, not to the one under it
@@ -271,7 +260,5 @@ def open():
         del window
         if error:
             raise RuntimeError(error)
-        return True
     except Exception:
-        fail(traceback.format_exc())
-        return False
+        logger.error('search window failed: %s' % traceback.format_exc())

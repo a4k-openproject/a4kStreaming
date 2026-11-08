@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 # Offline tests for the title detail window: the season grouping it shares with the directory, its view model from a
 # recorded TitleFull (public English titles: a movie from query type=browse, a series from type=seasons), the window's
-# fill, clicks and menu, the classic fallback, and its skin lint.
+# fill, clicks and menu, its error log, and its skin lint.
 
 import os
 import re
@@ -221,7 +221,7 @@ def opened(core, detail, monkeypatch):
     return windows
 
 def test_movie_window_paints_and_fills(core, detail, opened, calls):
-    assert detail.open(card()) is True
+    detail.open(card())
     win = opened[0]
     assert win.error is None and win.getProperty('a4k.title') == 'The Martian' and win.getProperty('a4k.meta').endswith(' · 2h 24m · Adventure, Drama, Sci-Fi')
     assert win.getProperty('a4k.series') == '' and win.getProperty('a4k.auth') == ''
@@ -285,32 +285,29 @@ def test_back_closes(core, detail, opened, monkeypatch):
 
 def test_no_answer_keeps_the_card(core, detail, opened, monkeypatch):
     monkeypatch.setattr(detail, 'fetch', lambda *a: None)
-    assert detail.open(card()) is True
+    detail.open(card())
     assert opened[0].getProperty('a4k.title') == 'The Martian' and opened[0].getControl(detail.CAST).items == []
 
-# E. fallback: one log line, then the classic listing for the title for the rest of the session
+# E. errors: logged, and the window closes; home stays
 
 @pytest.mark.parametrize('breakage', ['xml', 'worker'])
-def test_window_error_falls_back_to_the_classic_listing(core, detail, home, opened, calls, errors, monkeypatch, breakage):
+def test_window_error_is_logged(core, detail, home, opened, calls, errors, monkeypatch, breakage):
     if breakage == 'xml':
         def broken(self, id): raise RuntimeError('no such control')
         monkeypatch.setattr(detail.Detail, 'getControl', broken)
     else:
         monkeypatch.setattr(detail, 'view_model', lambda core, title: 1 / 0)
     home.select(card('tvSeries', SERIES))
-    assert calls == ['ActivateWindow(Videos,%s?action=query&type=seasons&id=%s,return)' % (PLUGIN, SERIES)]
-    assert len(errors) == 1 and core.kodi.xbmcgui.Window(10000).getProperty(detail.FAILED)
     home.select(card())
-    assert calls[-1] == 'ActivateWindow(Videos,%s?action=query&type=browse&id=%s,return)' % (PLUGIN, MOVIE)
-    assert len(opened) == 1 and len(errors) == 1
+    assert calls == [] and len(opened) == 2 and len(errors) == 2
 
-def test_missing_window_file_falls_back(core, detail, home, calls, errors, monkeypatch):
+def test_missing_window_file_is_logged(core, detail, home, calls, errors, monkeypatch):
     def missing(*args): raise RuntimeError('a4k-detail.xml not found')
     monkeypatch.setattr(detail, 'Detail', missing)
     home.select(card())
-    assert calls == ['ActivateWindow(Videos,%s?action=query&type=browse&id=%s,return)' % (PLUGIN, MOVIE)] and len(errors) == 1
+    assert calls == [] and len(errors) == 1
 
-def test_episodes_and_people_from_home_keep_their_classic_click(core, home, calls, monkeypatch):
+def test_episodes_play_and_people_do_nothing_from_home(core, home, calls, monkeypatch):
     monkeypatch.setattr(importlib.import_module('a4kStreaming.ui.detail'), 'open', lambda info: pytest.fail('opened detail'))
     home.select(card('tvEpisode', 'tt9', FolderPath=''))
     home.select(card('person', 'nm1'))

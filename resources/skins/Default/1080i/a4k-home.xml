@@ -23,7 +23,6 @@
 <window>
 	<defaultcontrol>201</defaultcontrol>
 	<backgroundcolor>FF07080C</backgroundcolor>
-	<animation effect="fade" start="0" end="100" time="200">WindowOpen</animation>
 	<animation effect="fade" start="100" end="0" time="150">WindowClose</animation>
 	<controls>
 		<control type="image">
@@ -2315,7 +2314,6 @@
 			<width>180</width>
 			<height>180</height>
 			<visible>!String.IsEmpty(Window.Property(a4k.loading))</visible>
-			<animation effect="fade" start="0" end="100" time="200" delay="0">Visible</animation>
 			<control type="image">
 				<left>0</left>
 				<top>0</top>

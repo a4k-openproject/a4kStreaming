@@ -1,13 +1,12 @@
 # -*- coding: utf-8 -*-
 
 from .listing import (
-    __action_menu_style,
     __handle_request_error,
     __add_lists,
     __add_seasons,
     __add_episodes,
-    __add_title,
     __add_titles,
+    play_type as __play_type,
 )
 
 def __check_imdb_auth_config(core, params):
@@ -140,101 +139,6 @@ def __episodes_by_season(core, id, seasons):
     if any(page['pageInfo']['hasNextPage'] for page in pages):
         return None
     return [episode for page in pages for episode in core.utils.sanitize_response(page['edges'])]
-
-def ask_search(core, history, query=None, select=None):
-    # the history select, then the keyboard: (query, confirmed). The windows pass their select sheet.
-    confirmed = True if query else False
-    if history:
-        selection = (select or core.kodi.xbmcgui.Dialog().select)(
-            'Search for title or person',
-            [__action_menu_style % 'New Search'] + list(map(lambda v: str(v), history)),
-        )
-
-        confirmed = True
-        selection = int(selection)
-        if selection > 0:
-            query = history[selection - 1]
-        elif selection == 0:
-            confirmed = False
-
-    if not confirmed and not query:
-        keyboard = core.kodi.xbmc.Keyboard('', 'Enter part of title or person\'s name')
-        keyboard.doModal()
-        query = keyboard.getText()
-        confirmed = keyboard.isConfirmed()
-
-    return query, confirmed
-
-def search(core, params):
-    query = params.query
-    confirmed = True if query else False
-    search = core.cache.get_search()
-
-    if params.type == 'input':
-        query, confirmed = ask_search(core, search.history, query)
-
-    if not confirmed or not query:
-        core.utils.end_action(core, True)
-
-    if not query:
-        return
-
-    if not search.history:
-        search.history = []
-
-    search.history.insert(0, query)
-    temp_history = set()
-    search.history = [item for item in search.history if item not in temp_history and (temp_history.add(item) or True)]
-
-    if len(search.history) > 5:
-        search.history.pop()
-    core.cache.save_search(search)
-
-    request = {
-        'method': 'GET',
-        'url': 'https://v2.sg.media-imdb.com/suggestion/%s/%s.json' % (query[:1].lower(), query),
-    }
-
-    response = core.request.execute(core, request)
-    if response.status_code != 200:
-        __handle_request_error(core, params, response)
-        return []
-
-    results = core.json.loads(response.content)
-    if 'd' not in results or len(results['d']) == 0:
-        return []
-
-    items = []
-    for result in results['d']:
-        titleType = result.get('q', 'person' if result['id'].startswith('nm') else None)
-        if not titleType:
-            continue
-
-        titleType = titleType.lower()
-        types = {
-            'tv series': 'tvSeries',
-            'tv mini-series': 'tvSeries',
-            'tv movie': 'movie',
-            'tv special': 'movie',
-            'feature': 'movie',
-            'video': 'movie',
-        }
-
-        if types.get(titleType, None):
-            titleType = types[titleType]
-
-        try:
-            items.append({
-                'id': result['id'],
-                'titleType': titleType,
-                'titleText': '%s' % result['l'],
-                'primaryImage': { 'url': result['i']['imageUrl'], 'width': result['i']['width'], 'height': result['i']['height'] }
-            })
-        except:
-            pass
-
-    __add_titles(core, items, browse=None)
-    return items
 
 def query(core, params):
     no_auth_required_actions = ['popularMovies', 'popularTVShows', 'popularAnimations', 'popularAnimationTVShows', 'popularRealityTVShows', 'popular', 'year', 'fan_picks', 'more_like_this', 'seasons', 'episodes', 'browse', 'find', 'facets', 'knownfor']
@@ -958,7 +862,6 @@ def query(core, params):
     elif params.type == 'lists':
         if params.silent:
             return data['lists']
-        core.viewType = core.kodi.get_setting('views.menu')
         core.contentType = 'videos'
         __add_lists(core, data)
     elif params.type == 'seasons':
@@ -994,15 +897,10 @@ def query(core, params):
         core.contentType = 'episodes'
         __add_episodes(core, data, int(params.season))
     elif params.type == 'browse':
+        # raw: the detail window's TitleFull; otherwise the play type of a movie or an episode (play by id)
         if params.raw:
             return data
-        if data['titleType'] in ['tvEpisode']:
-            core.viewType = core.kodi.get_setting('views.episode')
-        if data['titleType'] in ['movie', 'tvMovie', 'tvEpisode', 'video']:
-            core.contentType = 'movies'
-        result = __add_title(core, data, params.silent)
-        if params.silent:
-            return result
+        return __play_type(core, data)
     else:
         core.contentType = 'movies'
         titles = data if isinstance(data, list) else data.get('titles', [])
@@ -1045,7 +943,7 @@ def query(core, params):
         if params.type == 'watchlist':
             for title in titles:
                 title['a4k.in_watchlist'] = True  # the menu offers Remove only
-        __add_titles(core, titles, browse=None)
+        __add_titles(core, titles)
 
     if isinstance(data, dict) and (data.get('paginationToken', None) or data.get('pageInfo', None) and data['pageInfo'].get('hasNextPage', False)):
         next_list_item = core.kodi.xbmcgui.ListItem(label='Next', offscreen=True)

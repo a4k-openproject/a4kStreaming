@@ -189,7 +189,7 @@ def test_fix_image_size(core):
     assert core.utils.fix_fanart_size({'url': None}) is None
 
 class __PlayHarness(object):
-    def __init__(self, core, monkeypatch, files_by_link, choices, autoplay=False, dead_links=(), mode='1', quick=None, uncached=None,
+    def __init__(self, core, monkeypatch, files_by_link, choices, autoplay=False, dead_links=(), sheet=False, quick=None, uncached=None,
                  from_cache=False):
         self.dialogs = []
         self.items = []
@@ -213,7 +213,6 @@ class __PlayHarness(object):
         settings = {
             'premiumize.apikey': 'key', 'general.max_quality': '3', 'general.max_movie_size': '200',
             'general.dolby_vision_allowed': 'false', 'general.autoplay': 'true' if autoplay else 'false',
-            'ui.mode': mode,  # classic by default: the stock dialogs, exactly as before the sheets
         }
         monkeypatch.setattr(core.kodi.addon, 'getSetting', lambda key: settings.get(key, ''))
         monkeypatch.setattr(core, 'provider_meta', lambda core: utils.DictAsObject({'name': 'test'}))
@@ -240,7 +239,9 @@ class __PlayHarness(object):
             return choices.pop(0)
         dialog = lambda: None
         dialog.select = select
-        monkeypatch.setattr(core.kodi.xbmcgui, 'Dialog', lambda: dialog)
+        monkeypatch.setattr(core.kodi.xbmcgui, 'Dialog', lambda: dialog)  # the file picker
+        if not sheet:  # the source sheet answers from choices too; sheet=True runs the real sheet
+            monkeypatch.setattr(importlib.import_module('a4kStreaming.ui.sheets'), 'select', select)
 
         def probe(url, timeout=5):
             self.probed.append(url)
@@ -291,14 +292,11 @@ def test_play_autoplay_file_picker_cancel_opens_selection(core, monkeypatch):
     assert h.run() is None
     assert h.dialogs == [('Choose file', None), ('Choose source', 1)]
 
-# the play loop in windows mode: the select sheet, with the stock select as its fallback
+# the play loop through the select sheet itself
 
 @pytest.fixture
 def sheets(core):
-    sheets = importlib.import_module('a4kStreaming.ui.sheets')
-    core.kodi.xbmcgui.Window(10000).clearProperty(sheets.FAILED)
-    yield sheets
-    core.kodi.xbmcgui.Window(10000).clearProperty(sheets.FAILED)
+    return importlib.import_module('a4kStreaming.ui.sheets')
 
 class SheetList(object):
     # the sheet's list control: remembers the selected row
@@ -328,9 +326,9 @@ def __sheet_user(sheets, monkeypatch, picks):
     monkeypatch.setattr(sheets.Sheet, 'doModal', doModal)
     return shown
 
-def test_play_in_windows_mode_picks_from_the_sheet(core, monkeypatch, sheets):
+def test_play_picks_from_the_sheet(core, monkeypatch, sheets):
     shown = __sheet_user(sheets, monkeypatch, [0, 1])
-    h = __PlayHarness(core, monkeypatch, {'B': [__video('b')]}, choices=[], mode='0')
+    h = __PlayHarness(core, monkeypatch, {'B': [__video('b')]}, choices=[], sheet=True)
     assert h.run() == 'http://b'
     assert h.dialogs == []  # the stock select never opened
     rows = [('4K  H264', 'PM  ·  10.0 GB  ·  A'), ('1080P  H264', 'PM  ·  10.0 GB  ·  B'), ('720P  H264', 'PM  ·  10.0 GB  ·  C'),
@@ -341,22 +339,21 @@ def test_play_in_windows_mode_picks_from_the_sheet(core, monkeypatch, sheets):
 
 def test_play_sheet_back_cancels(core, monkeypatch, sheets):
     __sheet_user(sheets, monkeypatch, [None])
-    h = __PlayHarness(core, monkeypatch, {}, choices=[], mode='0')
+    h = __PlayHarness(core, monkeypatch, {}, choices=[], sheet=True)
     assert h.run() is None and h.resolved == []
 
-def test_play_sheet_error_falls_back_to_the_stock_select_and_logs_once(core, monkeypatch, sheets):
+def test_play_sheet_error_is_logged_and_cancels(core, monkeypatch, sheets):
     errors = []
     monkeypatch.setattr(sheets.logger, 'error', errors.append)
     def missing(*args): raise RuntimeError('a4k-sheet.xml not found')
     monkeypatch.setattr(sheets, 'Sheet', missing)
-    h = __PlayHarness(core, monkeypatch, {'B': [__video('b')]}, choices=[0, 1], mode='0')
-    assert h.run() == 'http://b'
-    assert h.dialogs == [('Choose source', 0), ('Choose source', 1)]
-    assert len(errors) == 1 and core.kodi.xbmcgui.Window(10000).getProperty(sheets.FAILED)
+    h = __PlayHarness(core, monkeypatch, {'B': [__video('b')]}, choices=[], sheet=True)
+    assert h.run() is None and h.resolved == [] and h.dialogs == []
+    assert len(errors) == 1 and 'a4k-sheet.xml not found' in errors[0]
 
-def test_play_autoplay_in_windows_mode_shows_no_sheet(core, monkeypatch, sheets):
+def test_play_autoplay_shows_no_sheet(core, monkeypatch, sheets):
     monkeypatch.setattr(sheets, 'Sheet', lambda *args: pytest.fail('sheet opened'))
-    h = __PlayHarness(core, monkeypatch, {'C': [__video('c')]}, choices=[], autoplay=True, mode='0')
+    h = __PlayHarness(core, monkeypatch, {'C': [__video('c')]}, choices=[], autoplay=True, sheet=True)
     assert h.run() == 'http://c' and h.dialogs == []
 
 def test_graphql_query_next_day_rolls_over_month(core, monkeypatch):
@@ -397,7 +394,7 @@ def __raw(name, hash, package='single', size=2048):
     return {'release_title': name, 'hash': hash, 'package': package, 'size': size}
 
 class __SearchHarness(object):
-    def __init__(self, core, monkeypatch, providers, settings=None, pm_cached=None, canceled=False, pm_content=None, cache=None, mode='1',
+    def __init__(self, core, monkeypatch, providers, settings=None, pm_cached=None, canceled=False, pm_content=None, cache=None, card=False,
                  quick=(), switched_off=()):
         self.requests = []
         self.threads = []
@@ -407,7 +404,7 @@ class __SearchHarness(object):
         self.progress = []
         self.saved = []
         utils = core.utils
-        all_settings = {'premiumize.apikey': 'key', 'ui.mode': mode}
+        all_settings = {'premiumize.apikey': 'key'}
         all_settings.update(settings or {})
         monkeypatch.setattr(core.kodi.addon, 'getSetting', lambda key: all_settings.get(key, ''))
         monkeypatch.setattr(core.cache, 'get_provider', lambda: {key: key not in switched_off for key in providers})
@@ -435,7 +432,8 @@ class __SearchHarness(object):
         progress.update = lambda *args: self.progress.append(('update',) + args)
         progress.close = lambda: self.progress.append(('close',))
         progress.iscanceled = lambda: canceled
-        monkeypatch.setattr(core.kodi.xbmcgui, 'DialogProgress', lambda: progress)
+        if not card:  # card=True runs the real progress card
+            monkeypatch.setattr(importlib.import_module('a4kStreaming.ui.sheets'), 'progress', lambda: progress)
 
         title = {'mediatype': 'movie', 'imdbnumber': 'tt0000001', 'title': 'The Movie', 'year': 2020}
         self.params = lambda **extra: utils.DictAsObject(dict({'type': 'search', 'title': utils.DictAsObject(title), 'start_time': utils.time_ms()}, **extra))
@@ -483,7 +481,7 @@ def test_search_progress_lists_done_and_pending_providers(core, monkeypatch):
     assert any('FAST  [B]2[/B]' in u and 'Pending:[/COLOR]  [B]1[/B]  SLOW' in u for u in updates)
     assert 'Time  left' in updates[0]
 
-# the source search in windows mode: the progress card instead of the stock dialog
+# the source search through the progress card itself
 
 def __cards(sheets, monkeypatch, back=False):
     cards = []
@@ -495,14 +493,14 @@ def __cards(sheets, monkeypatch, back=False):
     monkeypatch.setattr(sheets.ProgressWindow, 'close', lambda self: setattr(self, 'closed', True))
     return cards
 
-def test_search_in_windows_mode_shows_the_progress_card(core, monkeypatch, sheets):
+def test_search_shows_the_progress_card(core, monkeypatch, sheets):
     cards = __cards(sheets, monkeypatch)
     slow = __FakeProvider([], wait=True)
     fast = __FakeProvider([__raw('The.Movie.2020.1080p.WEB.x264-GRP', 'aa'), __raw('The.Movie.2020.720p.WEB.x264-GRP', 'bb')])
-    h = __SearchHarness(core, monkeypatch, {'SLOW': slow, 'FAST': fast}, settings={'general.search_timeout': '1'}, pm_cached=['aa'], mode='0')
+    h = __SearchHarness(core, monkeypatch, {'SLOW': slow, 'FAST': fast}, settings={'general.search_timeout': '1'}, pm_cached=['aa'], card=True)
     search = h.run(start_time=core.utils.time_ms() - 2000)
     assert list(search.cached.keys()) == ['PMaa']
-    assert h.progress == []  # the stock dialog never opened
+    assert h.progress == []
     card = cards[0]
     assert len(cards) == 1 and card.closed
     assert card.getProperty('a4k.heading') == core.kodi.addon_name
@@ -510,9 +508,9 @@ def test_search_in_windows_mode_shows_the_progress_card(core, monkeypatch, sheet
     assert 'FAST  [B]2[/B]' in card.getProperty('a4k.line2') and 'SLOW' in card.getProperty('a4k.line3')
     assert 0 < card.getControl(sheets.BAR).percent <= 100
 
-def test_search_in_windows_mode_shows_no_card_for_a_fast_search(core, monkeypatch, sheets):
+def test_search_shows_no_card_for_a_fast_search(core, monkeypatch, sheets):
     cards = __cards(sheets, monkeypatch)
-    h = __SearchHarness(core, monkeypatch, {'FAST': __FakeProvider([__raw('The.Movie.2020.1080p.WEB.x264-GRP', 'aa')])}, pm_cached=['aa'], mode='0')
+    h = __SearchHarness(core, monkeypatch, {'FAST': __FakeProvider([__raw('The.Movie.2020.1080p.WEB.x264-GRP', 'aa')])}, pm_cached=['aa'], card=True)
     assert list(h.run().cached.keys()) == ['PMaa']
     assert cards == [] and h.progress == []
 
@@ -520,7 +518,7 @@ def test_search_card_back_cancels_and_keeps_the_results(core, monkeypatch, sheet
     cards = __cards(sheets, monkeypatch, back=True)
     slow = __FakeProvider([__raw('The.Movie.2020.720p.WEB.x264-GRP', 'bb')], wait=True)
     fast = __FakeProvider([__raw('The.Movie.2020.1080p.WEB.x264-GRP', 'aa')])
-    h = __SearchHarness(core, monkeypatch, {'SLOW': slow, 'FAST': fast}, pm_cached=['aa', 'bb'], mode='0')
+    h = __SearchHarness(core, monkeypatch, {'SLOW': slow, 'FAST': fast}, pm_cached=['aa', 'bb'], card=True)
     start = core.time.time()
     # the card comes up once fast has answered, the user presses Back
     search = h.run(start_time=core.utils.time_ms() - 900)

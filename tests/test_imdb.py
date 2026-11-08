@@ -338,7 +338,7 @@ def test_recent_cursor_is_used_as_is(core, request_module, monkeypatch, mem_db):
     assert [core_json().loads(s['data'])['variables']['paginationToken'] for s in sent] == ['recent']
 
 def test_main_refreshes_stale_pages_after_the_listing_is_shown(core, request_module, monkeypatch, mem_db):
-    settings(core, monkeypatch, {'views.titles': '0'})
+    settings(core, monkeypatch, {})
     monkeypatch.setattr(core, 'api_mode_enabled', True)
     events = []
     sent = fake_session(request_module, monkeypatch, [lambda kwargs: events.append('fetch') or __page()])
@@ -377,7 +377,7 @@ def items(core, monkeypatch):
 @pytest.fixture
 def reads(core, monkeypatch):
     keys = []
-    values = {'general.autoplay': 'true', 'general.episode_title_template': '4'}
+    values = {'general.autoplay': 'true'}
     monkeypatch.setattr(core.kodi.addon, 'getSetting', lambda key: keys.append(key) or values.get(key, ''))
     return keys
 
@@ -391,7 +391,7 @@ def test_crop_offset_is_a_whole_pixel(core):
     assert core.utils.get_image_params({'width': 1920, 'height': 1081}, 520, 780) == 'UY780_CR432,0,520,780_AL_'
 
 def test_movie_and_series_get_still_art(core, items, reads):
-    __listing()['__add_titles'](core, [__title(), __title('tt2', 'tvSeries')], browse=None)
+    __listing()['__add_titles'](core, [__title(), __title('tt2', 'tvSeries')])
     for _, item, _ in items:
         assert item.art['poster'].endswith('poster._V1_UX520_CR0,0,520,780_AL_.jpg')
         assert item.art['fanart'].endswith('still._V1_UX1280_CR0,0,1280,720_AL_.jpg')
@@ -399,7 +399,7 @@ def test_movie_and_series_get_still_art(core, items, reads):
         assert item.art['blur'].endswith('still._V1_UX64_CR0,0,64,36_AL_.jpg')
 
 def test_title_without_a_still_has_no_wide_art(core, items, reads):
-    __listing()['__add_titles'](core, [__title(stillFrame=[])], browse=None)
+    __listing()['__add_titles'](core, [__title(stillFrame=[])])
     assert items[0][1].art['fanart'] is None
 
 def test_seasons_inherit_the_series_fanart_and_blur(core, items, reads):
@@ -420,7 +420,7 @@ def test_episodes_get_the_same_wide_keys_from_their_own_still(core, items, reads
     assert art['blur'].endswith('episode_still._V1_UX64_CR0,0,64,36_AL_.jpg')
 
 def test_items_carry_a4k_properties(core, items, reads):
-    __listing()['__add_titles'](core, [__title(userRating=8), __title('tt2', 'tvSeries', userRating=None, primaryVideos=[])], browse=None)
+    __listing()['__add_titles'](core, [__title(userRating=8), __title('tt2', 'tvSeries', userRating=None, primaryVideos=[])])
     props = [{k: v for k, v in item.properties.items() if k.startswith('a4k.')} for _, item, _ in items]
     assert props[0] == {'a4k.id': 'tt1', 'a4k.type': 'movie', 'a4k.rated': 'true', 'a4k.trailers': 'vi1_vi2',
                         'a4k.meta': props[0]['a4k.meta'], 'a4k.tv': '', 'a4k.tvstate': ''}
@@ -429,46 +429,29 @@ def test_items_carry_a4k_properties(core, items, reads):
 
 def test_title_context_menu_is_the_menu_the_item_gets(core, items, reads):
     title = __title()
-    __listing()['__add_titles'](core, [title], browse=None)
+    __listing()['__add_titles'](core, [title])
     menu = __listing()['title_context_menu'](core, title)
     assert menu == items[0][1].context_menu
     assert __listing()['title_context_menu'](core, __title(titleType='person')) == []
 
 def test_play_url_is_the_url_the_item_gets(core, items, reads):
     titles = [__title(), __title('tt2', releaseYear=None), __title('tt3', 'tvEpisode', series={'seasonNumber': 1, 'episodeNumber': 2})]
-    __listing()['__add_titles'](core, [dict(t) for t in titles], browse=False)
+    __listing()['__add_titles'](core, [dict(t) for t in titles])
     assert [__listing()['play_url'](core, t) for t in titles] == [url for url, _, _ in items]
     assert items[1][0] == '%s?action=play&type=&id=tt2' % core.url
     assert __listing()['play_url'](core, __title(titleType='tvSeries')) is None
 
 def test_settings_are_read_once_per_listing(core, items, reads):
-    __listing()['__add_titles'](core, [__title('tt%s' % n) for n in range(10)], browse=None)
+    __listing()['__add_titles'](core, [__title('tt%s' % n) for n in range(10)])
     assert reads.count('general.autoplay') == 1
     episodes = [__title('tt%s' % n, 'tvEpisode', series={'seasonNumber': 1, 'episodeNumber': n}) for n in range(1, 6)]
     __listing()['__add_episodes'](core, episodes, 1)
-    assert reads.count('general.episode_title_template') == 1
-    season_episodes = [{'id': 'tt1%s' % n, 'series': {'seasonNumber': n, 'episodeNumber': 1}, 'releaseDate': {'year': 2020 + n, 'month': 1, 'day': 1}} for n in [1, 2, 3]]
-    __listing()['__add_seasons'](core, __title('tt2', 'tvSeries', episodes={'episodes': season_episodes}))
-    assert reads.count('general.season_title_template') == 1
-
-@pytest.mark.parametrize('widget', [True, False])
-def test_widget_skips_the_wait_and_the_view_mode(core, request_module, monkeypatch, mem_db, widget):
-    settings(core, monkeypatch, {'views.titles': '0'})
-    fake_session(request_module, monkeypatch, [__page()])
-    calls = []
-    monkeypatch.setattr(core.kodi.xbmcplugin, 'endOfDirectory', lambda handle, **kwargs: None, raising=False)
-    monkeypatch.setattr(core.kodi.xbmc, 'sleep', lambda ms: calls.append('sleep'))
-    monkeypatch.setattr(core.kodi.xbmc, 'executebuiltin', lambda builtin: calls.append(builtin.split('(')[0]))
-    monkeypatch.setattr(core.db, 'cleanup', lambda: None)
-    core.main('plugin://plugin.video.a4kstreaming/', 1, 'action=query&type=popularMovies' + ('&widget=1' if widget else ''))
-    assert calls == ([] if widget else ['sleep', 'Container.SetViewMode'])
+    assert reads.count('general.autoplay') == 2
 
 # H. listing flags: the content type before the items, and which listings Kodi may keep on disk
 
 @pytest.mark.parametrize('paramstring, action, cached', [
     ('widget=1', 'root', True),
-    ('action=years&type=root', 'years', True),
-    ('action=years&type=2020', 'years', True),
     ('action=query&type=popularMovies', 'query', True),
     ('action=query&type=fan_picks', 'query', True),
     ('action=query&type=year&target_year=2020', 'query', True),
@@ -481,8 +464,6 @@ def test_widget_skips_the_wait_and_the_view_mode(core, request_module, monkeypat
     ('action=query&type=top_picks', 'query', False),
     ('action=query&type=lists', 'query', False),
     ('action=query&type=list&id=ls1', 'query', False),
-    ('action=search&type=input', 'search', False),
-    ('action=search&query=dune', 'search', False),
     ('action=cloud&type=root', 'cloud', False),
 ])
 def test_listing_sets_its_content_first_and_caches_only_public_pages(core, monkeypatch, paramstring, action, cached):

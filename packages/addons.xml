@@ -20,7 +20,7 @@
         <summary lang="en">a4kStreaming - IMDb-based media browser</summary>
         <description>
 IMDb-based media browser addon for KODI with streaming support via external providers.
-Designed for low-end devices and Estuary skin.
+A TV-style interface of its own: a top shelf and rows, title detail, browse grid and search, the same in any skin.
         </description>
         <platform>all</platform>
         <reuselanguageinvoker>true</reuselanguageinvoker>

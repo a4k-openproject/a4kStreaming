@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Offline tests for the window interface: the skin lint, the root routing and its classic fallback, the home window's
+# Offline tests for the window interface: the skin lint, the root routing and the launch, the home window's
 # click and menu mapping, and the play flow's sheets (select sheet and source search progress).
 
 import os
@@ -95,13 +95,14 @@ def errors(app, monkeypatch):
     monkeypatch.setattr(app.logger, 'error', log.append)
     return log
 
-def failed(core):
-    return core.kodi.xbmcgui.Window(10000).getProperty('a4k.ui.failed')
-
 # A. skin lint
 
 def windows():
     return sorted(os.path.join(WINDOWS, name) for name in os.listdir(WINDOWS) if name.endswith('.xml'))
+
+def controlled():
+    # every window but the launch cover, which has no ids, text or colours of its own
+    return [path for path in windows() if not path.endswith('a4k-cover.xml')]
 
 def png_size(path):
     with open(path, 'rb') as f:
@@ -110,9 +111,9 @@ def png_size(path):
     return struct.unpack('>II', head[16:24])
 
 def test_skin_has_the_windows_and_sheets():
-    assert [os.path.basename(path) for path in windows()] == ['a4k-detail.xml', 'a4k-grid.xml', 'a4k-home.xml', 'a4k-progress.xml', 'a4k-search.xml', 'a4k-sheet.xml', 'a4k-skip.xml']
+    assert [os.path.basename(path) for path in windows()] == ['a4k-cover.xml', 'a4k-detail.xml', 'a4k-grid.xml', 'a4k-home.xml', 'a4k-progress.xml', 'a4k-search.xml', 'a4k-sheet.xml', 'a4k-skip.xml']
 
-@pytest.mark.parametrize('path', windows())
+@pytest.mark.parametrize('path', controlled())
 def test_window_xml_parses_with_unique_control_ids(path):
     ids = [control.get('id') for control in ElementTree.parse(path).iter('control') if control.get('id')]
     assert ids and len(ids) == len(set(ids))
@@ -132,12 +133,12 @@ def test_every_shipped_texture_is_listed():
     shipped = {'a4k/' + name for name in os.listdir(os.path.join(MEDIA, 'a4k'))}
     assert shipped == set(TEXTURES)
 
-@pytest.mark.parametrize('path', windows())
+@pytest.mark.parametrize('path', controlled())
 def test_window_fonts_are_skin_fonts(path):
     fonts = {node.text for node in ElementTree.parse(path).iter('font')}
     assert fonts and fonts <= FONTS
 
-@pytest.mark.parametrize('path', windows())
+@pytest.mark.parametrize('path', controlled())
 def test_window_uses_no_includes_or_named_colours(path):
     # a script window resolves both against the active skin, which may not have them
     root = ElementTree.parse(path).getroot()
@@ -221,52 +222,58 @@ def test_watchlist_row_needs_an_imdb_login(core, home, monkeypatch):
     assert opened['a4k.row.303'] == '' and opened['a4k.auth'] == ''
     assert opened['a4k.row.302'] == PLUGIN + '?action=query&type=popularTVShows&widget=1'
 
-# B. root routing
+# B. root routing and launch
 
-def test_root_opens_the_windows_by_default(core, monkeypatch, calls):
+def test_only_the_videos_windows_root_opens_the_home_window(core, app, monkeypatch):
+    assert app.from_videos('') and app.from_videos('?')
+    assert not app.from_videos('?widget=1') and not app.from_videos('?action=query&type=popularMovies')
+    monkeypatch.setattr(core.kodi.xbmcgui, 'getCurrentWindowId', lambda: 10000)  # a widget picker, a script
+    assert not app.from_videos('')
+
+def test_root_listing_is_the_widget_menu(core, monkeypatch, calls):
     settings(core, monkeypatch)
     core.main(PLUGIN, 1, '')
-    assert calls == [('end', False), 'RunScript(plugin.video.a4kstreaming)']
-
-def test_root_in_classic_mode_is_the_listing(core, monkeypatch, calls):
-    settings(core, monkeypatch, {'ui.mode': '1', 'views.menu': '4'})
-    core.main(PLUGIN, 1, '')
-    assert calls[:2] == [('items', 12), ('end', True)]
-    assert not any('RunScript' in str(call) for call in calls)
-
-def test_widget_root_stays_a_listing(core, monkeypatch, calls):
-    settings(core, monkeypatch)
     core.main(PLUGIN, 1, 'widget=1')
-    assert calls == [('items', 12), ('end', True)]
+    assert calls == [('items', 10), ('end', True)] * 2
 
-def test_root_outside_the_videos_window_stays_a_listing(core, monkeypatch, calls):
-    # a skin widget or shortcut asking for the root without widget=1
-    settings(core, monkeypatch, {'views.menu': '4'})
-    monkeypatch.setattr(core.kodi.xbmcgui, 'getCurrentWindowId', lambda: 10000)
-    core.main(PLUGIN, 1, '')
-    assert calls[:2] == [('items', 12), ('end', True)]
+def test_classic_routes_are_gone(core, monkeypatch, calls):
+    settings(core, monkeypatch)
+    notes = []
+    monkeypatch.setattr(core.kodi, 'notification', lambda text, time=3000: notes.append(text))
+    monkeypatch.setattr(core.utils, 'end_action', lambda core, failed: None)
+    for route in ('action=years&type=root', 'action=search&type=input'):
+        core.main(PLUGIN, 1, route)
+    assert notes == ['Not supported yet'] * 2
 
-def test_non_root_urls_never_ask_for_the_windows(core, app, monkeypatch, calls):
-    settings(core, monkeypatch, {'views.menu': '4'})
-    monkeypatch.setattr(app, 'enabled', lambda: pytest.fail('asked for the windows'))
-    core.main(PLUGIN, 1, 'action=years&type=root')
-    assert ('end', True) in calls
+@pytest.fixture
+def cover(core, monkeypatch, calls):
+    # the launch cover's show and close, in the order of the builtins and directory calls
+    monkeypatch.setattr(core.kodi.xbmcgui.WindowXMLDialog, 'show', lambda self: calls.append('cover'))
+    monkeypatch.setattr(core.kodi.xbmcgui.WindowXMLDialog, 'close', lambda self: calls.append('uncover'))
 
-def test_missing_skin_file_falls_back_to_classic_and_logs_once(core, app, monkeypatch, calls, errors):
-    settings(core, monkeypatch, {'views.menu': '4'})
-    monkeypatch.setattr(app, 'SKIN_XML', os.path.join(WINDOWS, 'missing.xml'))
-    core.main(PLUGIN, 1, '')
-    core.main(PLUGIN, 1, '')
-    assert [call for call in calls if call[0] in ('items', 'end')] == [('items', 12), ('end', True)] * 2
-    assert failed(core) and len(errors) == 1 and 'missing.xml' in errors[0]
+def test_launch_covers_ends_the_directory_then_opens_home_in_process(core, app, monkeypatch, calls, cover, errors):
+    settings(core, monkeypatch)
+    app.launch(7)
+    # the cover is closing (no longer blocking) as the home window takes the Videos window's place; closed again after
+    assert calls == ['cover', ('end', False), 'uncover', 'ReplaceWindow(13000)', 'uncover'] and errors == []
+    assert not core.kodi.xbmcgui.Window(10000).getProperty('a4k.ui.window')
 
-def test_a_failed_session_stays_classic(core, monkeypatch, calls):
-    settings(core, monkeypatch, {'views.menu': '4'})
-    core.kodi.xbmcgui.Window(10000).setProperty('a4k.ui.failed', 'true')
-    core.main(PLUGIN, 1, '')
-    assert calls[:2] == [('items', 12), ('end', True)]
+def test_launch_waits_for_kodis_busy_dialog(core, app, monkeypatch, calls, cover):
+    settings(core, monkeypatch)
+    busy = [True, True, False]
+    monkeypatch.setattr(core.kodi.xbmc, 'getCondVisibility', lambda condition: busy.pop(0) if busy else False)
+    app.launch(7)
+    assert busy == [] and calls[:4] == ['cover', ('end', False), 'uncover', 'ReplaceWindow(13000)']
 
-# C. script entry and fallback
+def test_launch_returns_to_an_open_home_window(core, app, home, monkeypatch, calls, cover):
+    settings(core, monkeypatch)
+    core.kodi.xbmcgui.Window(10000).setProperty('a4k.ui.window', '13001')
+    core.kodi.xbmcgui.Window(13001).setProperty('a4k.home', 'true')
+    monkeypatch.setattr(home, 'open', lambda cover=None: pytest.fail('opened a second home window'))
+    app.launch(7)
+    assert calls == ['cover', ('end', False), 'uncover', 'ReplaceWindow(13001)', 'uncover']
+
+# C. script entry
 
 def test_run_opens_home_and_clears_its_window_id(core, app, monkeypatch, calls, errors):
     settings(core, monkeypatch)
@@ -282,34 +289,25 @@ def test_run_opens_home_and_clears_its_window_id(core, app, monkeypatch, calls, 
     assert seen == ['13001'] and calls == ['ReplaceWindow(13000)'] and errors == []
     assert not core.kodi.xbmcgui.Window(10000).getProperty('a4k.ui.window')
 
-def test_window_error_falls_back_to_classic(core, app, home, monkeypatch, calls, errors):
+def test_window_error_is_logged(core, app, home, monkeypatch, calls, errors):
     settings(core, monkeypatch)
     def broken(*args): raise RuntimeError('no such control')
     monkeypatch.setattr(home.Home, 'getControl', broken)
     app.run()
-    classic = 'ActivateWindow(Videos,%s,return)' % PLUGIN
-    assert calls == ['ReplaceWindow(13000)', classic]
-    assert failed(core) and len(errors) == 1 and 'no such control' in errors[0]
-    app.run()
-    assert calls == ['ReplaceWindow(13000)', classic, classic] and len(errors) == 1
+    assert calls == ['ReplaceWindow(13000)'] and len(errors) == 1 and 'no such control' in errors[0]
 
-def test_open_error_falls_back_to_classic(core, app, home, monkeypatch, calls, errors):
+def test_open_error_is_logged(core, app, home, monkeypatch, calls, errors):
     settings(core, monkeypatch)
-    def broken(): raise RuntimeError('WindowXML failed')
+    def broken(cover=None): raise RuntimeError('WindowXML failed')
     monkeypatch.setattr(home, 'open', broken)
     app.run()
-    assert calls == ['ActivateWindow(Videos,%s,return)' % PLUGIN] and failed(core) and len(errors) == 1
-
-def test_run_in_classic_mode_opens_the_listing(core, app, monkeypatch, calls):
-    settings(core, monkeypatch, {'ui.mode': '1'})
-    app.run()
-    assert calls == ['ActivateWindow(Videos,%s,return)' % PLUGIN]
+    assert calls == [] and len(errors) == 1 and 'WindowXML failed' in errors[0]
 
 def test_run_returns_to_an_open_home_window(core, app, home, monkeypatch, calls):
     settings(core, monkeypatch)
     core.kodi.xbmcgui.Window(10000).setProperty('a4k.ui.window', '13001')
     core.kodi.xbmcgui.Window(13001).setProperty('a4k.home', 'true')
-    monkeypatch.setattr(home, 'open', lambda: pytest.fail('opened a second home window'))
+    monkeypatch.setattr(home, 'open', lambda cover=None: pytest.fail('opened a second home window'))
     app.run()
     assert calls == ['ReplaceWindow(13001)']
 
@@ -319,9 +317,6 @@ def test_prewarm_lists_the_public_rows(core, app, monkeypatch):
     settings(core, monkeypatch)
     app.prewarm()
     assert rpc == [('Files.GetDirectory', PLUGIN + '?action=query&type=%s&widget=1' % type) for type in ('popularMovies', 'popularTVShows')]
-    settings(core, monkeypatch, {'ui.mode': '1'})
-    app.prewarm()
-    assert len(rpc) == 2
 
 # D. clicks and menus
 
@@ -335,15 +330,12 @@ def test_click_on_a_movie_plays_it(home):
     assert home.click_builtin(info('movie')) == 'PlayMedia(%s?action=play&type=&id=tt1)' % PLUGIN
     assert home.click_builtin(info('tvEpisode', 'tt9')) == 'PlayMedia(%s?action=play&type=&id=tt9)' % PLUGIN
 
-def test_click_on_a_series_opens_its_seasons(home):
-    path = PLUGIN + '?action=query&type=seasons&id=tt2'
-    assert home.click_builtin(info('tvSeries', 'tt2', path=path)) == 'ActivateWindow(Videos,%s,return)' % path
-    assert home.click_builtin(info('tvSeries', 'tt2')) == 'ActivateWindow(Videos,%s,return)' % path
-
-def test_click_on_the_next_item_opens_the_listing_and_people_do_nothing(home):
+def test_click_runs_nothing_but_plays(home):
+    # series, people, lists and Next items are the windows' own steps, never a Videos listing
+    assert home.click_builtin(info('tvSeries', 'tt2', path=PLUGIN + '?action=query&type=seasons&id=tt2')) is None
     path = PLUGIN + '?action=query&type=popularMovies&paginationToken=abc&page=2&cursor_time=1'
-    assert home.click_builtin(info('', '', path=path)) == 'ActivateWindow(Videos,%s,return)' % path
-    assert home.click_builtin(info('person', 'nm1', path=PLUGIN + '?action=query&type=browse&id=nm1')) is None
+    assert home.click_builtin(info('', '', path=path)) is None
+    assert home.click_builtin(info('person', 'nm1', path=PLUGIN + '?action=query&type=knownfor&id=nm1')) is None
     assert home.click_builtin(info('')) is None
 
 def test_title_from_info_feeds_the_context_menu(core, home, monkeypatch):
@@ -381,7 +373,7 @@ def test_select_on_a_title_opens_its_detail_and_other_items_run_their_builtin(co
     folder = PLUGIN + '?action=query&type=lists'
     win = window(core, home, monkeypatch, 302, {'Container(302).ListItem.FolderPath': folder})
     win.onAction(Action(home.ACTION_SELECT_ITEM))
-    assert calls == ['ActivateWindow(Videos,%s,return)' % folder] and len(grids) == 1
+    assert calls == [] and len(grids) == 1
 
 def test_context_menu_on_rows_is_kodis_and_on_the_hero_is_ours(core, home, monkeypatch, calls):
     settings(core, monkeypatch, {'imdb.at-main': 'token'})
@@ -500,18 +492,8 @@ def test_select_sheet_back_is_minus_one(core, sheets, monkeypatch):
     monkeypatch.setattr(sheets.Sheet, 'doModal', doModal)
     assert sheets.select('Choose', ['a', 'b']) == -1
 
-def test_select_in_classic_mode_is_the_stock_select(core, sheets, monkeypatch):
-    settings(core, monkeypatch, {'ui.mode': '1'})
-    monkeypatch.setattr(sheets, 'Sheet', lambda *args: pytest.fail('sheet opened'))
-    calls = []
-    dialog = lambda: None
-    dialog.select = lambda heading, items, preselect=-1: calls.append((heading, items, preselect)) or 1
-    monkeypatch.setattr(core.kodi.xbmcgui, 'Dialog', lambda: dialog)
-    assert sheets.select('Choose', ['[B]a[/B]', 'b'], preselect=1, rows=[('a', ''), ('b', '')]) == 1
-    assert calls == [('Choose', ['[B]a[/B]', 'b'], 1)]
-
 @pytest.mark.parametrize('breakage', ['constructor', 'oninit', 'click'])
-def test_select_window_error_falls_back_to_the_stock_select_once(core, sheets, monkeypatch, sheet_errors, breakage):
+def test_select_window_error_is_logged_and_cancels(core, sheets, monkeypatch, sheet_errors, breakage):
     settings(core, monkeypatch)
     if breakage == 'constructor':
         def missing(*args): raise RuntimeError('a4k-sheet.xml not found')
@@ -523,17 +505,9 @@ def test_select_window_error_falls_back_to_the_stock_select_once(core, sheets, m
         monkeypatch.setattr(sheets.Sheet, 'getControl', lambda self, id: self.__dict__.setdefault('list', SheetList()))
         monkeypatch.setattr(sheets.Sheet, 'doModal', lambda self: self.onInit() or self.onClick(sheets.LIST) or None)
         monkeypatch.setattr(SheetList, 'getSelectedPosition', lambda self: 1 / 0)
-    calls = []
-    dialog = lambda: None
-    dialog.select = lambda heading, items, preselect=-1: calls.append((heading, items, preselect)) or 0
-    monkeypatch.setattr(core.kodi.xbmcgui, 'Dialog', lambda: dialog)
-    assert sheets.select('Choose', ['a', 'b'], preselect=1) == 0
-    assert calls == [('Choose', ['a', 'b'], 1)] and len(sheet_errors) == 1
-    assert core.kodi.xbmcgui.Window(10000).getProperty(sheets.FAILED)
-    # the rest of the session goes straight to the stock dialog, with no new log line
-    monkeypatch.setattr(sheets, 'Sheet', lambda *args: pytest.fail('sheet opened'))
-    sheets.select('Choose', ['a', 'b'])
-    assert len(calls) == 2 and len(sheet_errors) == 1
+    monkeypatch.setattr(core.kodi.xbmcgui, 'Dialog', lambda: pytest.fail('stock dialog opened'))
+    assert sheets.select('Choose', ['a', 'b'], preselect=1) == -1
+    assert len(sheet_errors) == 1
 
 class StockProgress(object):
     # records the calls the source search makes on xbmcgui.DialogProgress
@@ -568,10 +542,10 @@ def test_progress_card_shows_the_message_lines_and_the_bar(core, sheets, monkeyp
     progress.close()
     assert sheet_errors == []
 
-def test_progress_window_error_moves_to_the_stock_dialog(core, sheets, monkeypatch, sheet_errors):
-    stock = StockProgress()
-    monkeypatch.setattr(core.kodi.xbmcgui, 'DialogProgress', lambda: stock)
+def test_progress_window_error_is_logged_and_the_search_goes_on(core, sheets, monkeypatch, sheet_errors):
+    closed = []
     monkeypatch.setattr(sheets.ProgressWindow, 'show', lambda self: None)
+    monkeypatch.setattr(sheets.ProgressWindow, 'close', lambda self: closed.append(self))
     progress = sheets.Progress()
     progress.create('a4kStreaming', 'one')
     def broken(percent): raise RuntimeError('control gone')
@@ -579,18 +553,10 @@ def test_progress_window_error_moves_to_the_stock_dialog(core, sheets, monkeypat
     progress.update(30, 'two')
     progress.update(60, 'three')
     progress.close()
-    assert stock.calls == [('create', 'a4kStreaming', 'two'), ('update', 30, 'two'), ('update', 60, 'three'), ('close',)]
-    assert len(sheet_errors) == 1 and not progress.iscanceled()
+    assert len(sheet_errors) == 1 and len(closed) == 1 and not progress.iscanceled()
 
-def test_progress_in_classic_mode_or_after_a_failure_is_the_stock_dialog(core, sheets, monkeypatch):
-    stock = StockProgress()
-    monkeypatch.setattr(core.kodi.xbmcgui, 'DialogProgress', lambda: stock)
-    settings(core, monkeypatch, {'ui.mode': '1'})
-    assert sheets.progress() is stock
-    settings(core, monkeypatch)
+def test_progress_is_the_card(core, sheets):
     assert isinstance(sheets.progress(), sheets.Progress)
-    core.kodi.xbmcgui.Window(10000).setProperty(sheets.FAILED, 'true')
-    assert sheets.progress() is stock
 
 # sheet skin lint (the shared checks run over every window above)
 

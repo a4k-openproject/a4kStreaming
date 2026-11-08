@@ -2,7 +2,6 @@
 <settings>
     <!-- General -->
     <category label="33001">
-        <setting id="ui.mode"                        label="33130" type="enum"   default="0" lvalues='33131|33132'/>
         <setting id="general.max_quality"            label="33101" type="enum"   default="3" lvalues='33120|33121|33122|33123'/>
         <setting id="general.max_movie_size"         label="33108" type="slider" default="200" option="int" range="5,200"/>
         <setting id="general.dolby_vision_allowed"   label="33109" type="bool"   default="false"/>
@@ -16,10 +15,8 @@
         <setting id="general.mark_as_watched_rating" label="33103" type="slider" default="7"  option="int" range="1,10"/>
         <setting id="general.page_size"              label="33104" type="slider" default="29" option="int" range="10,100"/>
         <setting id="general.lists_page_size"        label="33105" type="slider" default="29" option="int" range="10,100"/>
-        <setting id="general.season_title_template"  label="33106" type="enum"   default="0" lvalues='33111|33112|33113|33114'/>
-        <setting id="general.episode_title_template" label="33107" type="enum"   default="1" lvalues='33115|33116|33117|33118|33119'/>
     </category>
-    <!-- Appearance: dobby's Apple TV skin options and defaults (a4kStreaming/ui/appearance.py) -->
+    <!-- Appearance: the home window's options and defaults (a4kStreaming/ui/appearance.py) -->
     <category label="33007">
         <setting id="appearance.browse"          label="33701" type="bool"   default="true"/>
         <setting id="appearance.trending_movies" label="33702" type="bool"   default="true"/>
@@ -35,15 +32,6 @@
         <setting id="appearance.hero_source"     label="33711" type="enum"   default="0" lvalues="33725|33726|33727|33728"/>
         <setting id="appearance.order_pick"      label="33712" type="action" action="RunScript(plugin.video.a4kstreaming,order)"/>
         <setting id="appearance.order"           type="text" default="" visible="false"/>
-    </category>
-    <!-- Views -->
-    <category label="33002">
-        <setting id="views.menu"     type="enum" label="33200" lvalues='33211|33212|33213|33214|33215|33216' default="4"/>
-        <setting id="views.titles"   type="enum" label="33201" lvalues='33211|33212|33213|33214|33215|33216' default="5"/>
-        <setting id="views.seasons"  type="enum" label="33202" lvalues='33211|33212|33213|33214|33215|33216' default="4"/>
-        <setting id="views.episodes" type="enum" label="33203" lvalues='33211|33212|33213|33214|33215|33216' default="4"/>
-        <setting id="views.movie"    type="enum" label="33204" lvalues='33211|33212|33213|33214|33215|33216' default="0"/>
-        <setting id="views.episode"  type="enum" label="33205" lvalues='33211|33212|33213|33214|33215|33216' default="0"/>
     </category>
     <!-- Provider -->
     <category label="33003">

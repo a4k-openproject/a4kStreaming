@@ -4,28 +4,6 @@ from urllib.parse import quote_plus
 
 __action_menu_style = '[COLOR white][B]%s[/B][/COLOR]'
 
-def __get_season_title(season_template, season, year, episodes):
-    if season_template == '1':
-        return 'Season %s (%s)' % (season, year)
-    if season_template == '2':
-        return 'Season %s' % season
-    if season_template == '3':
-        return 'Season %s - %s Episodes' % (season, episodes)
-    return 'Season %s (%s) - %s Episodes' % (season, year, episodes)
-
-def __get_episode_title(season_template, season, episode, title):
-    season_zfill = str(season).zfill(2)
-    episode_zfill = str(episode).zfill(2)
-    if season_template == '1':
-        return '%s. %s' % (episode, title)
-    if season_template == '2':
-        return 'E%s. %s' % (episode_zfill, title)
-    if season_template == '3':
-        return '%sx%s. %s' % (season_zfill, episode_zfill, title)
-    if season_template == '4':
-        return 'S%sE%s. %s' % (season_zfill, episode_zfill, title)
-    return '%s' % title
-
 def runtime_text(seconds):
     # "2h 10m", "50m", '' without one
     minutes = int(seconds or 0) // 60
@@ -307,13 +285,12 @@ def season_url(core, title_id, key, season):
 def __add_seasons(core, title):
     seasons = group_seasons(core, title['episodes']['episodes'])
     list_items = []
-    season_template = core.kodi.get_setting('general.season_title_template')
     poster = core.utils.fix_poster_size(title['primaryImage'])
     wide_art = __wide_art(core, __still(title))
     for key in seasons:
         season = seasons[key]
         season.key = key
-        season.title = __get_season_title(season_template, key, season.first_episode_year if season.first_episode_year else 'N/A', season.episodes)
+        season.title = 'Season %s (%s) - %s Episodes' % (key, season.first_episode_year or 'N/A', season.episodes)
 
         list_item = core.kodi.xbmcgui.ListItem(label=season.title, offscreen=True)
         list_item.setArt({
@@ -370,7 +347,6 @@ def __add_episodes(core, title, season):
             raw_episodes = raw_episodes['episodes']
 
     episodes = []
-    episode_template = core.kodi.get_setting('general.episode_title_template')
     for episode in raw_episodes:
         if not episode or not episode.get('series', None) or episode['series'].get('seasonNumber', None) != season or episode['series'].get('episodeNumber', None) is None:
             continue
@@ -402,7 +378,7 @@ def __add_episodes(core, title, season):
             episode['no_seasons'] = seasons[-1]
 
         episode['seasons'] = seasons
-        episode['titleText'] = __get_episode_title(episode_template, season, episodeNumber, episode['titleText'])
+        episode['titleText'] = '%s. %s' % (episodeNumber, episode['titleText'])
 
         if episode.get('releaseDate', None):
             release_date = episode['releaseDate']
@@ -423,71 +399,33 @@ def __add_episodes(core, title, season):
         __set_wide_image_as_primary(episode)
         episodes.append(episode)
 
-    return __add_titles(core, episodes, browse=False)
+    return __add_titles(core, episodes)
 
-def __add_title(core, title, silent=False):
-    items = []
-
-    if title.get('series', None):
-        if title['series'].get('series', None):
-            series = title['series']['series']
-            if series.get('id', None):
-                title['tvshowid'] = series['id']
-            if series.get('primaryImage', None):
-                title['seriesPoster'] = series['primaryImage']
-            if series.get('seasons', None):
-                title['seasons'] = series['seasons']
-            if series.get('nextEpisodeSeasonNumber', None):
-                title['nextEpisodeSeasonNumber'] = next(iter(series['nextEpisodeSeasonNumber']), -1)
-            if not title.get('countriesOfOrigin', None) and series.get('countriesOfOrigin', None):
-                title['countriesOfOrigin'] = series['countriesOfOrigin']
+def play_type(core, title):
+    # the play URL's type param of a movie or an episode fetched by id (play by id), its series' fields folded in; None
+    # for any other title or one without a release year
+    series = (title.get('series', None) or {}).get('series', None)
+    if series:
+        if series.get('id', None):
+            title['tvshowid'] = series['id']
+        if series.get('primaryImage', None):
+            title['seriesPoster'] = series['primaryImage']
+        if series.get('seasons', None):
+            title['seasons'] = series['seasons']
+        if series.get('nextEpisodeSeasonNumber', None):
+            title['nextEpisodeSeasonNumber'] = next(iter(series['nextEpisodeSeasonNumber']), -1)
+        if not title.get('countriesOfOrigin', None) and series.get('countriesOfOrigin', None):
+            title['countriesOfOrigin'] = series['countriesOfOrigin']
 
     if not title.get('poster', None) and title.get('seriesPoster', None):
         title['poster'] = title['seriesPoster']
         __set_wide_image_as_primary(title)
 
-    if silent:
-        return __add_titles(core, [title], False, silent)
-
-    items.append(title)
-    ids = {}
-
-    def add_person(category, credit):
-        person = credit
-        if credit.get('name', None):
-            person = credit['name']
-            if credit.get('characters', None):
-                person['characters'] = credit['characters']
-
-        if person['id'] in ids:
-            return
-        ids[person['id']] = True
-
-        items.append({
-            'id': person['id'],
-            'titleType': 'person',
-            'titleText': '(%s) %s' % (category, person['nameText']),
-            'primaryImage': person.get('primaryImage', None),
-            'plot': ', '.join(person['characters']) if person.get('characters', None) else None
-        })
-
-    if title.get('principalCredits', None):
-        for credits in title['principalCredits']:
-            if credits['category'] == 'Stars':
-                for credit in credits['credits']:
-                    add_person(credits['category'], credit)
-
-    if title.get('credits', None):
-        for credit in title['credits']:
-            add_person('Cast', credit)
-
-    if title.get('principalCredits', None):
-        for credits in title['principalCredits']:
-            if credits['category'] != 'Stars':
-                for credit in credits['credits']:
-                    add_person(credits['category'], credit)
-
-    return __add_titles(core, items, False)
+    titleType = __title_type(title)
+    if titleType not in ['movie', 'tvEpisode']:
+        return None
+    poster_image, thumb_image = __poster_and_thumb(core, title)
+    return __play_type(core, title, __video_meta(core, title, titleType), thumb_image or poster_image) or None
 
 def __video_meta(core, title, titleType):
     releaseDate = title.get('releaseDate', {})
@@ -592,7 +530,7 @@ def play_url(core, title):
     type = __play_type(core, title, __video_meta(core, title, titleType), thumb_image or poster_image)
     return '%s?action=play&type=%s' % (core.url, type) if type else '%s?action=play&type=&id=%s' % (core.url, title['id'])
 
-def __add_titles(core, titles, browse, silent=False):
+def __add_titles(core, titles):
     list_items = []
     autoplay = core.kodi.get_bool_setting('general.autoplay')
 
@@ -673,26 +611,15 @@ def __add_titles(core, titles, browse, silent=False):
         info_tag.set_cast(cast_meta)
 
         if titleType in ['movie', 'tvEpisode']:
-            if browse:
-                action = 'query'
-                type = 'browse'
-            else:
-                list_item.setProperty('IsPlayable', 'true')
-                action = 'play'
-                type = __play_type(core, title, video_meta, thumb_image or poster_image)
-                if silent and type:
-                    return type
+            list_item.setProperty('IsPlayable', 'true')
+            action = 'play'
+            type = __play_type(core, title, video_meta, thumb_image or poster_image)
         elif titleType in ['person']:
             action = 'query'
             type = 'knownfor'
         else:  # tvSeries
-            if browse or browse is None:
-                action = 'query'
-                type = 'seasons'
-            else:
-                action = 'play'
-                type = titleType
-                list_item.setProperty('IsPlayable', 'false')
+            action = 'query'
+            type = 'seasons'
 
         url = '%s?action=%s&type=%s' % (core.url, action, type)
         if action != 'play' or type == '':
@@ -772,68 +699,13 @@ def root(core):
             'subitems': True
         },
         {
-            'label': 'Discover by Year',
-            'action': 'years',
-            'type': 'root',
-            'info': 'Find a movie or TV series from a specific year.',
-            'subitems': True
-        },
-        {
             'label': 'Debrid',
             'action': 'cloud',
             'type': 'root',
             'info': 'Browse debrid files.',
             'subitems': True,
         },
-        {
-            'label': 'Search...',
-            'action': 'search',
-            'type': 'input',
-            'info': 'Find movie or TV series by name.',
-            'subitems': True,
-        },
     ]
 
-    list_items = core.utils.generic_list_items(core, items)
-    core.utils.add_directory_items(core, list_items)
-
-def years(core, params):
-    items = []
-    now = core.datetime.now().year
-
-    if params.type == 'root':
-        start = 1900
-        end = now + 1
-
-        while (start < end):
-            items.append({
-                'label': '%s-%s' % (start, start + 9),
-                'type': start,
-                'info': 'Between %s and %s' % (start, start + 9),
-                'action': 'years',
-                'subitems': True
-            })
-            start += 10
-    else:
-        start = int(params.type)
-        end = start + 10
-
-        while (start < end):
-            if start > now:
-                break
-
-            items.append({
-                'label': '%s' % start,
-                'type': 'year',
-                'info': 'Movie or TV Series from %s' % start,
-                'action': 'query',
-                'subitems': True,
-                'params': {
-                    'target_year': start
-                }
-            })
-            start += 1
-
-    items.reverse()
     list_items = core.utils.generic_list_items(core, items)
     core.utils.add_directory_items(core, list_items)

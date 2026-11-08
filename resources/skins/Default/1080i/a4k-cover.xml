@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  a4kStreaming launch cover: the home window's first frame (background and the traced D), shown without blocking (show())
+  by a4kStreaming/ui/app.py while the plugin root ends its directory and the home window comes up. Kodi refuses to
+  activate a window while its busy dialog is up, but not to show a dialog, so this hides the Videos window until then.
+  It appears in one frame. Its close animation holds it fully opaque for 400ms: Kodi does not count a closing dialog
+  as modal, so the home window can activate under it, and the cover stays drawn until the home window is on screen.
+-->
+<window>
+	<animation effect="fade" start="100" end="100" time="400">WindowClose</animation>
+	<controls>
+		<control type="image">
+			<left>0</left>
+			<top>0</top>
+			<width>1920</width>
+			<height>1080</height>
+			<texture>a4k/bg_home.png</texture>
+		</control>
+		<control type="image">
+			<left>870</left>
+			<top>450</top>
+			<width>180</width>
+			<height>180</height>
+			<texture>a4k/loader_base.png</texture>
+		</control>
+		<control type="image">
+			<left>870</left>
+			<top>450</top>
+			<width>180</width>
+			<height>180</height>
+			<texture>loader/comet.apng</texture>
+		</control>
+	</controls>
+</window>

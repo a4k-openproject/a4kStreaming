@@ -22,8 +22,6 @@ PLOT = 510  # the plot's focus frame: select opens the whole plot
 ACTION_MOVE_LEFT = 1
 ACTION_MOVE_RIGHT = 2
 
-# a title that failed in the window opens its classic listing for the rest of the session; logged once
-FAILED = 'a4k.ui.detail.failed'
 SEASON_DWELL = 0.3  # seconds a season pill keeps focus before its episodes load
 
 KIND = {'movie': 'Movie', 'tvSeries': 'TV Series', 'tvEpisode': 'Episode'}
@@ -76,7 +74,7 @@ def in_watchlist(core, id):
         return None
 
 def show_watched(core, title):
-    # every released episode rated (the classic listing's watched rule); None for a movie or a show with none released
+    # every released episode rated (the listing's watched rule); None for a movie or a show with none released
     episodes = [ep for ep in (title.get('episodes', None) or {}).get('episodes', None) or []
                 if ep.get('releaseDate', None) and __released(core, ep['releaseDate'])]
     if title['titleType'] != 'tvSeries' or not episodes:
@@ -109,8 +107,8 @@ def from_card(info):
     return vm
 
 def cast(core, title):
-    # stars, then the rest of the cast, then the other principal credits (director, writers), each person once, as the
-    # classic Cast & Crew listing orders them; the role is the character, else the credit
+    # stars, then the rest of the cast, then the other principal credits (director, writers), each person once; the role
+    # is the character, else the credit
     characters = {}
     for credit in title.get('credits', None) or []:
         if credit.get('name', None) and credit.get('characters', None):
@@ -143,7 +141,7 @@ def __released(core, date):
         return False
 
 def season_marks(season):
-    # the TV skin's season tab marks: watched when its last episode is rated (the classic listing's season check), else
+    # the TV skin's season tab marks: watched when its last episode is rated (the seasons listing's check), else
     # the share of its episodes rated as a progress bar (a signed-in user's ratings; signed out, neither shows)
     rated = sum(1 for ep in season.episode_list if ep.get('userRating', None) is not None)
     watched = (season.last_episode or {}).get('userRating', None) is not None
@@ -224,18 +222,6 @@ def plugin_core():
     from .. import core
     core.url = app.PLUGIN
     return core
-
-def classic(info):
-    # the classic listing for the title: a series' seasons, a movie's page
-    type = 'seasons' if info.get('Property(a4k.type)', '') == 'tvSeries' else 'browse'
-    return 'ActivateWindow(Videos,%s?action=query&type=%s&id=%s,return)' % (app.PLUGIN, type, info.get('Property(a4k.id)', ''))
-
-def fail(reason):
-    __home = kodi.xbmcgui.Window(app.HOME_WINDOW)
-    if __home.getProperty(FAILED):
-        return
-    __home.setProperty(FAILED, 'true')
-    logger.error('detail window failed, using the classic listing: %s' % reason)
 
 class Detail(kodi.xbmcgui.WindowXML):
     error = None
@@ -403,10 +389,7 @@ class Detail(kodi.xbmcgui.WindowXML):
         self.close()
 
 def open(info):
-    # True when the window ran; False when it failed (logged once per session) and the caller opens the classic listing
-    __home = kodi.xbmcgui.Window(app.HOME_WINDOW)
-    if __home.getProperty(FAILED):
-        return False
+    # a window error is logged and closes the window
     try:
         window = Detail('a4k-detail.xml', kodi.addon_path, 'Default', '1080i')
         # a reopened add-on (after the Home key) comes back to this window, not to the home window under it
@@ -419,7 +402,5 @@ def open(info):
         del window
         if error:
             raise RuntimeError(error)
-        return True
     except Exception:
-        fail(traceback.format_exc())
-        return False
+        logger.error('detail window failed: %s' % traceback.format_exc())

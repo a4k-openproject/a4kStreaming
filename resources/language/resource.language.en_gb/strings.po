@@ -11,10 +11,6 @@ msgctxt "#33001"
 msgid "General"
 msgstr ""
 
-msgctxt "#33002"
-msgid "Views"
-msgstr ""
-
 msgctxt "#33003"
 msgid "Provider"
 msgstr ""
@@ -52,14 +48,6 @@ msgctxt "#33105"
 msgid "Watchlist, Lists page size"
 msgstr ""
 
-msgctxt "#33106"
-msgid "Season title template"
-msgstr ""
-
-msgctxt "#33107"
-msgid "Episode title template"
-msgstr ""
-
 msgctxt "#33108"
 msgid "Max movie size (GB)"
 msgstr ""
@@ -70,44 +58,6 @@ msgstr ""
 
 msgctxt "#33110"
 msgid "Source search time limit (seconds)"
-msgstr ""
-
-# Season Title Templates
-msgctxt "#33111"
-msgid "Season 1 (2020) - 10 Episodes"
-msgstr ""
-
-msgctxt "#33112"
-msgid "Season 1 (2020)"
-msgstr ""
-
-msgctxt "#33113"
-msgid "Season 1"
-msgstr ""
-
-msgctxt "#33114"
-msgid "Season 1 - 10 Episodes"
-msgstr ""
-
-# Episode Title Templates
-msgctxt "#33115"
-msgid "Title"
-msgstr ""
-
-msgctxt "#33116"
-msgid "1. Title"
-msgstr ""
-
-msgctxt "#33117"
-msgid "E01. Title"
-msgstr ""
-
-msgctxt "#33118"
-msgid "01x01. Title"
-msgstr ""
-
-msgctxt "#33119"
-msgid "S01E01. Title"
 msgstr ""
 
 # Max Quality
@@ -125,18 +75,6 @@ msgstr ""
 
 msgctxt "#33123"
 msgid "4K"
-msgstr ""
-
-msgctxt "#33130"
-msgid "Interface"
-msgstr ""
-
-msgctxt "#33131"
-msgid "Windows"
-msgstr ""
-
-msgctxt "#33132"
-msgid "Classic"
 msgstr ""
 
 msgctxt "#33140"
@@ -225,56 +163,6 @@ msgstr ""
 
 msgctxt "#33161"
 msgid "Next episode in %s"
-msgstr ""
-
-# Views
-msgctxt "#33200"
-msgid "Menu views"
-msgstr ""
-
-msgctxt "#33201"
-msgid "Titles view"
-msgstr ""
-
-msgctxt "#33202"
-msgid "Seasons view"
-msgstr ""
-
-msgctxt "#33203"
-msgid "Episodes view"
-msgstr ""
-
-msgctxt "#33204"
-msgid "Movie view"
-msgstr ""
-
-msgctxt "#33205"
-msgid "Episode view"
-msgstr ""
-
-# ViewTypes
-msgctxt "#33211"
-msgid "Poster"
-msgstr ""
-
-msgctxt "#33212"
-msgid "Icon Wall"
-msgstr ""
-
-msgctxt "#33213"
-msgid "Shift"
-msgstr ""
-
-msgctxt "#33214"
-msgid "Info Wall"
-msgstr ""
-
-msgctxt "#33215"
-msgid "Wide List"
-msgstr ""
-
-msgctxt "#33216"
-msgid "Wall"
 msgstr ""
 
 # Provider

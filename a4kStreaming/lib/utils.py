@@ -464,9 +464,6 @@ def fix_landscape_size(image):
 def fix_blur_size(image):
     return resize_image(image, blur_size)
 
-def apply_viewtype(core):
-    kodi.xbmc.executebuiltin('Container.SetViewMode(%s)' % core.viewTypes[int(core.viewType)])
-
 def get_graphql_query(body):
     tomorrow = date.today() + timedelta(days=1)
 

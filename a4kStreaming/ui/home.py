@@ -61,17 +61,10 @@ def labels(item):
     return {key: kodi.xbmc.getInfoLabel('%s.%s' % (item, key)) for key in INFO}
 
 def click_builtin(info):
-    # what selecting a row item does, the same as in the classic listing: movies and episodes play, series open their
-    # seasons, anything else with a path opens as a listing
+    # what selecting a movie or an episode does: it plays (series, people, lists and Next are the windows' own steps)
     type = info.get('Property(a4k.type)', '')
-    id = info.get('Property(a4k.id)', '')
-    path = info.get('FolderPath', '')
     if type in ('movie', 'tvEpisode'):
-        return 'PlayMedia(%s)' % (path or '%s?action=play&type=&id=%s' % (app.PLUGIN, id))
-    if type == 'tvSeries':
-        return 'ActivateWindow(Videos,%s,return)' % (path or '%s?action=query&type=seasons&id=%s' % (app.PLUGIN, id))
-    if path and not type:
-        return 'ActivateWindow(Videos,%s,return)' % path
+        return 'PlayMedia(%s)' % (info.get('FolderPath', '') or '%s?action=play&type=&id=%s' % (app.PLUGIN, info.get('Property(a4k.id)', '')))
     return None
 
 def title_from_info(info):
@@ -89,12 +82,10 @@ def run(builtin):
         kodi.xbmc.executebuiltin(builtin)
 
 def select(info):
-    # movies and series open the detail window; when it fails, the title's classic listing
+    # movies and series open the detail window
     if info.get('Property(a4k.type)', '') in ('movie', 'tvSeries'):
         from . import detail
-        if not detail.open(info):
-            run(detail.classic(info))
-        return
+        return detail.open(info)
     run(click_builtin(info))
 
 MORE_LIKE_THIS = 'More Like This'
@@ -427,7 +418,8 @@ def modal(window):
             if kodi.xbmcgui.getCurrentWindowId() != int(previous) and not kodi.xbmc.Monitor().abortRequested():
                 replace_current(previous)
 
-def open():
+def open(cover=None):
+    # cover: the launch cover (app.launch), closed as the window takes its place
     window = Home('a4k-home.xml', kodi.addon_path, 'Default', '1080i')
     # row URLs are set before the window opens: a row's provider fires once, at load (spike 2b)
     window.setProperty('a4k.home', 'true')
@@ -435,6 +427,8 @@ def open():
     window.setProperty('a4k.hero.act', 'Play')
     apply(window)
     own_id = window_id(window)
+    if cover:
+        cover.close()  # app.launch: closing, it no longer blocks the activation and stays drawn until it is done
     if own_id:
         replace_current(own_id)  # doModal then skips its own, history-adding, activation
     try:

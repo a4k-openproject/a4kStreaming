@@ -681,7 +681,7 @@ def an_episode(number, date, **extra):
 def episode_items(core, listing, monkeypatch, episodes, plot='The show.'):
     added = []
     monkeypatch.setattr(core.kodi.xbmcplugin, 'addDirectoryItems', lambda handle, items, n: added.extend(items))
-    settings(core, monkeypatch, {'general.episode_title_template': '1'})
+    settings(core, monkeypatch, {})
     title = {'id': 'tt1', 'titleText': 'A Show', 'plot': plot, 'episodes': {'seasons': [1], 'episodes': episodes}}
     listing['__add_episodes'](core, title, 1)
     return [item for _, item, _ in added]
@@ -691,7 +691,7 @@ def test_episode_cards_carry_the_tv_skins_label_title_meta_and_own_plot(core, li
                        ratingsSummary={'aggregateRating': 7.64, 'voteCount': 900})
     unaired = an_episode(2, (2099, 10, 30))
     first, second = episode_items(core, listing, monkeypatch, [aired, unaired])
-    # the classic label keeps its template; the card reads the bare title, "S1 E1", rating, and date · runtime
+    # the label is the numbered title; the card reads the bare title, "S1 E1", rating, and date · runtime
     assert first.label == '1. Chapter 1'
     assert {k: v for k, v in first.properties.items() if k in listing['episode_properties'](aired, True)} == {
         'a4k.label': 'S1 E1', 'a4k.name': 'Chapter 1', 'a4k.plot': 'Mark meets a new hire.', 'a4k.rating': '7.6',
