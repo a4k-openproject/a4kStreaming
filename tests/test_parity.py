@@ -493,6 +493,15 @@ def test_the_play_action_runs_behind_the_loader_over_an_a4k_window(core, calls, 
     core.main(PLUGIN, 1, 'action=play&type=&id=tt1')
     assert seen == [loader] + (['wait %s' % loader] if link else []) and calls == [] and busy(core) == ''
 
+def test_windows_start_nothing_new_while_the_loader_is_up(core, calls, home):
+    # Kodi's busy dialog took the keys during a play; it is kept closed now, so a second Play is dropped here
+    core.kodi.xbmcgui.Window(10000).setProperty('a4k.busy', 'true')
+    home.run('PlayMedia(%s?action=play&type=&id=tt1)' % PLUGIN)
+    assert calls == []
+    core.kodi.xbmcgui.Window(10000).clearProperty('a4k.busy')
+    home.run('PlayMedia(%s?action=play&type=&id=tt1)' % PLUGIN)
+    assert calls == ['PlayMedia(%s?action=play&type=&id=tt1)' % PLUGIN]
+
 @pytest.mark.parametrize('states, looks', [
     ([False, True, True, False], 4),  # the player takes the stream, then stops (failed): the loader goes
     ([False] * 60, 51),  # the player never takes it: 5 s

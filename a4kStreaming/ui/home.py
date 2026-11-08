@@ -78,7 +78,10 @@ def title_from_info(info):
     }
 
 def run(builtin):
-    if builtin:
+    # nothing new while the loader is up: Kodi's busy dialog, which took the keys during a play, is kept closed over
+    # these windows (lib/kodi.py), so a second Play would start a second search
+    # ponytail: a loader left set by a killed plugin call would hold every action here until Kodi restarts
+    if builtin and not kodi.xbmcgui.Window(app.HOME_WINDOW).getProperty(kodi.BUSY):
         kodi.xbmc.executebuiltin(builtin)
 
 def select(info):
