@@ -68,6 +68,7 @@ def select(heading, labels, preselect=-1, rows=None, actions=0):
         window.setProperty('a4k.heading', heading)
         window.rows = rows or [(re.sub(r'\[/?COLOR[^\]]*\]', '', label), '') for label in labels]
         window.preselect = preselect
+        window.actions = actions
         window.doModal()
         choice, error = window.choice, window.error
         del window

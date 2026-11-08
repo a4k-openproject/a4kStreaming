@@ -197,14 +197,16 @@ def test_the_row_turns_it_on_after_the_confirm_and_off_with_restore_or_reset(mod
     assert not mode.active()
     assert asked == [('Set up Kodi for a4kStreaming', 2)] * 2 + [('Kodi setup mode', 3)] * 2
 
-def test_info_rows_of_a_sheet_do_nothing_on_ok(core, monkeypatch):
+@pytest.mark.parametrize('position,choice', [(3, -1), (1, 1)])
+def test_info_rows_of_a_sheet_do_nothing_on_ok(core, monkeypatch, position, choice):
     sheets = importlib.import_module('a4kStreaming.ui.sheets')
-    sheet = sheets.Sheet('a4k-sheet.xml', '', 'Default', '1080i')
-    sheet.actions, closed = 2, []
-    monkeypatch.setattr(sheet, 'close', lambda: closed.append(True))
-    monkeypatch.setattr(sheet, 'getControl', lambda id: types.SimpleNamespace(getSelectedPosition=lambda: 3))
-    sheet.onClick(sheets.LIST)
-    assert closed == [] and sheet.choice == -1
+    closed = []
+    def doModal(self):  # OK on the row at position
+        self.close = lambda: closed.append(True)
+        self.getControl = lambda id: types.SimpleNamespace(getSelectedPosition=lambda: position)
+        self.onClick(sheets.LIST)
+    monkeypatch.setattr(sheets.Sheet, 'doModal', doModal)
+    assert sheets.select('Set up', ['a', 'b', 'c', 'd'], actions=2) == choice and closed == ([True] if choice != -1 else [])
 
 # E. the one-time question
 

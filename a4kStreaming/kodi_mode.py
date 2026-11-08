@@ -293,7 +293,7 @@ def prompt():
     # the one-time question on the add-on's home (ui/home.py asks for it once): either answer is an answer
     from .ui import sheets
     kodi.xbmcaddon.Addon(kodi.addon_id).setSetting(PROMPTED, 'true')
-    rows = [('Set it up…', 'Kodi opens a4kStreaming when it starts; you see each change first'), ('Not now', '')]
+    rows = [('Set it up…', 'Opens it with Kodi; lists each change first'), ('Not now', '')]
     if sheets.select('Start Kodi straight into a4kStreaming?', [label for label, _ in rows], preselect=0, rows=rows) == 0:
         confirm()
 
