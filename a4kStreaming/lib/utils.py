@@ -492,6 +492,9 @@ def get_graphql_query(body):
                 releaseYear {
                     year
                 }
+                releaseEndYear: releaseYear {
+                    endYear
+                }
                 releaseDate {
                     day
                     month

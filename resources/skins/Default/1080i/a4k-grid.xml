@@ -148,6 +148,63 @@
 						<fadetime>200</fadetime>
 						<texture background="true" diffuse="a4k/mask_poster.png">$INFO[ListItem.Art(poster)]</texture>
 					</control>
+					<!-- the TV skin's card marks: watched (rated) disc at the top right, TV badge (seasons, ongoing or ended) at the top left -->
+					<control type="image">
+						<left>212</left>
+						<top>38</top>
+						<width>40</width>
+						<height>40</height>
+						<texture border="20" colordiffuse="B8121216">a4k/rr20.png</texture>
+						<visible>String.IsEqual(ListItem.Property(a4k.rated),true)</visible>
+					</control>
+					<control type="image">
+						<left>221</left>
+						<top>47</top>
+						<width>22</width>
+						<height>22</height>
+						<texture>a4k/check.png</texture>
+						<visible>String.IsEqual(ListItem.Property(a4k.rated),true)</visible>
+					</control>
+					<control type="image">
+						<left>44</left>
+						<top>38</top>
+						<width>124</width>
+						<height>40</height>
+						<texture border="20" colordiffuse="B8121216">a4k/rr20.png</texture>
+						<visible>!String.IsEmpty(ListItem.Property(a4k.tv))</visible>
+					</control>
+					<control type="label">
+						<left>44</left>
+						<top>38</top>
+						<width>124</width>
+						<height>40</height>
+						<font>font20_title</font>
+						<align>center</align>
+						<aligny>center</aligny>
+						<textcolor>FFFFFFFF</textcolor>
+						<label>[COLOR FF30D158]●[/COLOR] $INFO[ListItem.Property(a4k.tv)]</label>
+						<visible>String.IsEqual(ListItem.Property(a4k.tvstate),ongoing)</visible>
+					</control>
+					<control type="label">
+						<left>52</left>
+						<top>38</top>
+						<width>84</width>
+						<height>40</height>
+						<font>font20_title</font>
+						<align>center</align>
+						<aligny>center</aligny>
+						<textcolor>FFFFFFFF</textcolor>
+						<label>$INFO[ListItem.Property(a4k.tv)]</label>
+						<visible>String.IsEqual(ListItem.Property(a4k.tvstate),ended)</visible>
+					</control>
+					<control type="image">
+						<left>132</left>
+						<top>47</top>
+						<width>22</width>
+						<height>22</height>
+						<texture colordiffuse="B8FFFFFF">a4k/check.png</texture>
+						<visible>String.IsEqual(ListItem.Property(a4k.tvstate),ended)</visible>
+					</control>
 					<control type="label">
 						<left>32</left>
 						<top>400</top>
@@ -164,7 +221,7 @@
 						<height>28</height>
 						<font>font10</font>
 						<textcolor>59FFFFFF</textcolor>
-						<label>$INFO[ListItem.Year]$INFO[ListItem.Rating,  ·  IMDb ,]</label>
+						<label>$INFO[ListItem.Property(a4k.meta)]</label>
 					</control>
 				</control>
 			</itemlayout>
@@ -258,6 +315,69 @@
 							<visible>Control.HasFocus(500)</visible>
 						</control>
 					</control>
+					<control type="group">
+						<left>0</left>
+						<top>0</top>
+						<animation effect="zoom" start="100" end="108" time="220" tween="cubic" easing="out" center="148,200" reversible="false">Focus</animation>
+						<animation effect="zoom" start="108" end="100" time="220" tween="cubic" easing="out" center="148,200" reversible="false">Unfocus</animation>
+						<!-- the TV skin's card marks: watched (rated) disc at the top right, TV badge (seasons, ongoing or ended) at the top left -->
+						<control type="image">
+							<left>212</left>
+							<top>38</top>
+							<width>40</width>
+							<height>40</height>
+							<texture border="20" colordiffuse="B8121216">a4k/rr20.png</texture>
+							<visible>String.IsEqual(ListItem.Property(a4k.rated),true)</visible>
+						</control>
+						<control type="image">
+							<left>221</left>
+							<top>47</top>
+							<width>22</width>
+							<height>22</height>
+							<texture>a4k/check.png</texture>
+							<visible>String.IsEqual(ListItem.Property(a4k.rated),true)</visible>
+						</control>
+						<control type="image">
+							<left>44</left>
+							<top>38</top>
+							<width>124</width>
+							<height>40</height>
+							<texture border="20" colordiffuse="B8121216">a4k/rr20.png</texture>
+							<visible>!String.IsEmpty(ListItem.Property(a4k.tv))</visible>
+						</control>
+						<control type="label">
+							<left>44</left>
+							<top>38</top>
+							<width>124</width>
+							<height>40</height>
+							<font>font20_title</font>
+							<align>center</align>
+							<aligny>center</aligny>
+							<textcolor>FFFFFFFF</textcolor>
+							<label>[COLOR FF30D158]●[/COLOR] $INFO[ListItem.Property(a4k.tv)]</label>
+							<visible>String.IsEqual(ListItem.Property(a4k.tvstate),ongoing)</visible>
+						</control>
+						<control type="label">
+							<left>52</left>
+							<top>38</top>
+							<width>84</width>
+							<height>40</height>
+							<font>font20_title</font>
+							<align>center</align>
+							<aligny>center</aligny>
+							<textcolor>FFFFFFFF</textcolor>
+							<label>$INFO[ListItem.Property(a4k.tv)]</label>
+							<visible>String.IsEqual(ListItem.Property(a4k.tvstate),ended)</visible>
+						</control>
+						<control type="image">
+							<left>132</left>
+							<top>47</top>
+							<width>22</width>
+							<height>22</height>
+							<texture colordiffuse="B8FFFFFF">a4k/check.png</texture>
+							<visible>String.IsEqual(ListItem.Property(a4k.tvstate),ended)</visible>
+						</control>
+					</control>
 					<control type="label">
 						<left>32</left>
 						<top>400</top>
@@ -274,7 +394,7 @@
 						<height>28</height>
 						<font>font10</font>
 						<textcolor>B3FFFFFF</textcolor>
-						<label>$INFO[ListItem.Year]$INFO[ListItem.Rating,  ·  IMDb ,]</label>
+						<label>$INFO[ListItem.Property(a4k.meta)]</label>
 					</control>
 				</control>
 			</focusedlayout>

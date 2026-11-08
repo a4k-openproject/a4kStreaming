@@ -381,7 +381,14 @@ def __query_providers(core, params):
     # a copy: threads still running write into search.raw after this returns
     return dict(search.raw)
 
+def __remembered(core):
+    # how many searches the cache keeps, least recently used out first (the Remembered searches setting); 0 is off
+    try: return max(0, int(float(core.kodi.get_setting('general.remembered_searches'))))
+    except ValueError: return 20
+
 def __read_search_cache(core, title):
+    if not __remembered(core):
+        return {}
     cache = core.cache.get_last_results()
     raw = {}
     try:
@@ -397,6 +404,9 @@ def __read_search_cache(core, title):
     return raw
 
 def __write_search_cache(core, title, raw):
+    limit = __remembered(core)
+    if not limit:
+        return
     cache = core.cache.get_last_results()
     now = core.time.time()
     cache[title.imdbnumber] = { 'time': now, 'results': raw }
@@ -405,7 +415,7 @@ def __write_search_cache(core, title, raw):
             packs = dict((hash, result) for hash, result in raw.items() if result.get('package', None) == package)
             if packs:
                 cache[key] = { 'time': now, 'results': packs }
-    while len(cache) > 20:
+    while len(cache) > limit:
         cache.pop(min(cache, key=lambda key: cache[key].get('time', 0)))
     core.cache.save_last_results(cache)
 
@@ -413,7 +423,7 @@ def __search(core, params):
     # quick sources first unless the full search is asked for, by the caller or by the setting; nothing from them
     # in time means the full search
     apikey = core.utils.get_premiumize_apikey(core)
-    if apikey and not params.full and not core.kodi.get_bool_setting('general.search_all_providers'):
+    if apikey and not params.full and not params.refresh and not core.kodi.get_bool_setting('general.search_all_providers'):
         names = __quick_sources(core)
         if names:
             with core.kodi.busy_dialog():
@@ -423,12 +433,15 @@ def __search(core, params):
 
     # the slow provider search is cached, the cheap debrid split is redone on every read so cached rows never go stale
     raw = {} if params.refresh else __read_search_cache(core, params.title)
+    from_cache = bool(raw)
     if not raw:
         raw = __query_providers(core, params)
         if raw:
             __write_search_cache(core, params.title, raw)
     with core.kodi.busy_dialog():
-        return __split(core, params.title, raw)
+        search = __split(core, params.title, raw)
+    search.from_cache = from_cache  # the source sheet offers Search again on a remembered list
+    return search
 
 def provider_meta(core):
     return __meta(core)

@@ -3,6 +3,7 @@
 # grids, and the appearance settings (home rows, their order, the top shelf's source and rotation).
 
 import os
+import re
 import importlib
 from xml.etree import ElementTree
 from .common import pytest, api
@@ -654,3 +655,214 @@ def test_down_on_the_last_shown_row_stays_there(core, home, monkeypatch):
     home.apply(window)
     window.wire()
     assert row(302).down is row(330) and row(303).down is row(303)
+
+# 7. series detail page (#023): episode cards, the focused-episode panel, season marks, the action row
+
+@pytest.fixture
+def listing(core):
+    return vars(importlib.import_module('a4kStreaming.listing'))
+
+@pytest.fixture
+def detail(core):
+    return importlib.import_module('a4kStreaming.ui.detail')
+
+def an_episode(number, date, **extra):
+    episode = {'id': 'tt9%s' % number, 'titleType': 'tvEpisode', 'titleText': 'Chapter %s' % number, 'primaryImage': None,
+               'series': {'seasonNumber': 1, 'episodeNumber': number}, 'releaseDate': dict(zip(('year', 'month', 'day'), date))}
+    episode.update(extra)
+    return episode
+
+def episode_items(core, listing, monkeypatch, episodes, plot='The show.'):
+    added = []
+    monkeypatch.setattr(core.kodi.xbmcplugin, 'addDirectoryItems', lambda handle, items, n: added.extend(items))
+    settings(core, monkeypatch, {'general.episode_title_template': '1'})
+    title = {'id': 'tt1', 'titleText': 'A Show', 'plot': plot, 'episodes': {'seasons': [1], 'episodes': episodes}}
+    listing['__add_episodes'](core, title, 1)
+    return [item for _, item, _ in added]
+
+def test_episode_cards_carry_the_tv_skins_label_title_meta_and_own_plot(core, listing, monkeypatch):
+    aired = an_episode(1, (2022, 2, 18), plot='Mark meets a new hire.', runtime=3720,
+                       ratingsSummary={'aggregateRating': 7.64, 'voteCount': 900})
+    unaired = an_episode(2, (2099, 10, 30))
+    first, second = episode_items(core, listing, monkeypatch, [aired, unaired])
+    # the classic label keeps its template; the card reads the bare title, "S1 E1", rating, and date · runtime
+    assert first.label == '1. Chapter 1'
+    assert {k: v for k, v in first.properties.items() if k in listing['episode_properties'](aired, True)} == {
+        'a4k.label': 'S1 E1', 'a4k.name': 'Chapter 1', 'a4k.plot': 'Mark meets a new hire.', 'a4k.rating': '7.6',
+        'a4k.meta': 'February 18, 2022 · 62m'}
+    # no plot of its own: the panel stays hidden (the show's plot is not the episode's); unaired says so
+    assert (second.getProperty('a4k.plot'), second.getProperty('a4k.rating'), second.getProperty('a4k.meta')) == (
+        '', '', 'October 30, 2099 · Unaired')
+
+@pytest.mark.parametrize('date,text', [
+    ({'year': 2026, 'month': 10, 'day': 30}, 'October 30, 2026'), ({'year': 2026, 'month': 1}, 'January 2026'),
+    ({'year': 2026}, '2026'), ({}, ''), (None, '')])
+def test_date_text_is_imdbs_display(listing, date, text):
+    assert listing['date_text'](date) == text
+
+def test_season_tabs_mark_watched_and_progress(core, detail):
+    def ep(id, season, number, rated):
+        return {'id': id, 'series': {'seasonNumber': season, 'episodeNumber': number}, 'userRating': rated,
+                'releaseDate': {'year': 2020 + season, 'month': 1, 'day': number}}
+    title = {'id': 'tt1', 'episodes': {'episodes': [
+        ep('a1', 1, 1, 8), ep('a2', 1, 2, 9),        # all rated: watched
+        ep('b1', 2, 1, 7), ep('b2', 2, 2, None), ep('b3', 2, 3, None), ep('b4', 2, 4, None),  # one of four
+        ep('c1', 3, 1, None), ep('c2', 3, 2, None),  # none
+    ]}}
+    pills, _ = detail.seasons(core, title)
+    assert [(p['label'], p['watched'], p['progress']) for p in pills] == [
+        ('Season 1', 'true', ''), ('Season 2', '', '25'), ('Season 3', '', '')]
+
+def test_episode_panel_shows_the_focused_episodes_label_title_and_plot(listing):
+    root = xml('a4k-detail.xml')
+    shows = 'Control.HasFocus(530) + !String.IsEmpty(Container(530).ListItem.Property(a4k.plot))'
+    panel = [g for g in root.find('controls').findall('control') if g.findtext('visible') == shows]
+    assert len(panel) == 1  # a window-level group, so the page's scroll never moves it
+    texts = ' '.join(c.findtext('label') or '' for c in panel[0].iter('control'))
+    assert re.findall(r'Container\(530\)\.ListItem\.Property\(([\w.]+)\)', texts) == ['a4k.label', 'a4k.name', 'a4k.plot']
+    # the title's info and buttons fade out under it
+    info = control(root, 200)
+    assert [a.get('condition') for a in info.findall('animation')] == [shows]
+    # every episode property the cards and the panel read is one the listing sets
+    episodes = ElementTree.tostring(control(root, 530)).decode() + texts
+    read = set(re.findall(r'ListItem\.Property\((a4k\.[\w.]+)\)', episodes))
+    assert read == set(listing['episode_properties'](an_episode(1, (2022, 1, 1)), True))
+
+def test_series_row_has_no_play_and_icon_buttons(detail):
+    root = xml('a4k-detail.xml')
+    assert root.findtext('defaultcontrol') == '500'  # the row's first shown button
+    assert control(root, detail.PLAY).findtext('visible') == 'String.IsEmpty(Window.Property(a4k.series))'
+    assert control(root, detail.TRAILER).findtext('label') == '$INFO[Window.Property(a4k.trailers)]'
+    assert [(control(root, i).findtext('width'), control(root, i).findtext('label')) for i in (detail.WATCHLIST, detail.MORE)] == [
+        ('76', '$INFO[Window.Property(a4k.wlabel)]'), ('76', '•••')]
+    # the season pills read the marks the window sets
+    pills = ElementTree.tostring(control(root, detail.SEASONS)).decode()
+    assert set(re.findall(r'ListItem\.Property\((\w+)\)', pills)) == {'url', 'watched', 'progress'}
+
+# 8. the ··· menu (#023): the TV skin's rows, in its order, filtered by state, no prefixes
+
+TITLE_ROWS = ['Rate', 'Add to watchlist', 'Remove from watchlist', 'Add to IMDb list', 'Remove from IMDb list', 'More Like This']
+
+def labels_of(listing, core, **title):
+    return [label for label, _ in listing['title_context_menu'](core, dict({'id': 'tt1', 'primaryVideos': ['vi1', 'vi2']}, **title))]
+
+@pytest.mark.parametrize('state, rows', [
+    ({'userRating': None, 'a4k.in_watchlist': False},
+     ['Rate', 'Add to watchlist', 'Add to IMDb list', 'Remove from IMDb list', 'More Like This']),
+    ({'userRating': 8, 'a4k.in_watchlist': True},
+     ['Rate', 'Unrate', 'Remove from watchlist', 'Add to IMDb list', 'Remove from IMDb list', 'More Like This']),
+    ({'userRating': None}, TITLE_ROWS),  # a card: the watchlist state is unknown, so both rows (the TV skin's rule)
+])
+def test_movie_menu_rows(core, listing, state, rows):
+    assert labels_of(listing, core, titleType='movie', **state) == rows
+
+@pytest.mark.parametrize('state, rows', [
+    ({'userRating': None, 'a4k.in_watchlist': False, 'a4k.show_watched': False},
+     ['Rate', 'Add to watchlist', 'Add to IMDb list', 'Remove from IMDb list', 'More Like This', 'Mark show watched']),
+    ({'userRating': 9, 'a4k.in_watchlist': True, 'a4k.show_watched': True},
+     ['Rate', 'Unrate', 'Remove from watchlist', 'Add to IMDb list', 'Remove from IMDb list', 'More Like This',
+      'Unmark show watched']),
+    ({'userRating': None}, TITLE_ROWS + ['Mark show watched', 'Unmark show watched']),
+])
+def test_show_menu_rows(core, listing, state, rows):
+    assert labels_of(listing, core, titleType='tvSeries', **state) == rows
+
+@pytest.mark.parametrize('state, rows', [
+    ({'userRating': None}, ['Play from here', 'Rate', 'Mark watched', 'Episode details']),
+    ({'userRating': 7, 'a4k.resumable': True},
+     ['Play from here', 'Reset resume progress', 'Rate', 'Unmark watched', 'Episode details']),
+])
+def test_episode_menu_rows(core, listing, state, rows):
+    assert labels_of(listing, core, titleType='tvEpisode', **dict(state, **{'a4k.play': 'plugin://x/?action=play&type=e1'})) == rows
+
+def test_menu_rows_carry_no_prefix_and_none_the_page_or_the_source_sheet_covers(core, listing):
+    gone = ('Trailer', 'Trailers', 'Choose Trailer', 'All Cast', 'Cast & Crew', 'Add sources', 'Force file select',
+            'Refresh sources', 'Force source select')
+    for type in ('movie', 'tvSeries', 'tvEpisode'):
+        for rated in (None, 8):
+            rows = labels_of(listing, core, titleType=type, userRating=rated, **{'a4k.play': 'p'})
+            assert not [row for row in rows if ':' in row or row in gone]
+
+def test_menu_builtins(core, listing):
+    menu = dict(listing['title_context_menu'](core, {'id': 'tt5', 'titleType': 'tvSeries', 'userRating': 8}))
+    assert menu['Unrate'] == 'RunPlugin(%s?action=profile&type=mark_as_unwatched&id=tt5)' % core.url
+    assert menu['Mark show watched'] == 'RunPlugin(%s?action=profile&type=mark_as_watched&id=tt5&show=true)' % core.url
+    play = 'plugin://plugin.video.a4kstreaming/?action=play&type=e1'
+    episode = dict(listing['title_context_menu'](core, {'id': 'tt6', 'titleType': 'tvEpisode', 'a4k.play': play, 'a4k.resumable': True}))
+    assert episode['Play from here'] == 'PlayMedia(%s)' % play
+    assert episode['Reset resume progress'] == 'RunPlugin(%s?action=reset_resume&path=%s)' % (
+        core.url, 'plugin%3A%2F%2Fplugin.video.a4kstreaming%2F%3Faction%3Dplay%26type%3De1')
+
+def test_watchlist_gallery_titles_offer_remove_only(core, listing):
+    assert 'Add to watchlist' not in labels_of(listing, core, titleType='movie', **{'a4k.in_watchlist': True})
+
+# 9. the TV skin's card line and marks, the detail line (#023)
+
+@pytest.mark.parametrize('title, line', [
+    ({'releaseYear': 2024, 'ratingsSummary': {'aggregateRating': 7.8}, 'runtime': 7800}, '2024 · ★ 7.8 · 2h 10m'),
+    ({'releaseYear': 2008, 'releaseEndYear': 2013, 'ratingsSummary': {'aggregateRating': 9.5}, 'runtime': 2700}, '2008–2013 · ★ 9.5 · 45m'),
+    ({'releaseYear': 2020, 'releaseEndYear': 2020}, '2020'),
+    ({'releaseYear': None, 'ratingsSummary': None, 'runtime': None}, ''),
+])
+def test_card_meta_is_the_tv_skins_line(listing, title, line):
+    assert listing['card_meta'](title) == line
+
+@pytest.mark.parametrize('title, badge', [
+    ({'episodes': {'isOngoing': True, 'seasons': [1, 2, 3]}}, ('TV·3', 'ongoing')),
+    ({'episodes': {'isOngoing': False, 'seasons': [1, 2, 3, 4, 5]}}, ('TV·5', 'ended')),
+    ({'releaseEndYear': 2013}, ('TV', 'ended')),  # no isOngoing: the end year decides
+    ({}, ('TV', 'ongoing')),
+])
+def test_tv_badge(listing, title, badge):
+    assert listing['tv_badge'](title) == badge
+
+@pytest.mark.parametrize('name', ['a4k-home.xml', 'a4k-grid.xml', 'a4k-search.xml'])
+def test_every_poster_card_has_the_meta_line_and_marks(name):
+    root = xml(name)
+    for kind in ('itemlayout', 'focusedlayout'):
+        for layout in root.iter(kind):
+            textures = ' '.join(t.text or '' for t in layout.iter('texture'))
+            if 'ListItem.Art(poster)' not in textures:
+                continue
+            labels = ' '.join(c.findtext('label') or '' for c in layout.iter('control'))
+            visibles = ' '.join(c.findtext('visible') or '' for c in layout.iter('control'))
+            assert '$INFO[ListItem.Property(a4k.meta)]' in labels and 'ListItem.Year' not in labels, name
+            assert 'ListItem.Property(a4k.rated),true' in visibles and 'ListItem.Property(a4k.tvstate),ongoing' in visibles, name
+            assert '$INFO[ListItem.Property(a4k.tv)]' in labels and 'a4k/check.png' in textures, name
+
+def test_detail_line_ended_series_years_unaired_and_own_rating(core, detail):
+    base = {'id': 'tt1', 'titleType': 'tvSeries', 'titleText': 'A Show', 'releaseYear': 2008, 'releaseEndYear': 2013,
+            'releaseDate': {'year': 2008, 'month': 1, 'day': 20}, 'genres': ['Drama'], 'userRating': 9}
+    vm = detail.view_model(core, base)
+    assert vm['meta'] == '2008–2013 · Drama' and vm['yours'] == 'Your ★ 9'
+    movie = dict(base, titleType='movie', releaseEndYear=None, releaseYear=2099, releaseDate={'year': 2099, 'month': 10, 'day': 30},
+                 userRating=None, runtime=6000)
+    vm = detail.view_model(core, movie)
+    assert vm['meta'] == 'October 30, 2099 · 1h 40m · Drama · Unaired' and vm['yours'] == ''
+
+def test_trailer_picker_rows_are_name_and_runtime(core, monkeypatch):
+    imdb = importlib.import_module('a4kStreaming.imdb')
+    body = {'data': {'title': {'primaryVideos': {'edges': [
+        {'node': {'id': 'vi1', 'name': {'value': 'Official Trailer'}, 'runtime': {'value': 151}}},
+        {'node': {'id': 'vi2', 'name': None, 'runtime': None}}]}}}}
+    requests = []
+    def execute(core, request, cache=True):
+        requests.append(request)
+        response = lambda: None
+        response.content, response.status_code = core.json.dumps(body), 200
+        return response
+    monkeypatch.setattr(core.request, 'execute', execute)
+    assert imdb.trailer_rows(core, 'tt1', ['vi1', 'vi2']) == [('►  Official Trailer', '2:31'), ('►  Video 2', '')]
+    assert len(requests) == 1
+
+def test_trailer_with_none_says_so_and_several_open_the_picker(core, monkeypatch):
+    imdb = importlib.import_module('a4kStreaming.imdb')
+    notes, shown = [], []
+    monkeypatch.setattr(core.kodi, 'notification', lambda text, time=3000: notes.append(text))
+    imdb.trailer(core, core.utils.DictAsObject({'id': 'tt1', 'vi': '', 'play': 'true'}))
+    assert notes == ['No trailers available']
+    sheets = importlib.import_module('a4kStreaming.ui.sheets')
+    monkeypatch.setattr(imdb, 'trailer_rows', lambda core, id, videos: [('►  A', '1:00'), ('►  B', '2:00')])
+    monkeypatch.setattr(sheets, 'select', lambda heading, labels, rows=None, **k: shown.append((heading, rows)) or -1)
+    imdb.trailer(core, core.utils.DictAsObject({'id': 'tt1', 'vi': 'vi1_vi2', 'play': 'true'}))
+    assert shown == [('Trailers', [('►  A', '1:00'), ('►  B', '2:00')])]  # Back: nothing plays

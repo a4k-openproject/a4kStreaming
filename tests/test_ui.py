@@ -22,6 +22,7 @@ FONTS = {'font10', 'font12', 'font13', 'font14', 'font27', 'font32', 'font37', '
 # every texture the windows ship, at the size scripts/make_textures.py draws it (9-slice borders depend on it)
 TEXTURES = {
     'a4k/bg_home.png': (960, 540),
+    'a4k/check.png': (64, 64),
     'a4k/fade_bottom.png': (8, 256),
     'a4k/icon_delete.png': (64, 64),
     'a4k/icon_gear.png': (64, 64),
@@ -206,7 +207,7 @@ def test_every_row_property_the_xml_reads_is_set(core, home, monkeypatch):
     monkeypatch.setattr(home.Home, 'doModal', lambda self: opened.update(self.properties))
     home.open()
     xml = open(os.path.join(WINDOWS, 'a4k-home.xml')).read()
-    hero = {'a4k.hero.' + key for key in list(home.HERO_FIELDS) + ['shown', 'kicker']}  # set once a title is in
+    hero = {'a4k.hero.' + key for key in list(home.HERO_FIELDS) + ['shown', 'kicker', 'type']}  # set once a title is in
     read = set(re.findall(r'Window\.Property\(([\w.]+)\)', xml))
     assert read - hero - {home.FRESH} <= set(opened) and read & hero == hero  # a4k.fresh: after the settings
     assert opened['a4k.row.301'] == PLUGIN + '?action=query&type=popularMovies&widget=1'
@@ -387,7 +388,7 @@ def test_context_menu_on_rows_is_kodis_and_on_the_hero_is_ours(core, home, monke
     menus = []
     def select(heading, labels):
         menus.append(labels)
-        return labels.index('IMDb: Trailer')
+        return labels.index('Rate')
     monkeypatch.setattr(importlib.import_module('a4kStreaming.ui.sheets'), 'select', select)
     hero = {'Container(301).ListItemAbsolute(0).Property(a4k.%s)' % key: value
             for key, value in (('type', 'movie'), ('id', 'tt7'), ('trailers', 'vi7'), ('rated', 'false'))}
@@ -396,8 +397,8 @@ def test_context_menu_on_rows_is_kodis_and_on_the_hero_is_ours(core, home, monke
     assert menus == [] and calls == []
     win.setFocusId(home.HERO_PLAY)
     win.onAction(Action(home.ACTION_CONTEXT_MENU))
-    assert menus and 'IMDb: Set rating' in menus[0]
-    assert calls == ['RunPlugin(%s?action=trailer&id=tt7&vi=vi7&play=true)' % PLUGIN]
+    assert menus == [['Rate', 'Add to watchlist', 'Remove from watchlist', 'Add to IMDb list', 'Remove from IMDb list', 'More Like This']]
+    assert calls == ['RunPlugin(%s?action=profile&type=rate&id=tt7)' % PLUGIN]
 
 def test_hero_buttons(core, home, monkeypatch, calls):
     opened = []

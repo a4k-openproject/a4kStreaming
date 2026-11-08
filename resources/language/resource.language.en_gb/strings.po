@@ -151,6 +151,34 @@ msgctxt "#33142"
 msgid "Show uncached sources (%s)"
 msgstr ""
 
+msgctxt "#33143"
+msgid "Remembered searches"
+msgstr ""
+
+msgctxt "#33144"
+msgid "Pick file manually: %s"
+msgstr ""
+
+msgctxt "#33145"
+msgid "Select a source, then choose which file inside it to stream"
+msgstr ""
+
+msgctxt "#33146"
+msgid "Select a source above to list its files"
+msgstr ""
+
+msgctxt "#33147"
+msgid "Search again"
+msgstr ""
+
+msgctxt "#33148"
+msgid "These results are from an earlier search"
+msgstr ""
+
+msgctxt "#33149"
+msgid "Download one to Premiumize, then stream"
+msgstr ""
+
 msgctxt "#33150"
 msgid "Skip intros"
 msgstr ""

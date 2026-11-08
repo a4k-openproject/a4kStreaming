@@ -31,8 +31,9 @@ MENU = (WATCH_NOW, SEARCH, SETTINGS) + tuple(TABS)
 HERO_TURN = 15
 HERO_IDLE = 1
 HERO_COUNT = 6
-HERO_FIELDS = {'label': 'Label', 'plot': 'Plot', 'year': 'Year', 'rating': 'Rating', 'mpaa': 'MPAA',
+HERO_FIELDS = {'label': 'Label', 'plot': 'Plot', 'year': 'Year', 'rating': 'Rating',
                'fanart': 'Art(fanart)', 'blur': 'Art(blur)'}  # a4k.hero.<key> = the item's InfoLabel
+HERO_TYPES = {'movie': 'Movie', 'tvSeries': 'TV Series'}  # the TV skin's hero badge after the rating
 HERO_RELOAD = 1.0  # after the settings change the sources: the new listings' time to land before the shelf starts over
 HERO_FADE = 0.25
 FRESH = 'a4k.fresh'
@@ -96,12 +97,13 @@ def select(info):
         return
     run(click_builtin(info))
 
-MORE_LIKE_THIS = 'IMDb: More like this'
+MORE_LIKE_THIS = 'More Like This'
 ACCOUNT = '?action=profile&'  # rating, watched, watchlist and list actions: each needs an IMDb login
 
-def menu(items, id, title):
+def menu(items, id, title, ran=None):
     # a title's context list (label, builtin) as a select sheet, without the account actions when signed out (they
-    # would only answer with the missing login notification); More like this opens the grid
+    # would only answer with the missing login notification); More Like This opens the grid, ran(builtin) hears what
+    # was run
     from . import sheets
     if not kodi.get_setting('imdb.at-main'):
         items = [item for item in items if ACCOUNT not in item[1]]
@@ -113,6 +115,8 @@ def menu(items, id, title):
         from . import grid
         return grid.more_like_this(id, title)
     run(builtin)
+    if ran:
+        ran(builtin)
 
 def prefetch(item):
     # the detail request of the title at item (an InfoLabel prefix such as Container(301).ListItem), made now so its
@@ -304,7 +308,9 @@ class Home(kodi.xbmcgui.WindowXML):
         item = self.hero_item()
         for key, field in HERO_FIELDS.items():
             self.setProperty('a4k.hero.%s' % key, kodi.xbmc.getInfoLabel('%s.%s' % (item, field)))
-        series = kodi.xbmc.getInfoLabel(item + '.Property(a4k.type)') == 'tvSeries'
+        type = kodi.xbmc.getInfoLabel(item + '.Property(a4k.type)')
+        series = type == 'tvSeries'
+        self.setProperty('a4k.hero.type', HERO_TYPES.get(type, ''))
         self.setProperty('a4k.hero.act', 'Go to Show' if series else 'Play')
         self.setProperty('a4k.hero.kicker', self.shown[2] if self.shown else '')
         self.setProperty('a4k.hero.shown', 'true')  # the text fades in; the art crossfades by its fadetime

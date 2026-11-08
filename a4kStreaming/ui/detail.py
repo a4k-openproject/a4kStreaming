@@ -29,7 +29,7 @@ SEASON_DWELL = 0.3  # seconds a season pill keeps focus before its episodes load
 KIND = {'movie': 'Movie', 'tvSeries': 'TV Series', 'tvEpisode': 'Episode'}
 
 # a4k-detail.xml reads these window properties
-PROPERTIES = ('kicker', 'title', 'rating', 'year', 'runtime', 'certificate', 'plot', 'fanart', 'blur', 'trailer')
+PROPERTIES = ('kicker', 'title', 'rating', 'meta', 'plot', 'fanart', 'blur', 'trailer', 'trailers', 'inwatchlist', 'wlabel', 'yours')
 
 # TitleFull by id, for this script process: back and forth between home and detail is free
 CACHE_TTL = 10 * 60
@@ -37,49 +37,76 @@ CACHE_SIZE = 64
 _cache = {}
 
 def runtime(seconds):
-    minutes = int(seconds or 0) // 60
-    if not minutes:
-        return ''
-    return '%sh %sm' % divmod(minutes, 60) if minutes >= 60 else '%sm' % minutes
-
-def kicker(type, genre):
-    return ' · '.join(part for part in (KIND.get(type, ''), genre) if part).upper()
-
-def __menu(core, title):
     from .. import listing
-    return listing.title_context_menu(core, title)
+    return listing.runtime_text(seconds)
 
-def __actions(menu, has_trailer):
-    builtins = dict(menu)
-    return builtins['IMDb: Trailer'] if has_trailer else '', builtins.get('IMDb: Add to watchlist', '')
+def kicker(type):
+    return KIND.get(type, '').upper()
+
+def meta(date, runtime, genres):
+    # the line after the star rating, as the TV skin writes it: the release date (else the year), runtime, three genres
+    return ' · '.join(part for part in (date, runtime, ', '.join(genres[:3])) if part)
+
+STATE = ('id', 'titleType', 'userRating', 'primaryVideos', 'a4k.in_watchlist', 'a4k.show_watched')
+
+def buttons(core, title):
+    # the action row and the ··· menu for the title's state: Trailer (one video, plays) or Trailers (a picker), the
+    # + / check watchlist button, the TV skin's menu rows; state keeps what a later change rebuilds them from
+    from .. import listing
+    videos = title.get('primaryVideos', None) or []
+    return {
+        'trailer': listing.trailer_builtin(core, title),
+        'trailers': 'Trailers' if len(videos) > 1 else 'Trailer',
+        'watchlist': listing.watchlist_builtin(core, title),
+        'inwatchlist': 'true' if title.get('a4k.in_watchlist', None) is True else '',
+        'wlabel': '' if title.get('a4k.in_watchlist', None) is True else '+',
+        'menu': listing.title_context_menu(core, title),
+        'state': dict((key, title.get(key, None)) for key in STATE),
+    }
+
+def in_watchlist(core, id):
+    # the TV skin's detail asks the watchlist about the title as it opens: True or False; None signed out or unanswered
+    if not kodi.get_setting('imdb.at-main'):
+        return None
+    try:
+        lists = core.query(core, core.utils.DictAsObject({'type': 'status', 'ids': [id], 'silent': True})) or []
+        return next((node[id] for node in lists if node.get('listClass', None) == 'WATCH_LIST' and isinstance(node.get(id, None), bool)), None)
+    except Exception:
+        logger.error(traceback.format_exc())
+        return None
+
+def show_watched(core, title):
+    # every released episode rated (the classic listing's watched rule); None for a movie or a show with none released
+    episodes = [ep for ep in (title.get('episodes', None) or {}).get('episodes', None) or []
+                if ep.get('releaseDate', None) and __released(core, ep['releaseDate'])]
+    if title['titleType'] != 'tvSeries' or not episodes:
+        return None
+    return all(ep.get('userRating', None) is not None for ep in episodes)
 
 def from_card(info):
     # the view model from the selected card's InfoLabels (home.labels), so the window paints before any request
     type = info.get('Property(a4k.type)', '')
     title = home.title_from_info(info)
-    menu = __menu(SimpleNamespace(url=app.PLUGIN, kodi=kodi), title)
-    trailer, watchlist = __actions(menu, title['primaryVideos'])
     seconds = info.get('Duration(secs)', '')
-    return {
+    genres = info.get('Genre', '')
+    vm = {
         'id': title['id'],
         'type': type,
-        'kicker': kicker(type, info.get('Genre', '').split(' / ')[0]),
+        'kicker': kicker(type),
         'title': info.get('Label', ''),
         'rating': info.get('Rating', ''),
-        'year': info.get('Year', ''),
-        'runtime': runtime(seconds) if seconds.isdigit() and type != 'tvSeries' else '',
-        'certificate': info.get('MPAA', ''),
+        'meta': meta(info.get('Year', ''), runtime(seconds) if seconds.isdigit() else '', genres.split(' / ') if genres else []),
         'plot': info.get('Plot', ''),
+        'yours': '',
         'fanart': info.get('Art(fanart)', '') or info.get('Art(poster)', ''),
         'blur': info.get('Art(blur)', ''),
         'play': info.get('FolderPath', '') if type != 'tvSeries' else '',
-        'trailer': trailer,
-        'watchlist': watchlist,
-        'menu': menu,
         'seasons': [],
         'season': 0,
         'cast': [],
     }
+    vm.update(buttons(SimpleNamespace(url=app.PLUGIN, kodi=kodi), title))
+    return vm
 
 def cast(core, title):
     # stars, then the rest of the cast, then the other principal credits (director, writers), each person once, as the
@@ -115,15 +142,28 @@ def __released(core, date):
     except Exception:
         return False
 
+def season_marks(season):
+    # the TV skin's season tab marks: watched when its last episode is rated (the classic listing's season check), else
+    # the share of its episodes rated as a progress bar (a signed-in user's ratings; signed out, neither shows)
+    rated = sum(1 for ep in season.episode_list if ep.get('userRating', None) is not None)
+    watched = (season.last_episode or {}).get('userRating', None) is not None
+    progress = rated * 100 // len(season.episode_list) if not watched and 0 < rated < len(season.episode_list) else 0
+    return 'true' if watched else '', str(progress) if progress else ''
+
 def seasons(core, title):
-    # [{label, url}] for the season pills, and the one to open on: the latest season with an aired episode
+    # [{label, url, watched, progress}] for the season pills, and the one to open on: the latest season with an aired
+    # episode
     from .. import listing
     episodes = (title.get('episodes', None) or {}).get('episodes', None) or []
     released = [ep['series']['seasonNumber'] for ep in episodes
                 if ep.get('series', None) and ep.get('releaseDate', None) and __released(core, ep['releaseDate'])]
     grouped = listing.group_seasons(core, copy.deepcopy(episodes))  # it rewrites release dates; the cache keeps its own
-    pills = [{'key': key, 'label': 'Season %s' % key, 'url': listing.season_url(core, title['id'], key, season) + '&widget=1'}
-             for key, season in grouped.items()]
+    pills = []
+    for key, season in grouped.items():
+        season.episode_list = [ep for ep in episodes if ep['id'] in season.episode_ids]
+        watched, progress = season_marks(season)
+        pills.append({'key': key, 'label': 'Season %s' % key, 'watched': watched, 'progress': progress,
+                      'url': listing.season_url(core, title['id'], key, season) + '&widget=1'})
     latest = max(released) if released else None
     selected = next((i for i, pill in enumerate(pills) if pill['key'] == latest), 0)
     return pills, selected
@@ -137,31 +177,33 @@ def view_model(core, title):
     art = still or title.get('primaryImage', None)
     rating = (title.get('ratingsSummary', None) or {}).get('aggregateRating', None)
     genres = title.get('genres', None) or []
-    menu = __menu(core, title)
-    trailer, watchlist = __actions(menu, title.get('primaryVideos', None))
+    title = dict(title, **{'a4k.show_watched': show_watched(core, title)})
     pills, selected = seasons(core, title) if series else ([], 0)
-    # the seasons the user can open (IMDb also counts announced seasons with no episode listed yet)
-    count = len(pills) or len((title.get('episodes', None) or {}).get('seasons', None) or [])
-    return {
+    # the TV skin's line: an ended series' years, else the release date (else the year); Unaired before it; the
+    # signed-in user's own rating as its own mark
+    year, end = title.get('releaseYear', None), title.get('releaseEndYear', None)
+    date = '%s\u2013%s' % (year, end) if series and year and end and end != year else \
+        listing.date_text(title.get('releaseDate', None)) or str(year or '')
+    unaired = not title.get('releaseDate', None) or not __released(core, title['releaseDate'])
+    yours = title.get('userRating', None)
+    vm = {
         'id': title['id'],
         'type': type,
-        'kicker': kicker(type, genres[0] if genres else ''),
+        'kicker': kicker(type),
         'title': title['titleText'],
         'rating': '%.1f' % rating if rating else '',
-        'year': str(title.get('releaseYear', None) or ''),
-        'runtime': ('%s Season%s' % (count, '' if count == 1 else 's') if count else '') if series else runtime(title.get('runtime', None)),
-        'certificate': title.get('certificate', None) or '',
+        'meta': ' \u00b7 '.join(part for part in (meta(date, runtime(title.get('runtime', None)), genres), 'Unaired' if unaired else '') if part),
+        'yours': 'Your \u2605 %s' % yours if yours else '',
         'plot': title.get('plot', None) or '',
         'fanart': core.utils.fix_fanart_size(art) or '',
         'blur': core.utils.fix_blur_size(art) or '',
         'play': '' if series else listing.play_url(core, title),
-        'trailer': trailer,
-        'watchlist': watchlist,
-        'menu': menu,
         'seasons': pills,
         'season': selected,
         'cast': cast(core, title),
     }
+    vm.update(buttons(core, title))
+    return vm
 
 def fetch(core, id, series):
     # TitleFull (with every episode for a series), from the in-process cache when it is fresh
@@ -224,7 +266,8 @@ class Detail(kodi.xbmcgui.WindowXML):
             title = fetch(core, self.vm['id'], self.vm['type'] == 'tvSeries')
             if title is None or self.closed:
                 return  # no answer: the card's text stays, the shelves stay empty
-            vm = view_model(core, title)
+            # the watchlist state is asked on every open, never cached with the title
+            vm = view_model(core, dict(title, **{'a4k.in_watchlist': in_watchlist(core, self.vm['id'])}))
             if self.closed:
                 return
             self.paint(vm)
@@ -247,7 +290,8 @@ class Detail(kodi.xbmcgui.WindowXML):
         pills = []
         for pill in vm['seasons']:
             item = ListItem(label=pill['label'], offscreen=True)
-            item.setProperty('url', pill['url'])
+            for key in ('url', 'watched', 'progress'):
+                item.setProperty(key, pill[key])
             pills.append(item)
         control = self.getControl(SEASONS)
         control.addItems(pills)
@@ -300,7 +344,7 @@ class Detail(kodi.xbmcgui.WindowXML):
             elif control_id == TRAILER:
                 home.run(self.vm['trailer'])
             elif control_id == WATCHLIST:
-                home.run(self.vm['watchlist'])
+                self.toggle_watchlist()
             elif control_id == MORE:
                 self.menu()
             elif control_id == SEASONS:
@@ -313,15 +357,29 @@ class Detail(kodi.xbmcgui.WindowXML):
             self.__fail()
 
     def play(self):
+        # a series has no Play button (the TV skin's row): its episodes play from the shelf
         if self.vm['play']:
-            return home.run('PlayMedia(%s)' % self.vm['play'])
-        # a series plays the first episode of the open season
-        path = kodi.xbmc.getInfoLabel('Container(%s).ListItemAbsolute(0).FolderPath' % EPISODES)
-        if path:
-            home.run('PlayMedia(%s)' % path)
+            home.run('PlayMedia(%s)' % self.vm['play'])
 
     def menu(self):
-        home.menu(self.vm['menu'], self.vm['id'], self.vm['title'])
+        home.menu(self.vm['menu'], self.vm['id'], self.vm['title'], self.__changed)
+
+    def __changed(self, builtin):
+        # a watchlist row run from the menu flips the button as the button itself does
+        if 'type=watchlist_' in builtin:
+            self.__flip('type=watchlist_add' in builtin)
+
+    def toggle_watchlist(self):
+        # the TV skin's + / check button: add or remove by state, then the button and the menu show the other one
+        builtin = self.vm['watchlist']
+        home.run(builtin)
+        self.__flip('type=watchlist_add' in builtin)
+
+    def __flip(self, added):
+        state = dict(self.vm['state'], **{'a4k.in_watchlist': added})
+        self.vm = dict(self.vm, **buttons(SimpleNamespace(url=app.PLUGIN, kodi=kodi), state))
+        for key in ('inwatchlist', 'wlabel'):
+            self.setProperty('a4k.%s' % key, self.vm[key])
 
     def person(self):
         # a cast face opens the person's known-for grid

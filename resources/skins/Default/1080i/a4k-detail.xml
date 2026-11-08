@@ -1,17 +1,20 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-  a4kStreaming title detail (tvOS-like). The same rules as a4k-home.xml: 1080p pixels = dobby units x2, no includes and
+  a4kStreaming title detail (tvOS-like). The same rules as a4k-home.xml: 1080p pixels = the TV skin's units x2, no includes and
   no named colours, Estuary font names, every control places itself (left/top), every focusable control names its
   neighbours and says noop at its edges, and the one <content> row sorts by programcount so play and stop do not reload
   it.
 
   The text is window properties: painted from the selected card before the window opens, then from the title's own
   request. The season pills and the cast are filled from Python; the episodes shelf is the plugin's episodes listing for
-  the open season (a4k.episodes, set once a pill keeps focus). The blurred backdrop (the 64x36 still, stretched) fades
-  in once focus leaves the buttons, as dobby's glass does.
+  the open season (a4k.episodes, set once a pill keeps focus), its cards read the listing's a4k.* episode properties
+  (listing.episode_properties). The blurred backdrop (the 64x36 still, stretched) fades in once focus leaves the
+  buttons, as the TV skin's glass does. A focused episode with a plot shows its label, title and plot in a glass panel
+  on the right, and the title's info and buttons fade out under it.
 -->
 <window>
-	<defaultcontrol>501</defaultcontrol>
+	<!-- the row's first shown button: a series has no Play -->
+	<defaultcontrol>500</defaultcontrol>
 	<backgroundcolor>FF07080C</backgroundcolor>
 	<animation effect="fade" start="0" end="100" time="200">WindowOpen</animation>
 	<animation effect="fade" start="100" end="0" time="150">WindowClose</animation>
@@ -67,6 +70,7 @@
 				<width>1920</width>
 				<height>752</height>
 				<defaultcontrol>500</defaultcontrol>
+				<animation effect="fade" start="100" end="0" time="200" condition="Control.HasFocus(530) + !String.IsEmpty(Container(530).ListItem.Property(a4k.plot))">Conditional</animation>
 				<control type="grouplist">
 					<left>96</left>
 					<top>160</top>
@@ -127,28 +131,26 @@
 							<height>40</height>
 							<font>font27</font>
 							<textcolor>B8FFFFFF</textcolor>
-							<label>$INFO[Window.Property(a4k.year)]</label>
-							<visible>!String.IsEmpty(Window.Property(a4k.year))</visible>
+							<label>$INFO[Window.Property(a4k.meta)]</label>
+						</control>
+						<!-- the TV skin's "Your rating" mark: a check and the user's own stars, signed in and rated -->
+						<control type="image">
+							<left>8</left>
+							<top>9</top>
+							<width>22</width>
+							<height>22</height>
+							<texture colordiffuse="FFFFD166">a4k/check.png</texture>
+							<visible>!String.IsEmpty(Window.Property(a4k.yours))</visible>
 						</control>
 						<control type="label">
-							<left>0</left>
+							<left>-8</left>
 							<top>0</top>
 							<width>auto</width>
 							<height>40</height>
 							<font>font27</font>
-							<textcolor>B8FFFFFF</textcolor>
-							<label>$INFO[Window.Property(a4k.runtime)]</label>
-							<visible>!String.IsEmpty(Window.Property(a4k.runtime))</visible>
-						</control>
-						<control type="label">
-							<left>0</left>
-							<top>0</top>
-							<width>auto</width>
-							<height>40</height>
-							<font>font27</font>
-							<textcolor>B8FFFFFF</textcolor>
-							<label>$INFO[Window.Property(a4k.certificate)]</label>
-							<visible>!String.IsEmpty(Window.Property(a4k.certificate))</visible>
+							<textcolor>FFFFD166</textcolor>
+							<label>$INFO[Window.Property(a4k.yours)]</label>
+							<visible>!String.IsEmpty(Window.Property(a4k.yours))</visible>
 						</control>
 					</control>
 					<!-- The plot is focusable (Up from the buttons): a soft pill, OK shows the full text. -->
@@ -200,6 +202,7 @@
 						<height>76</height>
 						<font>font30_title</font>
 						<label>Play</label>
+						<visible>String.IsEmpty(Window.Property(a4k.series))</visible>
 						<align>center</align>
 						<aligny>center</aligny>
 						<textcolor>FFFFFFFF</textcolor>
@@ -215,7 +218,7 @@
 						<width>240</width>
 						<height>76</height>
 						<font>font30_title</font>
-						<label>Trailer</label>
+						<label>$INFO[Window.Property(a4k.trailers)]</label>
 						<align>center</align>
 						<aligny>center</aligny>
 						<textcolor>FFFFFFFF</textcolor>
@@ -229,10 +232,10 @@
 					<control type="button" id="503">
 						<left>0</left>
 						<top>0</top>
-						<width>290</width>
+						<width>76</width>
 						<height>76</height>
-						<font>font30_title</font>
-						<label>+  Watchlist</label>
+						<font>font36_title</font>
+						<label>$INFO[Window.Property(a4k.wlabel)]</label>
 						<align>center</align>
 						<aligny>center</aligny>
 						<textcolor>FFFFFFFF</textcolor>
@@ -246,9 +249,9 @@
 					<control type="button" id="504">
 						<left>0</left>
 						<top>0</top>
-						<width>120</width>
+						<width>76</width>
 						<height>76</height>
-						<font>font30_title</font>
+						<font>font20_title</font>
 						<label>•••</label>
 						<align>center</align>
 						<aligny>center</aligny>
@@ -259,6 +262,40 @@
 						<animation effect="zoom" start="100" end="108" time="220" tween="cubic" easing="out" center="auto" reversible="false">Focus</animation>
 						<animation effect="zoom" start="108" end="100" time="220" tween="cubic" easing="out" center="auto" reversible="false">Unfocus</animation>
 					</control>
+				</control>
+				<!-- In the watchlist the + button shows a check (the TV skin's): the font has no check glyph, so the a4k texture
+				     sits over the button, after Trailer (a series has no Play, a movie does). -->
+				<control type="image">
+					<left>387</left>
+					<top>671</top>
+					<width>22</width>
+					<height>22</height>
+					<texture colordiffuse="FF0C0D12">a4k/check.png</texture>
+					<visible>!String.IsEmpty(Window.Property(a4k.inwatchlist)) + !String.IsEmpty(Window.Property(a4k.auth)) + !String.IsEmpty(Window.Property(a4k.series)) + Control.HasFocus(503)</visible>
+				</control>
+				<control type="image">
+					<left>387</left>
+					<top>671</top>
+					<width>22</width>
+					<height>22</height>
+					<texture colordiffuse="FFFFFFFF">a4k/check.png</texture>
+					<visible>!String.IsEmpty(Window.Property(a4k.inwatchlist)) + !String.IsEmpty(Window.Property(a4k.auth)) + !String.IsEmpty(Window.Property(a4k.series)) + !Control.HasFocus(503)</visible>
+				</control>
+				<control type="image">
+					<left>631</left>
+					<top>671</top>
+					<width>22</width>
+					<height>22</height>
+					<texture colordiffuse="FF0C0D12">a4k/check.png</texture>
+					<visible>!String.IsEmpty(Window.Property(a4k.inwatchlist)) + !String.IsEmpty(Window.Property(a4k.auth)) + String.IsEmpty(Window.Property(a4k.series)) + Control.HasFocus(503)</visible>
+				</control>
+				<control type="image">
+					<left>631</left>
+					<top>671</top>
+					<width>22</width>
+					<height>22</height>
+					<texture colordiffuse="FFFFFFFF">a4k/check.png</texture>
+					<visible>!String.IsEmpty(Window.Property(a4k.inwatchlist)) + !String.IsEmpty(Window.Property(a4k.auth)) + String.IsEmpty(Window.Property(a4k.series)) + !Control.HasFocus(503)</visible>
 				</control>
 			</control>
 
@@ -307,6 +344,40 @@
 							<aligny>center</aligny>
 							<textcolor>B8FFFFFF</textcolor>
 							<label>$INFO[ListItem.Label]</label>
+							<visible>String.IsEmpty(ListItem.Property(watched))</visible>
+						</control>
+						<control type="label">
+							<left>96</left>
+							<top>20</top>
+							<width>150</width>
+							<height>64</height>
+							<font>font25_title</font>
+							<align>center</align>
+							<aligny>center</aligny>
+							<textcolor>B8FFFFFF</textcolor>
+							<label>$INFO[ListItem.Label]</label>
+							<visible>!String.IsEmpty(ListItem.Property(watched))</visible>
+						</control>
+						<control type="image">
+							<left>236</left>
+							<top>41</top>
+							<width>22</width>
+							<height>22</height>
+							<texture colordiffuse="B8FFFFFF">a4k/check.png</texture>
+							<visible>!String.IsEmpty(ListItem.Property(watched))</visible>
+						</control>
+						<control type="progress">
+							<left>132</left>
+							<top>72</top>
+							<width>120</width>
+							<height>4</height>
+							<texturebg border="2" colordiffuse="737F7F7F">a4k/rr4.png</texturebg>
+							<lefttexture></lefttexture>
+							<midtexture border="2" colordiffuse="B8FFFFFF">a4k/rr4.png</midtexture>
+							<righttexture></righttexture>
+							<overlaytexture></overlaytexture>
+							<info>ListItem.Property(progress)</info>
+							<visible>!String.IsEmpty(ListItem.Property(progress))</visible>
 						</control>
 					</itemlayout>
 					<focusedlayout width="208" height="104">
@@ -349,7 +420,40 @@
 								<aligny>center</aligny>
 								<textcolor>FF0C0D12</textcolor>
 								<label>$INFO[ListItem.Label]</label>
-								<visible>Control.HasFocus(520)</visible>
+								<visible>Control.HasFocus(520) + String.IsEmpty(ListItem.Property(watched))</visible>
+							</control>
+							<control type="label">
+								<left>96</left>
+								<top>20</top>
+								<width>150</width>
+								<height>64</height>
+								<font>font25_title</font>
+								<align>center</align>
+								<aligny>center</aligny>
+								<textcolor>FF0C0D12</textcolor>
+								<label>$INFO[ListItem.Label]</label>
+								<visible>Control.HasFocus(520) + !String.IsEmpty(ListItem.Property(watched))</visible>
+							</control>
+							<control type="image">
+								<left>236</left>
+								<top>41</top>
+								<width>22</width>
+								<height>22</height>
+								<texture colordiffuse="FF0C0D12">a4k/check.png</texture>
+								<visible>Control.HasFocus(520) + !String.IsEmpty(ListItem.Property(watched))</visible>
+							</control>
+							<control type="progress">
+								<left>132</left>
+								<top>72</top>
+								<width>120</width>
+								<height>4</height>
+								<texturebg border="2" colordiffuse="737F7F7F">a4k/rr4.png</texturebg>
+								<lefttexture></lefttexture>
+								<midtexture border="2" colordiffuse="FF0C0D12">a4k/rr4.png</midtexture>
+								<righttexture></righttexture>
+								<overlaytexture></overlaytexture>
+								<info>ListItem.Property(progress)</info>
+								<visible>Control.HasFocus(520) + !String.IsEmpty(ListItem.Property(progress))</visible>
 							</control>
 							<control type="label">
 								<left>96</left>
@@ -361,7 +465,40 @@
 								<aligny>center</aligny>
 								<textcolor>FFFFFFFF</textcolor>
 								<label>$INFO[ListItem.Label]</label>
-								<visible>!Control.HasFocus(520)</visible>
+								<visible>!Control.HasFocus(520) + String.IsEmpty(ListItem.Property(watched))</visible>
+							</control>
+							<control type="label">
+								<left>96</left>
+								<top>20</top>
+								<width>150</width>
+								<height>64</height>
+								<font>font25_title</font>
+								<align>center</align>
+								<aligny>center</aligny>
+								<textcolor>FFFFFFFF</textcolor>
+								<label>$INFO[ListItem.Label]</label>
+								<visible>!Control.HasFocus(520) + !String.IsEmpty(ListItem.Property(watched))</visible>
+							</control>
+							<control type="image">
+								<left>236</left>
+								<top>41</top>
+								<width>22</width>
+								<height>22</height>
+								<texture colordiffuse="FFFFFFFF">a4k/check.png</texture>
+								<visible>!Control.HasFocus(520) + !String.IsEmpty(ListItem.Property(watched))</visible>
+							</control>
+							<control type="progress">
+								<left>132</left>
+								<top>72</top>
+								<width>120</width>
+								<height>4</height>
+								<texturebg border="2" colordiffuse="737F7F7F">a4k/rr4.png</texturebg>
+								<lefttexture></lefttexture>
+								<midtexture border="2" colordiffuse="FFFFFFFF">a4k/rr4.png</midtexture>
+								<righttexture></righttexture>
+								<overlaytexture></overlaytexture>
+								<info>ListItem.Property(progress)</info>
+								<visible>!Control.HasFocus(520) + !String.IsEmpty(ListItem.Property(progress))</visible>
 							</control>
 						</control>
 					</focusedlayout>
@@ -416,23 +553,80 @@
 							<fadetime>200</fadetime>
 							<texture background="true" diffuse="a4k/mask_ep.png">$INFO[ListItem.Art(thumb)]</texture>
 						</control>
+						<control type="image">
+							<left>372</left>
+							<top>36</top>
+							<width>112</width>
+							<height>40</height>
+							<texture border="20" colordiffuse="B8121216">a4k/rr20.png</texture>
+							<visible>Integer.IsGreater(ListItem.PlayCount,0) + !String.IsEmpty(ListItem.UserRating)</visible>
+						</control>
+						<control type="image">
+							<left>386</left>
+							<top>46</top>
+							<width>20</width>
+							<height>20</height>
+							<texture>a4k/check.png</texture>
+							<visible>Integer.IsGreater(ListItem.PlayCount,0) + !String.IsEmpty(ListItem.UserRating)</visible>
+						</control>
 						<control type="label">
-							<left>96</left>
-							<top>270</top>
-							<width>400</width>
-							<height>32</height>
-							<font>font12</font>
-							<textcolor>80FFFFFF</textcolor>
-							<label>$INFO[ListItem.Label]</label>
+							<left>410</left>
+							<top>36</top>
+							<width>60</width>
+							<height>40</height>
+							<font>font10</font>
+							<align>right</align>
+							<aligny>center</aligny>
+							<textcolor>D9FFFFFF</textcolor>
+							<label>$INFO[ListItem.UserRating,★ ]</label>
+							<visible>Integer.IsGreater(ListItem.PlayCount,0) + !String.IsEmpty(ListItem.UserRating)</visible>
+						</control>
+						<control type="image">
+							<left>444</left>
+							<top>36</top>
+							<width>40</width>
+							<height>40</height>
+							<texture border="20" colordiffuse="B8121216">a4k/rr20.png</texture>
+							<visible>Integer.IsGreater(ListItem.PlayCount,0) + String.IsEmpty(ListItem.UserRating)</visible>
+						</control>
+						<control type="image">
+							<left>454</left>
+							<top>46</top>
+							<width>20</width>
+							<height>20</height>
+							<texture>a4k/check.png</texture>
+							<visible>Integer.IsGreater(ListItem.PlayCount,0) + String.IsEmpty(ListItem.UserRating)</visible>
+						</control>
+						<control type="progress">
+							<left>116</left>
+							<top>226</top>
+							<width>360</width>
+							<height>6</height>
+							<texturebg border="3" colordiffuse="737F7F7F">a4k/rr4.png</texturebg>
+							<lefttexture></lefttexture>
+							<midtexture border="3">a4k/rr4.png</midtexture>
+							<righttexture></righttexture>
+							<overlaytexture></overlaytexture>
+							<info>ListItem.PercentPlayed</info>
+							<visible>ListItem.IsResumable</visible>
 						</control>
 						<control type="label">
 							<left>96</left>
-							<top>302</top>
+							<top>264</top>
+							<width>400</width>
+							<height>32</height>
+							<font>font25_title</font>
+							<textcolor>99FFFFFF</textcolor>
+							<label>$INFO[ListItem.Property(a4k.label),[COLOR 6EFFFFFF],[/COLOR]  ]$INFO[ListItem.Property(a4k.name)]</label>
+						</control>
+						<control type="label">
+							<left>96</left>
+							<top>298</top>
 							<width>400</width>
 							<height>30</height>
 							<font>font10</font>
-							<textcolor>59FFFFFF</textcolor>
-							<label>$INFO[ListItem.Premiered]$INFO[ListItem.Rating,  ·  IMDb ,]</label>
+							<textcolor>80FFFFFF</textcolor>
+							<label>$INFO[ListItem.Property(a4k.rating),[COLOR FFFFD166]★ ,[/COLOR]   ]$INFO[ListItem.Property(a4k.meta)]</label>
 						</control>
 					</itemlayout>
 					<focusedlayout width="424" height="350">
@@ -473,23 +667,80 @@
 								<visible>Control.HasFocus(530)</visible>
 							</control>
 						</control>
+						<control type="image">
+							<left>372</left>
+							<top>36</top>
+							<width>112</width>
+							<height>40</height>
+							<texture border="20" colordiffuse="B8121216">a4k/rr20.png</texture>
+							<visible>Integer.IsGreater(ListItem.PlayCount,0) + !String.IsEmpty(ListItem.UserRating)</visible>
+						</control>
+						<control type="image">
+							<left>386</left>
+							<top>46</top>
+							<width>20</width>
+							<height>20</height>
+							<texture>a4k/check.png</texture>
+							<visible>Integer.IsGreater(ListItem.PlayCount,0) + !String.IsEmpty(ListItem.UserRating)</visible>
+						</control>
 						<control type="label">
-							<left>96</left>
-							<top>270</top>
-							<width>400</width>
-							<height>32</height>
-							<font>font12</font>
-							<textcolor>FFFFFFFF</textcolor>
-							<label>$INFO[ListItem.Label]</label>
+							<left>410</left>
+							<top>36</top>
+							<width>60</width>
+							<height>40</height>
+							<font>font10</font>
+							<align>right</align>
+							<aligny>center</aligny>
+							<textcolor>D9FFFFFF</textcolor>
+							<label>$INFO[ListItem.UserRating,★ ]</label>
+							<visible>Integer.IsGreater(ListItem.PlayCount,0) + !String.IsEmpty(ListItem.UserRating)</visible>
+						</control>
+						<control type="image">
+							<left>444</left>
+							<top>36</top>
+							<width>40</width>
+							<height>40</height>
+							<texture border="20" colordiffuse="B8121216">a4k/rr20.png</texture>
+							<visible>Integer.IsGreater(ListItem.PlayCount,0) + String.IsEmpty(ListItem.UserRating)</visible>
+						</control>
+						<control type="image">
+							<left>454</left>
+							<top>46</top>
+							<width>20</width>
+							<height>20</height>
+							<texture>a4k/check.png</texture>
+							<visible>Integer.IsGreater(ListItem.PlayCount,0) + String.IsEmpty(ListItem.UserRating)</visible>
+						</control>
+						<control type="progress">
+							<left>116</left>
+							<top>226</top>
+							<width>360</width>
+							<height>6</height>
+							<texturebg border="3" colordiffuse="737F7F7F">a4k/rr4.png</texturebg>
+							<lefttexture></lefttexture>
+							<midtexture border="3">a4k/rr4.png</midtexture>
+							<righttexture></righttexture>
+							<overlaytexture></overlaytexture>
+							<info>ListItem.PercentPlayed</info>
+							<visible>ListItem.IsResumable</visible>
 						</control>
 						<control type="label">
 							<left>96</left>
-							<top>302</top>
+							<top>264</top>
+							<width>400</width>
+							<height>32</height>
+							<font>font25_title</font>
+							<textcolor>FFFFFFFF</textcolor>
+							<label>$INFO[ListItem.Property(a4k.label),[COLOR B8FFFFFF],[/COLOR]  ]$INFO[ListItem.Property(a4k.name)]</label>
+						</control>
+						<control type="label">
+							<left>96</left>
+							<top>298</top>
 							<width>400</width>
 							<height>30</height>
 							<font>font10</font>
-							<textcolor>B3FFFFFF</textcolor>
-							<label>$INFO[ListItem.Premiered]$INFO[ListItem.Rating,  ·  IMDb ,]</label>
+							<textcolor>80FFFFFF</textcolor>
+							<label>$INFO[ListItem.Property(a4k.rating),[COLOR FFFFD166]★ ,[/COLOR]   ]$INFO[ListItem.Property(a4k.meta)]</label>
 						</control>
 					</focusedlayout>
 					<content target="videos" sortby="programcount">$INFO[Window.Property(a4k.episodes)]</content>
@@ -614,6 +865,41 @@
 						</control>
 					</focusedlayout>
 				</control>
+			</control>
+		</control>
+		<!-- The focused episode's label, title and plot (the TV skin's episode panel): 440 x 216 units on the right, 40 from
+		     the top and the edge, in the sheet glass, while the episode row holds focus and the episode has a plot. -->
+		<control type="group">
+			<left>960</left>
+			<top>80</top>
+			<width>880</width>
+			<height>432</height>
+			<visible>Control.HasFocus(530) + !String.IsEmpty(Container(530).ListItem.Property(a4k.plot))</visible>
+			<animation effect="fade" time="200">VisibleChange</animation>
+			<control type="image">
+				<left>0</left>
+				<top>0</top>
+				<width>880</width>
+				<height>432</height>
+				<texture border="48">a4k/sheet.png</texture>
+			</control>
+			<control type="label">
+				<left>44</left>
+				<top>40</top>
+				<width>792</width>
+				<height>40</height>
+				<font>font30_title</font>
+				<textcolor>FFFFFFFF</textcolor>
+				<label>$INFO[Container(530).ListItem.Property(a4k.label),[COLOR 99FFFFFF],[/COLOR]   ]$INFO[Container(530).ListItem.Property(a4k.name)]</label>
+			</control>
+			<control type="textbox">
+				<left>44</left>
+				<top>96</top>
+				<width>792</width>
+				<height>296</height>
+				<font>font27</font>
+				<textcolor>CCFFFFFF</textcolor>
+				<label>$INFO[Container(530).ListItem.Property(a4k.plot)]</label>
 			</control>
 		</control>
 		<control type="image">

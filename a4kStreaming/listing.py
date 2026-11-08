@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 
+from urllib.parse import quote_plus
+
 __action_menu_style = '[COLOR white][B]%s[/B][/COLOR]'
 
 def __get_season_title(season_template, season, year, episodes):
@@ -24,6 +26,57 @@ def __get_episode_title(season_template, season, episode, title):
         return 'S%sE%s. %s' % (season_zfill, episode_zfill, title)
     return '%s' % title
 
+def runtime_text(seconds):
+    # "2h 10m", "50m", '' without one
+    minutes = int(seconds or 0) // 60
+    if not minutes:
+        return ''
+    return '%sh %sm' % divmod(minutes, 60) if minutes >= 60 else '%sm' % minutes
+
+def card_meta(title):
+    # the TV skin's card line: "2024 · ★ 7.8 · 2h 10m", an ended series' years "2008–2013", a missing part left out
+    year, end = title.get('releaseYear', None), title.get('releaseEndYear', None)
+    rating = (title.get('ratingsSummary', None) or {}).get('aggregateRating', None)
+    years = '%s\u2013%s' % (year, end) if year and end and end != year else str(year or '')
+    return ' \u00b7 '.join(part for part in (years, '\u2605 %.1f' % rating if rating else '', runtime_text(title.get('runtime', None))) if part)
+
+def tv_badge(title):
+    # the TV skin's series badge: ("TV·3", 'ongoing' | 'ended'); the seasons with episodes, ended by IMDb's isOngoing
+    # (the end year when that is missing)
+    episodes = title.get('episodes', None) or {}
+    seasons = [season for season in (episodes.get('seasons', None) or []) if season is not None]
+    ongoing = episodes.get('isOngoing', None)
+    ended = not ongoing if ongoing is not None else bool(title.get('releaseEndYear', None))
+    return 'TV' + ('\u00b7%s' % len(seasons) if seasons else ''), 'ended' if ended else 'ongoing'
+
+MONTHS = ('January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November',
+          'December')
+
+def date_text(date):
+    # a release date as IMDb displays it: "October 30, 2026", "October 2026" or "2026" (English, as IMDb's own text)
+    date = date or {}
+    year, month, day = date.get('year', None), date.get('month', None), date.get('day', None)
+    if not year:
+        return ''
+    if not month:
+        return str(year)
+    return '%s %s, %s' % (MONTHS[month - 1], day, year) if day else '%s %s' % (MONTHS[month - 1], year)
+
+def episode_properties(episode, released):
+    # the detail window's episode card and focus panel (a4k-detail.xml): "S1 E1", the bare title, the episode's own plot,
+    # its IMDb rating, and air date · runtime (· Unaired)
+    number = episode['series']
+    rating = (episode.get('ratingsSummary', None) or {}).get('aggregateRating', None)
+    minutes = int(round((episode.get('runtime', None) or 0) / 60.0))
+    meta = (date_text(episode.get('releaseDate', None)), '%sm' % minutes if minutes else '', '' if released else 'Unaired')
+    return {
+        'a4k.label': 'S%s E%s' % (number['seasonNumber'], number['episodeNumber']),
+        'a4k.name': episode.get('titleText', None) or '',
+        'a4k.plot': episode.get('plot', None) or '',
+        'a4k.rating': '%.1f' % rating if rating else '',
+        'a4k.meta': ' · '.join(part for part in meta if part),
+    }
+
 def __handle_request_error(core, params, response=None):
     if not params.silent:
         core.kodi.notification('Something went wrong. Check logs')
@@ -40,62 +93,61 @@ def __set_wide_image_as_primary(title):
             title['primaryImage'] = wide_images[0]
 
 def title_context_menu(core, title, autoplay=None):
-    # [(label, builtin)] for a title's context menu; autoplay is the general.autoplay setting, read once per listing
+    # [(label, builtin)]: the TV skin's title and episode menus, only the rows that apply, in its order. Trailers and the
+    # cast are the page's own button and row; the playback options (file pick, search again, uncached sources) are rows
+    # of the source sheet. State the caller knows rides on the title: a4k.in_watchlist and a4k.show_watched (True, False
+    # or None when unknown), a4k.play (an episode's play URL) and a4k.resumable. autoplay is unused, kept for callers
     titleType = title['titleType']
     if titleType == 'person':
         return []
 
-    trailer = ''
-    all_trailers = ''
-    if title.get('primaryVideos', None) and len(title['primaryVideos']) > 0:
-        trailer = title['primaryVideos'][0]
-        all_trailers = '_'.join(title['primaryVideos'])
+    def profile(type, extra=''):
+        return 'RunPlugin(%s?action=profile&type=%s&id=%s%s)' % (core.url, type, title['id'], extra)
 
-    tvseries = titleType == 'tvSeries'
-    has_rating = title.get('userRating', None) is not None
-    context_menu_items = [
-        ('IMDb: %s rating' % ('Update' if has_rating else 'Set'), 'RunPlugin(%s?action=profile&type=rate&id=%s)' % (core.url, title['id'])),
-        ('IMDb: Trailer', 'RunPlugin(%s?action=trailer&id=%s&vi=%s&play=true)' % (core.url, title['id'], trailer)),
-        ('IMDb: Choose Trailer', 'RunPlugin(%s?action=trailer&id=%s&vi=%s&play=true)' % (core.url, title['id'], all_trailers)),
-        ('IMDb: Cast & Crew', 'ActivateWindow(Videos,%s?action=query&type=browse&id=%s,return)' % (core.url, title['id'])),
-    ]
+    rated = title.get('userRating', None) is not None
+    if titleType == 'tvEpisode':
+        # watched is rated: Mark watched rates (general.mark_as_watched_rating), Unmark watched removes the rating
+        play = title.get('a4k.play', None) or play_url(core, title)
+        items = [('Play from here', 'PlayMedia(%s)' % play)]
+        if title.get('a4k.resumable', False):
+            items.append(('Reset resume progress', 'RunPlugin(%s?action=reset_resume&path=%s)' % (core.url, quote_plus(play))))
+        items.extend([
+            ('Rate', profile('rate')),
+            ('Unmark watched', profile('mark_as_unwatched')) if rated else ('Mark watched', profile('mark_as_watched')),
+            ('Episode details', 'Action(Info)'),
+        ])
+        return items
 
-    if titleType != 'tvEpisode':
-        context_menu_items.append(
-            ('IMDb: More like this', 'ActivateWindow(Videos,%s?action=query&type=more_like_this&id=%s,return)' % (core.url, title['id']))
-        )
-
-    if not tvseries:
-        if has_rating:
-            context_menu_items.append(
-                ('IMDb: Mark as unwatched', 'RunPlugin(%s?action=profile&type=mark_as_unwatched&id=%s)' % (core.url, title['id']))
-            )
-        else:
-            context_menu_items.append(
-                ('IMDb: Mark as watched', 'RunPlugin(%s?action=profile&type=mark_as_watched&id=%s)' % (core.url, title['id']))
-            )
-
-    context_menu_items.extend([
-        ('IMDb: Add to watchlist', 'RunPlugin(%s?action=profile&type=watchlist_add&id=%s)' % (core.url, title['id'])),
-        ('IMDb: Remove from watchlist', 'RunPlugin(%s?action=profile&type=watchlist_remove&id=%s)' % (core.url, title['id'])),
-        ('IMDb: Add to list', 'RunPlugin(%s?action=profile&type=list_add&id=%s)' % (core.url, title['id'])),
-        ('IMDb: Remove from list', 'RunPlugin(%s?action=profile&type=list_remove&id=%s)' % (core.url, title['id'])),
+    items = [('Rate', profile('rate'))] + ([('Unrate', profile('mark_as_unwatched'))] if rated else [])
+    # one watchlist row by state; both when the state is unknown (the TV skin's rule)
+    in_watchlist = title.get('a4k.in_watchlist', None)
+    if in_watchlist is not True:
+        items.append(('Add to watchlist', profile('watchlist_add')))
+    if in_watchlist is not False:
+        items.append(('Remove from watchlist', profile('watchlist_remove')))
+    items.extend([
+        ('Add to IMDb list', profile('list_add')),
+        ('Remove from IMDb list', profile('list_remove')),
+        ('More Like This', 'ActivateWindow(Videos,%s?action=query&type=more_like_this&id=%s,return)' % (core.url, title['id'])),
     ])
+    if titleType == 'tvSeries':
+        # every released episode rated or unrated at once (imdb.profile reads the episodes); both when unknown
+        watched = title.get('a4k.show_watched', None)
+        if watched is not True:
+            items.append(('Mark show watched', profile('mark_as_watched', '&show=true')))
+        if watched is not False:
+            items.append(('Unmark show watched', profile('mark_as_unwatched', '&show=true')))
+    return items
 
-    if not tvseries:
-        context_menu_items.extend([
-            ('Debrid: Add sources', 'RunPlugin(%s?action=cache_sources&id=%s)' % (core.url, title['id']))
-        ])
-        context_menu_items.extend([
-            ('Force file select', 'PlayMedia(%s?action=play&id=%s&force_fileselect=true)' % (core.url, title['id'])),
-            ('Refresh sources', 'PlayMedia(%s?action=play&id=%s&refresh=true)' % (core.url, title['id'])),
-        ])
-        if core.kodi.get_bool_setting('general.autoplay') if autoplay is None else autoplay:
-            context_menu_items.extend([
-                ('Force source select', 'PlayMedia(%s?action=play&id=%s&force_sourceselect=true)' % (core.url, title['id']))
-            ])
+def trailer_builtin(core, title):
+    # what the Trailer button runs (imdb.trailer): the one video plays, several open the picker, none says so
+    videos = title.get('primaryVideos', None) or []
+    return 'RunPlugin(%s?action=trailer&id=%s&vi=%s&play=true)' % (core.url, title['id'], '_'.join(videos))
 
-    return context_menu_items
+def watchlist_builtin(core, title):
+    # what the + / − button runs: the one watchlist action the state allows (add when unknown)
+    type = 'watchlist_remove' if title.get('a4k.in_watchlist', None) is True else 'watchlist_add'
+    return 'RunPlugin(%s?action=profile&type=%s&id=%s)' % (core.url, type, title['id'])
 
 def __set_title_contextmenu(core, title, list_item, autoplay):
     if title['titleType'] == 'person':
@@ -293,11 +345,11 @@ def __add_seasons(core, title):
                 'playcount': 1
             })
             context_menu_items.append(
-                ('IMDb: Mark as unwatched', 'RunPlugin(plugin://plugin.video.a4kstreaming/?action=profile&type=mark_as_unwatched&id=%s&ids=%s)' % ('Season %s' % season.key, '__'.join(season.episode_ids)))
+                ('Unmark season watched', 'RunPlugin(plugin://plugin.video.a4kstreaming/?action=profile&type=mark_as_unwatched&id=%s&ids=%s)' % ('Season %s' % season.key, '__'.join(season.episode_ids)))
             )
         else:
             context_menu_items.append(
-                ('IMDb: Mark as watched', 'RunPlugin(plugin://plugin.video.a4kstreaming/?action=profile&type=mark_as_watched&id=%s&ids=%s)' % ('Season %s' % season.key, '__'.join(season.episode_ids)))
+                ('Mark season watched', 'RunPlugin(plugin://plugin.video.a4kstreaming/?action=profile&type=mark_as_watched&id=%s&ids=%s)' % ('Season %s' % season.key, '__'.join(season.episode_ids)))
             )
 
         list_item.addContextMenuItems(context_menu_items)
@@ -324,6 +376,7 @@ def __add_episodes(core, title, season):
             continue
 
         episodeNumber = episode['series']['episodeNumber']
+        own = dict(episode)  # before the show's plot and the title template are folded in
 
         if title.get('id', None):
             episode['tvshowid'] = title['id']
@@ -363,7 +416,10 @@ def __add_episodes(core, title, season):
                 released = True
             if not released:
                 episode['titleTextStyled'] = '[COLOR red][I]%s[/I][/COLOR]' % episode['titleText']
+        else:
+            released = True
 
+        episode['a4k.properties'] = episode_properties(own, released)
         __set_wide_image_as_primary(episode)
         episodes.append(episode)
 
@@ -561,6 +617,13 @@ def __add_titles(core, titles, browse, silent=False):
         list_item.setProperty('a4k.type', titleType)
         list_item.setProperty('a4k.rated', 'true' if title.get('userRating', None) is not None else 'false')
         list_item.setProperty('a4k.trailers', '_'.join(title.get('primaryVideos', None) or []))
+        # the TV skin's card: the meta line, and a series' TV badge
+        list_item.setProperty('a4k.meta', card_meta(title))
+        label, state = tv_badge(title) if titleType == 'tvSeries' else ('', '')
+        list_item.setProperty('a4k.tv', label)
+        list_item.setProperty('a4k.tvstate', state)
+        for key, value in (title.get('a4k.properties', None) or {}).items():
+            list_item.setProperty(key, value)
 
         video_meta = __video_meta(core, title, titleType)
         mediatype = video_meta['mediatype']
@@ -636,6 +699,8 @@ def __add_titles(core, titles, browse, silent=False):
             url += '&id=%s' % title['id']
 
         list_item.setContentLookup(False)
+        if titleType == 'tvEpisode' and action == 'play':
+            title['a4k.play'] = url
         __set_title_contextmenu(core, title, list_item, autoplay)
         list_items.append((url, list_item, action != 'play'))
 

@@ -241,6 +241,102 @@ def __link_alive(core, link):
     # a dead or expired debrid link fails here, where the next source can be tried, instead of in the player
     return core.request.probe(link)
 
+def sheet_actions(core, params, provider, uncached):
+    # [(key, label, detail)]: the rows after the sources, in the TV skin's order: the file pick toggle, then Search all
+    # providers (quick sources) or Search again (a full list from the remembered searches), then the uncached sources
+    on = bool(params.force_fileselect)
+    rows = [('files', core.kodi.string(33144, 'Pick file manually: %s') % ('On' if on else 'Off'),
+             core.kodi.string(33146, 'Select a source above to list its files') if on
+             else core.kodi.string(33145, 'Select a source, then choose which file inside it to stream'))]
+    if provider.quick:
+        rows.append(('all', core.kodi.string(33141, 'Search all providers'), ''))
+    elif provider.from_cache:
+        rows.append(('again', core.kodi.string(33147, 'Search again'), core.kodi.string(33148, 'These results are from an earlier search')))
+    if uncached and not provider.quick:
+        rows.append(('uncached', core.kodi.string(33142, 'Show uncached sources (%s)') % len(uncached),
+                     core.kodi.string(33149, 'Download one to Premiumize, then stream')))
+    return rows
+
+def uncached_row(result):
+    # an uncached source as the TV skin draws it: a cached row's layout, marked as a download
+    label, label2 = sheets.source_row(result)
+    return '\u2193  %s' % label, '  ·  '.join(part for part in ('Not cached', 'download to Premiumize', label2) if part)
+
+def uncached_sources(core, uncached, apikey):
+    # the uncached list: a pick goes to Premiumize, which is waited on (transfer); the key of the source once it is
+    # there, None on Back
+    keys = sorted(uncached.keys(), key=lambda key: result_sort_key(uncached[key]))
+    selection = 0
+    while keys:
+        rows = [uncached_row(uncached[key]) for key in keys]
+        selection = sheets.select('Uncached sources', ['%s  %s' % row for row in rows], preselect=selection, rows=rows)
+        if selection is None or selection < 0:
+            return None
+        if transfer(core, apikey, uncached[keys[selection]]):
+            return keys[selection]
+    return None
+
+TRANSFER_POLL = 4  # seconds between the readiness checks
+TRANSFER_MAX = 20 * 60  # seconds the wait lasts; the transfer itself stays in Premiumize
+TRANSFER_FAILED = ('error', 'banned', 'deleted', 'timeout')
+
+def __pm_json(core, request):
+    # Premiumize's answer as a dict, never cached (the progress must be live); {} when it fails
+    try:
+        response = core.request.execute(core, request, False)
+        return core.json.loads(response.content) or {}
+    except Exception:
+        core.logger.notice(core.traceback.format_exc())
+        return {}
+
+def transfer(core, apikey, result):
+    # the TV skin's uncached pick: add the source to Premiumize and wait for it with a progress dialog. Ready is a
+    # resolve that answers (directdl lists the files only once the cloud copy exists), not the transfer status, which
+    # is only the progress text. Cancel asks to keep the transfer or remove it. True once ready
+    link = result[core.utils.result_link_key]
+    progress = core.kodi.xbmcgui.DialogProgress()
+    progress.create('Premiumize', 'Adding to Premiumize…')
+    try:
+        created = __pm_json(core, core.debrid.premiumize_cache(apikey, link))
+        id = created.get('id', None)
+        if created.get('status', None) != 'success' and not id and 'already' not in (created.get('message', None) or '').lower() \
+                and created.get('error', None) != 'duplicate':
+            core.kodi.notification(created.get('message', None) or 'Failed to add to Premiumize')
+            return False
+
+        started = core.time.time()
+        while True:
+            if __pm_json(core, core.debrid.premiumize_resolve(apikey, link)).get('content', None):
+                return True
+            text, percent = 'Downloading to Premiumize…', 0
+            state = next((t for t in __pm_json(core, core.debrid.premiumize_transfers(apikey)).get('transfers', None) or []
+                          if id and t.get('id', None) == id), None)
+            if state:
+                if state.get('status', None) in TRANSFER_FAILED:
+                    core.kodi.notification(state.get('message', None) or 'Transfer %s' % state['status'])
+                    return False
+                percent = int(round(float(state.get('progress', None) or 0) * 100))
+                status = 'Premiumize: %s' % state['status'] if state.get('status', None) else text
+                text = '\n'.join(part for part in (status, state.get('message', None) or '') if part)
+            progress.update(percent, text)
+
+            waited = 0.0
+            while waited < TRANSFER_POLL and not progress.iscanceled():
+                core.kodi.xbmc.sleep(250)
+                waited += 0.25
+            if progress.iscanceled():
+                progress.close()
+                keep = sheets.select('Premiumize', ['Keep downloading in Premiumize', 'Remove from Premiumize'])
+                if keep == 1 and id:
+                    __pm_json(core, core.debrid.premiumize_transfer_delete(apikey, id))
+                    core.kodi.notification('Removed from Premiumize')
+                return False
+            if core.time.time() - started > TRANSFER_MAX:
+                core.kodi.notification('Still downloading in Premiumize: try again later')
+                return False
+    finally:
+        progress.close()
+
 def play(core, params):
     general = core.cache.get_general()
 
@@ -310,14 +406,8 @@ def play(core, params):
         return provider.results
 
     uncached = dict((hash, result) for hash, result in provider.results.items() if 'PM%s' % hash not in provider.cached)
-    if len(provider.cached) == 0:
-        if uncached:
-            # nothing cached: the uncached sources, to send to the debrid service
-            core.kodi.notification('No cached sources found')
-            cache_sources(core, params, uncached)
-        else:
-            core.kodi.notification('No sources found')
-
+    if len(provider.cached) == 0 and not uncached:
+        core.kodi.notification('No sources found')
         general.last_action_time = core.utils.time_ms()
         core.cache.save_general(general)
         core.utils.end_action(core, True)
@@ -329,13 +419,11 @@ def play(core, params):
     results_keys = filter_keys(core, results, results_keys, mediatype)
 
     result_style = '[LIGHT]%s[/LIGHT]'
-    autoplay = core.kodi.get_bool_setting('general.autoplay') and not params.force_sourceselect
+    autoplay = core.kodi.get_bool_setting('general.autoplay') and not params.force_sourceselect and bool(results_keys)
 
-    selection = 1
     last_selected_result = core.cache.get_last_selected_result()
     result_keys_hash = core.utils.hash_data(''.join(results_keys))
-    if result_keys_hash in last_selected_result:
-        selection = last_selected_result[result_keys_hash]
+    selection = last_selected_result.get(result_keys_hash, 0)
 
     video_ext = list(map(lambda v: '.%s' % v.upper(), core.utils.video_containers()))
     size = 1048576 * 100
@@ -346,45 +434,67 @@ def play(core, params):
         parsed_response = core.json.loads(response.content)
         return parsed_response.get('content', [])
 
-    # the last row: the full search after quick sources, the uncached sources after a full search
-    last_row = None
-    if provider.quick:
-        last_row = core.kodi.string(33141, 'Search all providers')
-    elif uncached:
-        last_row = core.kodi.string(33142, 'Show uncached sources (%s)') % len(uncached)
+    def again():
+        general.last_action_time = None
+        core.cache.save_general(general)
+        return play(core, params)
+
+    # nothing cached: straight to the uncached sources, as the TV skin's picker
+    pick = None if results_keys else 'uncached'
+    if pick and len(provider.cached) == 0:
+        core.kodi.notification('No cached sources found')
 
     while True:
-        if not autoplay:
+        if not autoplay and not pick:
+            extra = sheet_actions(core, params, provider, uncached)
             selection = sheets.select(
                 'Choose source',
-                [__action_menu_style % 'New Search'] + [result_style % results[key].get('title_with_debrid', results[key]['title']) for key in results_keys]
-                + ([__action_menu_style % last_row] if last_row else []),
+                [result_style % results[key].get('title_with_debrid', results[key]['title']) for key in results_keys]
+                + [__action_menu_style % label for _, label, _ in extra],
                 preselect=selection,
-                rows=[('New Search', '')] + [sheets.source_row(results[key]) for key in results_keys] + ([(last_row, '')] if last_row else []),
+                rows=[sheets.source_row(results[key]) for key in results_keys] + [(label, detail) for _, label, detail in extra],
             )
+            if selection is None or selection < 0:
+                general.last_action_time = core.utils.time_ms()
+                core.cache.save_general(general)
+                core.utils.end_action(core, True)
+                return
+            if selection >= len(results_keys):
+                pick = extra[selection - len(results_keys)][0]
+            else:
+                core.cache.save_last_selected_result({ result_keys_hash: selection })
 
-        if selection == -1:
-            general.last_action_time = core.utils.time_ms()
-            core.cache.save_general(general)
-            core.utils.end_action(core, True)
-            return
-        elif selection == 0:
-            params.refresh = True
-            general.last_action_time = None
-            core.cache.save_general(general)
-            return play(core, params)
-        elif selection == len(results_keys) + 1 and provider.quick:
+        if pick == 'files':
+            # the toggle row: its label flips in place and keeps the focus
+            params.force_fileselect = None if params.force_fileselect else 'true'
+            pick = None
+            continue
+        elif pick == 'all':
             # the full results replace the quick ones
             params.full_search = True
-            general.last_action_time = None
-            core.cache.save_general(general)
-            return play(core, params)
-        elif selection == len(results_keys) + 1:
-            cache_sources(core, params, uncached)
-            continue
-        else:
-            core.cache.save_last_selected_result({ result_keys_hash: selection })
-            selection -= 1
+            return again()
+        elif pick == 'again':
+            # every provider again, past the quick sources and the remembered search, whose entry it rewrites
+            params.full_search = True
+            params.refresh = True
+            return again()
+        elif pick == 'uncached':
+            pick = None
+            key = uncached_sources(core, uncached, pm_apikey)
+            if key is None:
+                if results_keys:
+                    selection = len(results_keys)  # back on the sheet, at its first action row
+                    continue
+                general.last_action_time = core.utils.time_ms()
+                core.cache.save_general(general)
+                core.utils.end_action(core, True)
+                return
+            # in Premiumize now: it plays as a cached source, and stays on the sheet as one
+            results = dict(results)
+            results[key] = uncached.pop(key)
+            results_keys = [key] + results_keys
+            selection = 0
+            autoplay = False
 
         while True:
             result = results[results_keys[selection]]
@@ -416,7 +526,7 @@ def play(core, params):
                 except Exception as e:
                     core.logger.notice(e)
 
-                if len(files) > 1 or (len(files) == 1 and not filtered and result['package'] in ['show', 'season']):
+                if len(files) > 1 or (len(files) == 1 and (params.force_fileselect or not filtered and result['package'] in ['show', 'season'])):
                     file_results = {}
                     for file in files:
                         file_result = {
@@ -465,6 +575,7 @@ def play(core, params):
 
         if link:
             break
+        selection %= len(results_keys)  # past the last source: the sheet opens on the first
 
     item = core.kodi.xbmcgui.ListItem(path=link, offscreen=True)
     item.setProperty('IsPlayable', 'true')

@@ -202,6 +202,11 @@ def keyboard(draw, s):
             draw.rectangle(((x - 2) * u, (y - 2) * u, (x + 2) * u, (y + 2) * u), fill=(255, 255, 255, 255))
     draw.rectangle((20 * u, 38 * u, 44 * u, 42 * u), fill=(255, 255, 255, 255))
 
+def check(draw, s):
+    # the watched check (the TV skin's season tab and episode badge), a white tick tinted at draw time
+    u = s / 64
+    draw.line([(10 * u, 34 * u), (25 * u, 49 * u), (54 * u, 17 * u)], fill=(255, 255, 255, 255), width=int(9 * u), joint='curve')
+
 def main():
     os.makedirs(OUT, exist_ok=True)
     save(rounded((64, 64), 20), 'rr20.png')
@@ -232,6 +237,7 @@ def main():
     save(icon(backspace), 'icon_delete.png')
     save(icon(space), 'icon_space.png')
     save(icon(keyboard), 'icon_keyboard.png')
+    save(icon(check), 'check.png')
 
 if __name__ == '__main__':
     main()

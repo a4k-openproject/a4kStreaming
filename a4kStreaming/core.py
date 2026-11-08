@@ -121,6 +121,12 @@ def main(url, handle, paramstring):
         trailer(core, params)
         return
 
+    elif action == 'reset_resume':
+        # the episode menu's Reset resume progress: Kodi keeps the resume point against the item's play URL
+        kodi.json_rpc('Files.SetFileDetails', {'file': params.path, 'media': 'video', 'resume': {'position': 0, 'total': 0}})
+        kodi.xbmc.executebuiltin('Container.Refresh')
+        return
+
     elif action == 'play':
         play(core, params)
         return

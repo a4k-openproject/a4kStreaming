@@ -189,7 +189,8 @@ def test_fix_image_size(core):
     assert core.utils.fix_fanart_size({'url': None}) is None
 
 class __PlayHarness(object):
-    def __init__(self, core, monkeypatch, files_by_link, choices, autoplay=False, dead_links=(), mode='1', quick=None, uncached=None):
+    def __init__(self, core, monkeypatch, files_by_link, choices, autoplay=False, dead_links=(), mode='1', quick=None, uncached=None,
+                 from_cache=False):
         self.dialogs = []
         self.items = []
         self.probed = []
@@ -226,7 +227,7 @@ class __PlayHarness(object):
             self.searches.append(utils.DictAsObject(dict(params)))
             if quick is not None and not params.full:
                 return utils.DictAsObject({'results': quick, 'cached': dict(('PM%s' % key, row) for key, row in quick.items()), 'quick': True})
-            return utils.DictAsObject({'results': raw, 'cached': results})
+            return utils.DictAsObject({'results': raw, 'cached': results, 'from_cache': from_cache and not params.refresh})
         monkeypatch.setattr(core, 'provider', provider)
         monkeypatch.setattr(core.cache, 'get_last_selected_result', lambda: {})
         for name in ['save_general', 'save_last_selected_result']:
@@ -259,9 +260,9 @@ def __video(name):
     return {'path': '%s.mkv' % name, 'size': 2 * 1024 ** 3, 'link': 'http://%s' % name}
 
 def test_play_resolve_failure_returns_to_selection(core, monkeypatch):
-    h = __PlayHarness(core, monkeypatch, {'B': [__video('b')]}, choices=[1, 2])
+    h = __PlayHarness(core, monkeypatch, {'B': [__video('b')]}, choices=[0, 1])
     assert h.run() == 'http://b'
-    assert h.dialogs == [('Choose source', 1), ('Choose source', 1)]
+    assert h.dialogs == [('Choose source', 0), ('Choose source', 1)]  # back on the sheet at the next source
     assert h.resolved == ['A', 'B']
     assert h.notifications == ['Failed to resolve debrid']
 
@@ -275,14 +276,14 @@ def test_play_autoplay_all_fail_opens_selection(core, monkeypatch):
     h = __PlayHarness(core, monkeypatch, {}, choices=[-1], autoplay=True)
     assert h.run() is None
     assert h.resolved == ['A', 'B', 'C']
-    assert h.dialogs == [('Choose source', 3)]
+    assert h.dialogs == [('Choose source', 0)]  # past the last source: the first
     assert h.notifications == ['Failed to resolve debrid']
 
 def test_play_file_picker_cancel_returns_to_selection(core, monkeypatch):
     files = {'A': [__video('a1'), __video('a2')], 'B': [__video('b')]}
-    h = __PlayHarness(core, monkeypatch, files, choices=[1, -1, 2])
+    h = __PlayHarness(core, monkeypatch, files, choices=[0, -1, 1])
     assert h.run() == 'http://b'
-    assert h.dialogs == [('Choose source', 1), ('Choose file', None), ('Choose source', 1)]
+    assert h.dialogs == [('Choose source', 0), ('Choose file', None), ('Choose source', 1)]
 
 def test_play_autoplay_file_picker_cancel_opens_selection(core, monkeypatch):
     files = {'A': [__video('a1'), __video('a2')]}
@@ -328,14 +329,14 @@ def __sheet_user(sheets, monkeypatch, picks):
     return shown
 
 def test_play_in_windows_mode_picks_from_the_sheet(core, monkeypatch, sheets):
-    shown = __sheet_user(sheets, monkeypatch, [1, 2])
+    shown = __sheet_user(sheets, monkeypatch, [0, 1])
     h = __PlayHarness(core, monkeypatch, {'B': [__video('b')]}, choices=[], mode='0')
     assert h.run() == 'http://b'
     assert h.dialogs == []  # the stock select never opened
-    rows = [('New Search', ''), ('4K  H264', 'PM  ·  10.0 GB  ·  A'), ('1080P  H264', 'PM  ·  10.0 GB  ·  B'),
-            ('720P  H264', 'PM  ·  10.0 GB  ·  C')]
-    # A fails to resolve: back to the sheet, the same rows, the next source preselected (as with the stock select)
-    assert shown == [('Choose source', rows, 1, sheets.LIST), ('Choose source', rows, 1, sheets.LIST)]
+    rows = [('4K  H264', 'PM  ·  10.0 GB  ·  A'), ('1080P  H264', 'PM  ·  10.0 GB  ·  B'), ('720P  H264', 'PM  ·  10.0 GB  ·  C'),
+            ('Pick file manually: Off', 'Select a source, then choose which file inside it to stream')]
+    # A fails to resolve: back to the sheet, the same rows, the next source preselected
+    assert shown == [('Choose source', rows, 0, sheets.LIST), ('Choose source', rows, 1, sheets.LIST)]
     assert h.resolved == ['A', 'B'] and h.notifications == ['Failed to resolve debrid']
 
 def test_play_sheet_back_cancels(core, monkeypatch, sheets):
@@ -348,9 +349,9 @@ def test_play_sheet_error_falls_back_to_the_stock_select_and_logs_once(core, mon
     monkeypatch.setattr(sheets.logger, 'error', errors.append)
     def missing(*args): raise RuntimeError('a4k-sheet.xml not found')
     monkeypatch.setattr(sheets, 'Sheet', missing)
-    h = __PlayHarness(core, monkeypatch, {'B': [__video('b')]}, choices=[1, 2], mode='0')
+    h = __PlayHarness(core, monkeypatch, {'B': [__video('b')]}, choices=[0, 1], mode='0')
     assert h.run() == 'http://b'
-    assert h.dialogs == [('Choose source', 1), ('Choose source', 1)]
+    assert h.dialogs == [('Choose source', 0), ('Choose source', 1)]
     assert len(errors) == 1 and core.kodi.xbmcgui.Window(10000).getProperty(sheets.FAILED)
 
 def test_play_autoplay_in_windows_mode_shows_no_sheet(core, monkeypatch, sheets):
@@ -618,6 +619,7 @@ class __QuickSource(object):
     ('no debrid key', {}, {'premiumize.apikey': ''}, {}, (), None),
     ('switched off in Manage', {}, {}, {}, ('QUICK',), None),
     ('full search asked for', {}, {}, {'full': True}, (), None),
+    ('search again (refresh)', {}, {}, {'refresh': True}, (), None),  # every provider, never the quick ones
 ])
 def test_search_quick_sources_first_and_when_the_full_search_takes_over(core, monkeypatch, case, source, settings, extra, switched_off, quick):
     # quick: True = the quick rows, False = tried and fell back, None = never tried
@@ -644,10 +646,24 @@ def test_search_ignores_a_leftover_alldebrid_key(core, monkeypatch):
     search = h.run()
     assert h.requests == [] and search.cached == {}
 
-def test_play_new_search_refreshes(core, monkeypatch):
-    h = __PlayHarness(core, monkeypatch, {}, choices=[0, -1])
+def test_play_search_again_on_a_remembered_list_searches_everything_afresh(core, monkeypatch):
+    h = __PlayHarness(core, monkeypatch, {}, choices=[4, -1], from_cache=True)
     assert h.run() is None
-    assert [bool(p.refresh) for p in h.searches] == [False, True]
+    assert h.items[0][-1] == '[COLOR white][B]Search again[/B][/COLOR]'  # after the file pick toggle
+    assert [(bool(p.full), bool(p.refresh)) for p in h.searches] == [(False, False), (True, True)]
+
+def test_play_a_fresh_full_list_has_no_search_again(core, monkeypatch):
+    h = __PlayHarness(core, monkeypatch, {}, choices=[-1])
+    h.run()
+    assert len(h.items[0]) == 4 and 'Search again' not in h.items[0][-1]
+
+def test_play_file_pick_toggle_flips_in_place_and_lists_one_file(core, monkeypatch):
+    # the toggle row keeps the focus and flips its label; then a source holding one file lists it instead of playing
+    h = __PlayHarness(core, monkeypatch, {'A': [__video('a')]}, choices=[3, 0, 0])
+    assert h.run() == 'http://a'
+    assert [items[3] for items in h.items[:2]] == ['[COLOR white][B]Pick file manually: Off[/B][/COLOR]',
+                                                  '[COLOR white][B]Pick file manually: On[/B][/COLOR]']
+    assert h.dialogs == [('Choose source', 0), ('Choose source', 3), ('Choose file', None)]
 
 def test_search_caches_raw_results_and_redoes_debrid_split(core, monkeypatch):
     cache = {}
@@ -678,6 +694,19 @@ def test_search_cache_keeps_20_most_recent(core, monkeypatch):
     h.run()
     assert len(cache) == 20
     assert 'tt0000001' in cache and 'tt0000002' not in cache
+
+@pytest.mark.parametrize('setting, kept', [('5', 5), ('0', 0), ('', 20)])
+def test_search_cache_holds_the_remembered_searches_setting(core, monkeypatch, setting, kept):
+    cache = dict(('tt%07d' % i, {'time': i + 1, 'results': {'x': {}}}) for i in range(2, 22))
+    provider = __FakeProvider([__raw('The.Movie.2020.1080p.WEB.x264-GRP', 'aa')])
+    h = __SearchHarness(core, monkeypatch, {'ONE': provider}, cache=cache, settings={'general.remembered_searches': setting})
+    first = h.run()
+    if kept:
+        assert len(cache) == kept and 'tt0000001' in cache
+    else:
+        assert len(cache) == 20 and 'tt0000001' not in cache  # 0: nothing written, nothing read
+    assert first.from_cache is False and h.run().from_cache is bool(kept)
+    assert h.run(refresh=True).from_cache is False
 
 @pytest.mark.parametrize('release_title,ref,expected', [
     ('The.Movie.2020.1080p.WEB.x264-GRP', {'mediatype': 'movie', 'title': 'The Movie'}, (False, False)),
@@ -712,13 +741,13 @@ def __quick_row(core, name, size):
             core.utils.result_link_key: name, 'debrid': 'PM', 'package': 'single', 'seeds': 0, 'ref': core.utils.DictAsObject(title)}
 
 def test_play_quick_rows_over_the_size_limit_bring_the_full_search(core, monkeypatch):
-    h = __PlayHarness(core, monkeypatch, {'B': [__video('b')]}, choices=[2], quick={'Q': __quick_row(core, 'Q', 300.0)})
+    h = __PlayHarness(core, monkeypatch, {'B': [__video('b')]}, choices=[1], quick={'Q': __quick_row(core, 'Q', 300.0)})
     assert h.run() == 'http://b'
     assert [bool(p.full) for p in h.searches] == [False, True]
-    assert len(h.items[0]) == 4  # New Search and the three full results, no last row
+    assert len(h.items[0]) == 4  # the three full results and the file pick toggle
 
 def test_play_search_all_providers_replaces_the_quick_rows(core, monkeypatch):
-    h = __PlayHarness(core, monkeypatch, {'B': [__video('b')]}, choices=[2, 2], quick={'Q': __quick_row(core, 'Q', 10.0)})
+    h = __PlayHarness(core, monkeypatch, {'B': [__video('b')]}, choices=[2, 1], quick={'Q': __quick_row(core, 'Q', 10.0)})
     assert h.run() == 'http://b'
     assert [bool(p.full) for p in h.searches] == [False, True]
     assert len(h.items[0]) == 3 and 'Search all providers' in h.items[0][-1]
@@ -729,14 +758,15 @@ def test_play_full_search_keeps_uncached_rows_behind_the_last_row(core, monkeypa
     h = __PlayHarness(core, monkeypatch, {}, choices=[4, -1, -1], uncached={'d': __quick_row(core, 'D', 10.0)})
     assert h.run() is None
     assert 'Show uncached sources (1)' in h.items[0][-1]
-    assert [heading for heading, _ in h.dialogs] == ['Choose source', 'Choose source to cache', 'Choose source']
-    assert len(h.items[1]) == 1 and 'D' in h.items[1][0]
+    assert [heading for heading, _ in h.dialogs] == ['Choose source', 'Uncached sources', 'Choose source']
+    assert h.dialogs[2] == ('Choose source', 3)  # Back: the sheet again, on its first action row
+    assert len(h.items[1]) == 1 and 'D' in h.items[1][0] and 'Not cached' in h.items[1][0]
 
 def test_play_with_nothing_cached_shows_the_uncached_rows(core, monkeypatch):
     h = __PlayHarness(core, monkeypatch, {}, choices=[-1], uncached={'d': __quick_row(core, 'D', 10.0)})
     monkeypatch.setattr(core, 'provider', lambda core, params: core.utils.DictAsObject({'results': {'d': __quick_row(core, 'D', 10.0)}, 'cached': {}}))
     assert h.run() is None
-    assert [heading for heading, _ in h.dialogs] == ['Choose source to cache']
+    assert [heading for heading, _ in h.dialogs] == ['Uncached sources']
 
 def test_play_dead_link_moves_to_next_source(core, monkeypatch):
     h = __PlayHarness(core, monkeypatch, {'A': [__video('a')], 'B': [__video('b')]}, choices=[], autoplay=True, dead_links=['http://a'])
@@ -745,9 +775,9 @@ def test_play_dead_link_moves_to_next_source(core, monkeypatch):
     assert h.probed == ['http://a', 'http://b']
 
 def test_play_dead_link_returns_to_selection(core, monkeypatch):
-    h = __PlayHarness(core, monkeypatch, {'A': [__video('a')], 'B': [__video('b')]}, choices=[1, 2], dead_links=['http://a'])
+    h = __PlayHarness(core, monkeypatch, {'A': [__video('a')], 'B': [__video('b')]}, choices=[0, 1], dead_links=['http://a'])
     assert h.run() == 'http://b'
-    assert h.dialogs == [('Choose source', 1), ('Choose source', 1)]
+    assert h.dialogs == [('Choose source', 0), ('Choose source', 1)]
     assert h.notifications == ['Failed to resolve debrid']
 
 def test_link_alive_makes_a_single_attempt(core, playback, monkeypatch):
@@ -796,3 +826,84 @@ def test_logs_never_carry_a_debrid_key(core, monkeypatch):
     assert not any('test-key' in message for message in logged)
     assert logged[3].endswith('/resolve/premiumize/***/%s/null/0/Example.mkv' % hash)
     assert logged[5].endswith('https://example.com/api?apikey=***&id=1')
+
+# the uncached pick (#023): Premiumize gets the source, the wait shows its progress, a resolve that answers plays it
+
+class __FakePremiumize(object):
+    def __init__(self, core, monkeypatch, ready_after=1, status='running', created=None, cancel_at=None, keep=0):
+        self.calls, self.progress, self.notes, self.polls = [], [], [], 0
+        self.clock = [1000.0]
+        def execute(core, request, cache=True):
+            url = request['url'].split('?')[0].rsplit('/', 2)
+            action = '/'.join(url[-2:])
+            self.calls.append(action)
+            if action == 'transfer/create':
+                body = created if created is not None else {'status': 'success', 'id': 't1'}
+            elif action == 'transfer/directdl':
+                self.polls += 1
+                body = {'status': 'success', 'content': [{'path': 'a.mkv'}]} if ready_after is not None and self.polls > ready_after \
+                    else {'status': 'error', 'message': 'not cached'}
+            elif action == 'transfer/list':
+                body = {'transfers': [{'id': 't1', 'status': status, 'progress': 0.25, 'message': '1.2 MB/s'}]}
+            else:
+                body = {'status': 'success'}
+            response = lambda: None
+            response.content, response.status_code = core.json.dumps(body), 200
+            return response
+        monkeypatch.setattr(core.request, 'execute', execute)
+        progress = lambda: None
+        progress.create = lambda *a: self.progress.append(('create',) + a)
+        progress.update = lambda *a: self.progress.append(('update',) + a)
+        progress.close = lambda: self.progress.append(('close',))
+        progress.iscanceled = lambda: cancel_at is not None and self.polls >= cancel_at
+        monkeypatch.setattr(core.kodi.xbmcgui, 'DialogProgress', lambda: progress)
+        monkeypatch.setattr(core.kodi.xbmc, 'sleep', lambda ms: self.clock.__setitem__(0, self.clock[0] + ms / 1000.0))
+        monkeypatch.setattr(core.time, 'time', lambda: self.clock[0])
+        monkeypatch.setattr(core.kodi, 'notification', lambda text, time=3000: self.notes.append(text))
+        self.asked = []
+        sheets = importlib.import_module('a4kStreaming.ui.sheets')
+        monkeypatch.setattr(sheets, 'select', lambda heading, labels, **k: self.asked.append(labels) or keep)
+
+def __uncached_source(core):
+    return __quick_row(core, 'D', 10.0)
+
+def test_transfer_plays_once_a_resolve_answers(core, monkeypatch, playback):
+    pm = __FakePremiumize(core, monkeypatch, ready_after=2)
+    assert playback.transfer(core, 'key', __uncached_source(core)) is True
+    assert pm.calls == ['transfer/create', 'transfer/directdl', 'transfer/list', 'transfer/directdl', 'transfer/list',
+                        'transfer/directdl']
+    assert pm.progress[0] == ('create', 'Premiumize', 'Adding to Premiumize\u2026')
+    assert ('update', 25, 'Premiumize: running\n1.2 MB/s') in pm.progress and pm.progress[-1] == ('close',)
+
+def test_transfer_cancel_keeps_it_in_premiumize(core, monkeypatch, playback):
+    pm = __FakePremiumize(core, monkeypatch, ready_after=None, cancel_at=1, keep=0)
+    assert playback.transfer(core, 'key', __uncached_source(core)) is False
+    assert pm.asked == [['Keep downloading in Premiumize', 'Remove from Premiumize']]
+    assert 'transfer/delete' not in pm.calls
+
+def test_transfer_cancel_can_remove_it(core, monkeypatch, playback):
+    pm = __FakePremiumize(core, monkeypatch, ready_after=None, cancel_at=1, keep=1)
+    assert playback.transfer(core, 'key', __uncached_source(core)) is False
+    assert pm.calls[-1] == 'transfer/delete' and pm.notes == ['Removed from Premiumize']
+
+def test_transfer_wait_stops_after_the_cap(core, monkeypatch, playback):
+    pm = __FakePremiumize(core, monkeypatch, ready_after=None)
+    assert playback.transfer(core, 'key', __uncached_source(core)) is False
+    assert pm.notes == ['Still downloading in Premiumize: try again later']
+    assert 'transfer/delete' not in pm.calls and pm.polls == playback.TRANSFER_MAX // playback.TRANSFER_POLL + 1
+
+@pytest.mark.parametrize('created, status, note', [
+    ({'status': 'error', 'message': 'Invalid source'}, 'running', 'Invalid source'),
+    (None, 'error', '1.2 MB/s'),  # a failed transfer: its message
+])
+def test_transfer_errors_say_why(core, monkeypatch, playback, created, status, note):
+    pm = __FakePremiumize(core, monkeypatch, ready_after=None, created=created, status=status)
+    assert playback.transfer(core, 'key', __uncached_source(core)) is False
+    assert pm.notes == [note]
+
+def test_play_an_uncached_pick_plays_through_the_normal_path_once_ready(core, monkeypatch, playback):
+    h = __PlayHarness(core, monkeypatch, {'D': [__video('d')]}, choices=[4, 0], uncached={'d': __uncached_source(core)})
+    monkeypatch.setattr(playback, 'transfer', lambda core, apikey, result: result['release_title'] == 'D')
+    assert h.run() == 'http://d'
+    assert [heading for heading, _ in h.dialogs] == ['Choose source', 'Uncached sources']
+    assert h.resolved == ['D']

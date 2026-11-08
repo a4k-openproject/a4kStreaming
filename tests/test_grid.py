@@ -332,7 +332,7 @@ def test_known_for_needs_no_imdb_login(core, grid, shown, notes):
     assert shown == [(PLUGIN + '?action=query&type=knownfor&widget=1&id=nm1', 'Ana Torres', 'Known for')]
 
 def test_more_like_this_from_a_context_menu_opens_the_grid(core, home, grid, shown, calls, monkeypatch):
-    items = [('IMDb: Trailer', 'RunPlugin(t)'), (home.MORE_LIKE_THIS, 'ActivateWindow(Videos,m,return)')]
+    items = [('Rate', 'RunPlugin(t)'), (home.MORE_LIKE_THIS, 'ActivateWindow(Videos,m,return)')]
     picks = [1, 0, -1]
     monkeypatch.setattr(importlib.import_module('a4kStreaming.ui.sheets'), 'select', lambda heading, labels: picks.pop(0))
     for _ in range(3):
@@ -346,18 +346,15 @@ def test_title_menu_is_a_sheet_and_hides_account_actions_when_signed_out(core, h
         'id': 'tt1', 'titleType': 'movie', 'primaryVideos': ['vi1'], 'userRating': None}, autoplay=False)
     shown = []
     monkeypatch.setattr(importlib.import_module('a4kStreaming.ui.sheets'), 'select',
-                        lambda heading, labels: shown.append((heading, labels)) or labels.index('IMDb: Trailer'))
+                        lambda heading, labels: shown.append((heading, labels)) or labels.index(labels[0]))
     monkeypatch.setattr(core.kodi.xbmcgui.Dialog(), 'contextmenu', lambda labels: pytest.fail('stock context menu'))
     home.menu(items, 'tt1', 'Heat')
-    account = ['IMDb: Set rating', 'IMDb: Mark as watched', 'IMDb: Add to watchlist', 'IMDb: Remove from watchlist',
-               'IMDb: Add to list', 'IMDb: Remove from list']
-    assert shown[0][0] == 'Heat' and not set(account) & set(shown[0][1])
-    assert shown[0][1] == ['IMDb: Trailer', 'IMDb: Choose Trailer', 'IMDb: Cast & Crew', 'IMDb: More like this',
-                           'Debrid: Add sources', 'Force file select', 'Refresh sources']
+    account = ['Rate', 'Add to watchlist', 'Remove from watchlist', 'Add to IMDb list', 'Remove from IMDb list']
+    assert shown[0] == ('Heat', ['More Like This'])  # picked: the grid opens, nothing runs
     login(core, monkeypatch)
     home.menu(items, 'tt1', 'Heat')
-    assert shown[1][1] == [label for label, _ in items] and set(account) <= set(shown[1][1])
-    assert calls == ['RunPlugin(%s?action=trailer&id=tt1&vi=vi1&play=true)' % PLUGIN] * 2
+    assert shown[1][1] == [label for label, _ in items] == account + ['More Like This']
+    assert calls == ['RunPlugin(%s?action=profile&type=rate&id=tt1)' % PLUGIN]
 
 def test_detail_cast_opens_known_for_and_the_plot_opens_in_full(core, detail, grid, monkeypatch):
     fetched = importlib.import_module('tests.test_detail')

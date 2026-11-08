@@ -1042,6 +1042,9 @@ def query(core, params):
 
             data['pageInfo'] = None
 
+        if params.type == 'watchlist':
+            for title in titles:
+                title['a4k.in_watchlist'] = True  # the menu offers Remove only
         __add_titles(core, titles, browse=None)
 
     if isinstance(data, dict) and (data.get('paginationToken', None) or data.get('pageInfo', None) and data['pageInfo'].get('hasNextPage', False)):
@@ -1061,6 +1064,18 @@ def query(core, params):
         core.kodi.xbmcplugin.addDirectoryItem(core.handle, url, next_list_item, True)
 
     return data if isinstance(data, list) else [data]
+
+def __show_episode_ids(core, id, watched):
+    # Mark show watched rates the released episodes not yet rated; Unmark show watched unrates the rated ones
+    episodes = query(core, core.utils.DictAsObject({'type': 'seasons', 'id': id, 'silent': True})) or []
+    today = core.date.today()
+    def released(episode):
+        date = episode.get('releaseDate', None) or {}
+        try: return core.date(date['year'], date.get('month', None) or 1, date.get('day', None) or 1) <= today
+        except Exception: return False
+    if watched:
+        return [episode['id'] for episode in episodes if episode.get('userRating', None) is None and released(episode)]
+    return [episode['id'] for episode in episodes if episode.get('userRating', None) is not None]
 
 def profile(core, params):
     if not __check_imdb_auth_config(core, params):
@@ -1128,6 +1143,11 @@ def profile(core, params):
 
     elif params.type.startswith('mark_'):
         params.ids = params.ids.split('__') if params.ids else None
+        if params.show == 'true' and not params.ids:
+            params.ids = __show_episode_ids(core, params.id, params.type == 'mark_as_watched')
+            if not params.ids:
+                core.kodi.notification('Nothing to change')
+                return
         if params.type == 'mark_as_watched':
             mark_as_watched_rating = core.kodi.get_int_setting('general.mark_as_watched_rating')
             result = query(core, core.utils.DictAsObject({
@@ -1271,30 +1291,56 @@ def profile(core, params):
         core.utils.end_action(core, True)
     return True
 
+def trailer_rows(core, id, videos):
+    # the picker's (label, m:ss) per video, as the TV skin's: a play mark and the video's name ("Video N" without one),
+    # from one request for the title's videos; the numbered ids alone when that fails
+    names = {}
+    try:
+        request = core.utils.get_graphql_query({
+            'query': '''
+                query fn($id: ID!) {
+                    title(id: $id) {
+                        primaryVideos(first: 100) { edges { node { id name { value } runtime { value } } } }
+                    }
+                }
+            ''',
+            'operationName': 'fn',
+            'variables': {'id': id},
+        })
+        response = core.request.execute(core, request)
+        edges = core.json.loads(response.content)['data']['title']['primaryVideos']['edges']
+        names = dict((edge['node']['id'], edge['node']) for edge in edges)
+    except Exception:
+        core.logger.notice(core.traceback.format_exc())
+    rows = []
+    for i, vi in enumerate(videos):
+        node = names.get(vi, None) or {}
+        seconds = int((node.get('runtime', None) or {}).get('value', None) or 0)
+        name = (node.get('name', None) or {}).get('value', None) or 'Video %s' % (i + 1)
+        rows.append(('\u25ba  %s' % name, '%d:%02d' % divmod(seconds, 60) if seconds else ''))
+    return rows
+
 def trailer(core, params):
-    if not params.id or not params.vi:
-        core.kodi.notification('Trailer not found')
+    # the Trailer button, as the TV skin's: one video plays straight away, several open a picker and the pick plays
+    # (Back closes it), none says so
+    videos = [vi for vi in (params.vi or '').split('_') if vi]
+    if not params.id or not videos:
+        core.kodi.notification('No trailers available')
         core.utils.end_action(core, False)
         return
 
-    if params.play == 'true':
-        core.kodi.open_busy_dialog()
-
-    videos = params.vi.split('_')
     vi = videos[0]
-
     if len(videos) > 1:
-        selection = core.kodi.xbmcgui.Dialog().select(
-            'Choose trailer',
-            ['%s. %s' % (i + 1, v) for i, v in enumerate(videos)],
-        )
-
-        if selection == -1:
-            core.kodi.close_busy_dialog()
+        from .ui import sheets
+        rows = trailer_rows(core, params.id, videos)
+        selection = sheets.select('Trailers', ['%s  %s' % row for row in rows], rows=rows)
+        if selection is None or selection < 0:
             core.utils.end_action(core, False)
             return
-
         vi = videos[selection]
+
+    if params.play == 'true':
+        core.kodi.open_busy_dialog()
 
     request = {
         'method': 'POST',

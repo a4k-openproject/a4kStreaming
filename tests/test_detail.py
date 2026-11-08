@@ -111,14 +111,17 @@ def test_group_seasons_yields_the_listings_urls(core, listing, index):
 def test_movie_view_model(core, detail, listing):
     title = fixture()['movie']
     vm = detail.view_model(core, title)
-    assert {k: vm[k] for k in ('id', 'type', 'kicker', 'title', 'rating', 'year', 'runtime', 'certificate')} == {
-        'id': MOVIE, 'type': 'movie', 'kicker': 'MOVIE · ADVENTURE', 'title': 'The Martian', 'rating': '8.0',
-        'year': '2015', 'runtime': '2h 24m', 'certificate': 'PG-13'}
+    # the TV skin's meta line: the release date, the runtime, three genres
+    assert {k: vm[k] for k in ('id', 'type', 'kicker', 'title', 'rating', 'meta')} == {
+        'id': MOVIE, 'type': 'movie', 'kicker': 'MOVIE', 'title': 'The Martian', 'rating': '8.0',
+        'meta': 'October 2, 2015 · 2h 24m · Adventure, Drama, Sci-Fi'}
     assert vm['plot'].startswith('An astronaut stranded on Mars')
     # the still frame, sized for the backdrop and for the glass
     assert vm['fanart'].endswith('_V1_UX1280_CR0,0,1280,720_AL_.jpg') and vm['blur'].endswith('_V1_UX64_CR0,0,64,36_AL_.jpg')
     assert vm['play'] == listing['play_url'](core, title) and vm['play'].startswith(PLUGIN + '?action=play&type=ey')
-    assert vm['trailer'] == 'RunPlugin(%s?action=trailer&id=%s&vi=vi113423129&play=true)' % (PLUGIN, MOVIE)
+    # three trailers: the button reads Trailers and lets the user choose
+    assert vm['trailer'] == 'RunPlugin(%s?action=trailer&id=%s&vi=vi113423129_vi4112625689_vi278381337&play=true)' % (PLUGIN, MOVIE)
+    assert vm['trailers'] == 'Trailers'
     assert vm['watchlist'] == 'RunPlugin(%s?action=profile&type=watchlist_add&id=%s)' % (PLUGIN, MOVIE)
     assert vm['seasons'] == []
     # stars with their characters first, the rest of the cast, then the director and the writers, each person once
@@ -130,11 +133,16 @@ def test_movie_view_model(core, detail, listing):
 
 def test_series_view_model(core, detail):
     vm = detail.view_model(core, fixture()['series'])
-    assert (vm['type'], vm['kicker'], vm['title'], vm['runtime'], vm['play']) == ('tvSeries', 'TV SERIES · DRAMA', 'Severance', '2 Seasons', '')
+    assert (vm['type'], vm['kicker'], vm['title'], vm['meta'], vm['play']) == (
+        'tvSeries', 'TV SERIES', 'Severance', 'February 18, 2022 · 50m · Drama, Mystery, Sci-Fi', '')
+    assert vm['trailers'] == 'Trailers' and vm['trailer'] == 'RunPlugin(%s?action=trailer&id=%s&vi=%s&play=true)' % (
+        PLUGIN, SERIES, 'vi3510815001_vi3562195225_vi1720502553')
     # the pills are the listing's seasons (season 3 has only year dates, so neither lists it, and the count says what
     # can be opened, not IMDb's 3); the latest aired opens
     assert [(p['label'], p['url']) for p in vm['seasons']] == [
         ('Season %s' % (i + 1), PLUGIN + url + '&widget=1') for i, (url, _) in enumerate(GOLDEN[SERIES])]
+    # signed out: no ratings, so no season is marked
+    assert [(p['watched'], p['progress']) for p in vm['seasons']] == [('', ''), ('', '')]
     assert vm['season'] == 1
     assert vm['cast'][0]['name'] == 'Adam Scott' and vm['cast'][0]['role']
 
@@ -144,7 +152,8 @@ def test_view_model_leaves_the_cached_title_alone(core, detail):
 
 def test_context_list_is_the_listings_menu(core, detail, listing):
     for title in fixture().values():
-        assert detail.view_model(core, title)['menu'] == listing['title_context_menu'](core, title)
+        state = dict(title, **{'a4k.show_watched': detail.show_watched(core, title)})
+        assert detail.view_model(core, title)['menu'] == listing['title_context_menu'](core, state)
 
 def card(type='movie', id=MOVIE, **extra):
     info = {'Property(a4k.type)': type, 'Property(a4k.id)': id, 'Property(a4k.trailers)': 'vi1_vi2',
@@ -156,12 +165,14 @@ def card(type='movie', id=MOVIE, **extra):
 
 def test_card_paints_from_the_selected_card(core, detail):
     vm = detail.from_card(card())
-    assert {k: vm[k] for k in ('kicker', 'title', 'year', 'rating', 'runtime', 'certificate', 'plot', 'fanart', 'blur', 'play')} == {
-        'kicker': 'MOVIE · ADVENTURE', 'title': 'The Martian', 'year': '2015', 'rating': '8.0', 'runtime': '2h 24m',
-        'certificate': 'PG-13', 'plot': 'Plot.', 'fanart': 'f.jpg', 'blur': 'b.jpg', 'play': PLUGIN + '?action=play&type=abc'}
-    assert vm['trailer'] == 'RunPlugin(%s?action=trailer&id=%s&vi=vi1&play=true)' % (PLUGIN, MOVIE)
-    series = detail.from_card(card('tvSeries', SERIES, **{'Property(a4k.trailers)': ''}))
-    assert (series['play'], series['runtime'], series['trailer'], series['kicker']) == ('', '', '', 'TV SERIES · ADVENTURE')
+    assert {k: vm[k] for k in ('kicker', 'title', 'rating', 'meta', 'plot', 'fanart', 'blur', 'play')} == {
+        'kicker': 'MOVIE', 'title': 'The Martian', 'rating': '8.0', 'meta': '2015 · 2h 24m · Adventure, Drama',
+        'plot': 'Plot.', 'fanart': 'f.jpg', 'blur': 'b.jpg', 'play': PLUGIN + '?action=play&type=abc'}
+    assert vm['trailer'] == 'RunPlugin(%s?action=trailer&id=%s&vi=vi1_vi2&play=true)' % (PLUGIN, MOVIE) and vm['trailers'] == 'Trailers'
+    series = detail.from_card(card('tvSeries', SERIES, **{'Property(a4k.trailers)': '', 'Genre': '', 'Duration(secs)': ''}))
+    # no videos: the Trailer button stays and answers "No trailers available" (imdb.trailer)
+    assert (series['play'], series['meta'], series['trailers'], series['kicker']) == ('', '2015', 'Trailer', 'TV SERIES')
+    assert series['trailer'] == 'RunPlugin(%s?action=trailer&id=%s&vi=&play=true)' % (PLUGIN, SERIES)
 
 def test_runtime_format(detail):
     assert [detail.runtime(s) for s in (None, 59, 2700, 3600, 8640)] == ['', '', '45m', '1h 0m', '2h 24m']
@@ -212,7 +223,7 @@ def opened(core, detail, monkeypatch):
 def test_movie_window_paints_and_fills(core, detail, opened, calls):
     assert detail.open(card()) is True
     win = opened[0]
-    assert win.error is None and win.getProperty('a4k.title') == 'The Martian' and win.getProperty('a4k.runtime') == '2h 24m'
+    assert win.error is None and win.getProperty('a4k.title') == 'The Martian' and win.getProperty('a4k.meta').endswith(' · 2h 24m · Adventure, Drama, Sci-Fi')
     assert win.getProperty('a4k.series') == '' and win.getProperty('a4k.auth') == ''
     assert [i.label for i in win.getControl(detail.CAST).items][:2] == ['Matt Damon', 'Jessica Chastain']
     assert win.getControl(detail.SEASONS).items == [] and win.getProperty('a4k.episodes') == ''
@@ -245,24 +256,21 @@ def test_buttons_episodes_and_menu(core, detail, home, opened, calls, monkeypatc
     win = opened[0]
     episode = PLUGIN + '?action=play&type=ep1'
     labels = {'Container(530).ListItem.Property(a4k.type)': 'tvEpisode', 'Container(530).ListItem.FolderPath': episode,
-              'Container(530).ListItemAbsolute(0).FolderPath': episode}
+              }
     monkeypatch.setattr(core.kodi.xbmc, 'getInfoLabel', lambda label: labels.get(label, ''))
     win.setFocusId(detail.EPISODES)
     win.onAction(Action(home.ACTION_SELECT_ITEM))
-    win.onClick(detail.PLAY)  # a series plays the open season's first episode
+    win.onClick(detail.PLAY)  # a series has no Play: nothing runs
     win.onClick(detail.TRAILER)
     menus = []
     sheets = importlib.import_module('a4kStreaming.ui.sheets')
-    monkeypatch.setattr(sheets, 'select', lambda heading, items: menus.append((heading, items)) or items.index('IMDb: Cast & Crew'))
+    monkeypatch.setattr(sheets, 'select', lambda heading, items: menus.append((heading, items)) or -1)
     win.onClick(detail.MORE)
     win.setFocusId(detail.WATCHLIST)
     win.onAction(Action(home.ACTION_CONTEXT_MENU))
-    cast = 'ActivateWindow(Videos,%s?action=query&type=browse&id=%s,return)' % (PLUGIN, SERIES)
-    assert calls == ['PlayMedia(%s)' % episode, 'PlayMedia(%s)' % episode,
-                     'RunPlugin(%s?action=trailer&id=%s&vi=vi3510815001&play=true)' % (PLUGIN, SERIES), cast, cast]
-    # signed out: the select sheet without the account actions
-    assert menus[0] == (win.vm['title'], [label for label, builtin in win.vm['menu'] if 'action=profile&' not in builtin])
-    assert 'IMDb: Add to list' not in menus[0][1] and win.error is None
+    assert calls == ['PlayMedia(%s)' % episode, win.vm['trailer']]
+    # signed out: the select sheet without the account actions, so only More Like This is left
+    assert menus == [(win.vm['title'], ['More Like This'])] * 2 and win.error is None
 
 def test_movie_play_uses_the_title_play_url(core, detail, listing, opened, calls):
     detail.open(card())

@@ -421,18 +421,17 @@ def test_episodes_get_the_same_wide_keys_from_their_own_still(core, items, reads
 
 def test_items_carry_a4k_properties(core, items, reads):
     __listing()['__add_titles'](core, [__title(userRating=8), __title('tt2', 'tvSeries', userRating=None, primaryVideos=[])], browse=None)
-    assert {k: v for k, v in items[0][1].properties.items() if k.startswith('a4k.')} == {
-        'a4k.id': 'tt1', 'a4k.type': 'movie', 'a4k.rated': 'true', 'a4k.trailers': 'vi1_vi2'}
-    assert {k: v for k, v in items[1][1].properties.items() if k.startswith('a4k.')} == {
-        'a4k.id': 'tt2', 'a4k.type': 'tvSeries', 'a4k.rated': 'false', 'a4k.trailers': ''}
+    props = [{k: v for k, v in item.properties.items() if k.startswith('a4k.')} for _, item, _ in items]
+    assert props[0] == {'a4k.id': 'tt1', 'a4k.type': 'movie', 'a4k.rated': 'true', 'a4k.trailers': 'vi1_vi2',
+                        'a4k.meta': props[0]['a4k.meta'], 'a4k.tv': '', 'a4k.tvstate': ''}
+    assert props[1] == {'a4k.id': 'tt2', 'a4k.type': 'tvSeries', 'a4k.rated': 'false', 'a4k.trailers': '',
+                        'a4k.meta': props[1]['a4k.meta'], 'a4k.tv': 'TV', 'a4k.tvstate': props[1]['a4k.tvstate']}
 
 def test_title_context_menu_is_the_menu_the_item_gets(core, items, reads):
     title = __title()
     __listing()['__add_titles'](core, [title], browse=None)
     menu = __listing()['title_context_menu'](core, title)
     assert menu == items[0][1].context_menu
-    assert ('Force source select', 'PlayMedia(%s?action=play&id=tt1&force_sourceselect=true)' % core.url) in menu
-    assert 'Force source select' not in [label for label, _ in __listing()['title_context_menu'](core, title, autoplay=False)]
     assert __listing()['title_context_menu'](core, __title(titleType='person')) == []
 
 def test_play_url_is_the_url_the_item_gets(core, items, reads):

@@ -12,6 +12,7 @@
         <setting id="general.skip_credits"           label="33152" type="enum"   default="0" lvalues='33153|33154|33155'/>
         <setting id="general.search_timeout"         label="33110" type="slider" default="40" option="int" range="10,120"/>
         <setting id="general.search_all_providers"   label="33140" type="bool"   default="false"/>
+        <setting id="general.remembered_searches"    label="33143" type="slider" default="20" option="int" range="0,10,500"/>
         <setting id="general.mark_as_watched_rating" label="33103" type="slider" default="7"  option="int" range="1,10"/>
         <setting id="general.page_size"              label="33104" type="slider" default="29" option="int" range="10,100"/>
         <setting id="general.lists_page_size"        label="33105" type="slider" default="29" option="int" range="10,100"/>
