@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# The Appearance settings, dobby's Apple TV skin options with its defaults: the Browse row, which home rows show and in
+# The Appearance settings, the Apple TV skin options with its defaults: the Browse row, which home rows show and in
 # what order, the category tabs, what the top shelf shows and how often it turns. Also the two settings actions (Home
 # order and My List), run by ui.py from the settings dialog.
 
@@ -20,7 +20,7 @@ ROWS = {
 }
 ON = ('browse', 'tabs', 'trending_movies', 'trending_tv', 'watchlist')  # the toggles on by default
 ACCOUNT = ('my_list', 'watchlist')  # need an IMDb login
-NOT_IN_HERO = ('watchlist',)  # "My home sections" draws from the others that are on (dobby's HERO_SHELF)
+NOT_IN_HERO = ('watchlist',)  # "My home sections" draws from the others that are on
 HERO_TURNS = (10, 15, 20, 30, 0)  # appearance.hero_turn, seconds; 0 is Off
 HERO_SOURCES = ('movies', 'tv', 'both', 'home')  # appearance.hero_source
 HERO_DEFAULT = ('trending_movies',)
@@ -75,7 +75,7 @@ def rows(signed_in):
     return shown
 
 def hero_keys(shown):
-    # the rows the top shelf takes its titles from, as dobby's hero(): one source, both trending ones, or every row
+    # the rows the top shelf takes its titles from: one source, both trending ones, or every row
     # that is on (no Watchlist); with none on, the trending movies
     source = hero_source()
     if source == 'tv':

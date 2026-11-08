@@ -16,7 +16,7 @@ from . import app, home
 PANEL = 500
 YEARS = 520
 NEAR_END = 12  # two rows of six: focus this close to a Next item fetches the next page in the background
-# the category galleries (the home's tabs) take dobby's year chips: All Years, then this year back to 1970
+# the category galleries (the home's tabs) take year chips: All Years, then this year back to 1970
 CATEGORIES = ('popularMovies', 'popularTVShows', 'popularAnimations', 'popularAnimationTVShows', 'popularRealityTVShows')
 FIRST_YEAR = 1970
 
@@ -241,7 +241,7 @@ def browse(tile, label):
     show(app.row_url(tile), label)
 
 def known_for(id, name):
-    # a person's titles are public (no IMDb login), as dobby's person page
+    # a person's titles are public (no IMDb login)
     show('%s&id=%s' % (app.row_url('knownfor'), id), name, 'Known for')
 
 def more_like_this(id, title):

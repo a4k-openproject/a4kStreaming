@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-  a4kStreaming browse grid (tvOS-like). The same rules as a4k-home.xml: 1080p pixels = dobby units x2, no includes and
+  a4kStreaming browse grid (tvOS-like). The same rules as a4k-home.xml: 1080p pixels = reference app units x2, no includes and
   no named colours, Estuary font names, every control places itself (left/top), the panel says noop at its edges (a
   container without an edge action wraps), and its <content> sorts by programcount so play and stop do not reload it.
 
@@ -11,7 +11,7 @@
 
   Six columns of 232 x 348 posters in 296 x 468 slots, captions as on home. Only the poster zooms (1.08 about its
   centre): the captions keep their place, and the zoomed poster, ring and shadow stay inside the slot, clear of the row
-  above and the captions below (the 248 px posters of dobby's 124u did not fit both in 468). The focused poster has no
+  above and the captions below (the 248 px posters of the reference app's 124u did not fit both in 468). The focused poster has no
   fadetime: its texture is the one the unfocused layout already holds, so it shows at once. Items
   with no a4k.type (the Next item, the user's lists) are drawn as tiles: per-item <visible> on two groups in one layout,
   because an itemlayout's condition is checked once for the whole panel, not per item (seen live: every item a tile).
@@ -52,7 +52,7 @@
 			<align>right</align>
 			<label>$INFO[Window.Property(a4k.page)]</label>
 		</control>
-		<!-- the list is loading: the traced D (dobby #405) -->
+		<!-- the list is loading: the traced D -->
 		<control type="group">
 			<left>870</left>
 			<top>450</top>
@@ -396,7 +396,7 @@
 			</focusedlayout>
 			<content target="videos" sortby="programcount">$INFO[Window.Property(a4k.path)]</content>
 		</control>
-		<!-- the category's year chips (dobby #398): Up from the grid's first row reveals them, shown only while they hold
+		<!-- the category's year chips: Up from the grid's first row reveals them, shown only while they hold
 		  focus (as the home's menu); All Years then this year back to 1970, the chosen one marked current -->
 		<control type="group" id="510">
 			<left>0</left>

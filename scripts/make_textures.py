@@ -34,7 +34,7 @@ def ring():
     return img.resize((size, size), Image.LANCZOS)
 
 def shadow():
-    # focused-card drop shadow (dobby 0 14u 28u rgba(0,0,0,.75)), 9-sliced with border 96; tinted at draw time
+    # focused-card drop shadow (0 14u 28u rgba(0,0,0,.75)), 9-sliced with border 96; tinted at draw time
     img = Image.new('L', (256, 256), 0)
     ImageDraw.Draw(img).rounded_rectangle((72, 72, 183, 183), 24, fill=255)
     alpha = img.filter(ImageFilter.GaussianBlur(24))
@@ -43,7 +43,7 @@ def shadow():
     return out
 
 def placeholder(size, radius, a=(44, 44, 48), b=(26, 26, 30)):
-    # card placeholder: dobby linear-gradient(160deg, #2c2c30, #1a1a1e), rounded
+    # card placeholder: linear-gradient(160deg, #2c2c30, #1a1a1e), rounded
     w, h = size
     grad = Image.new('RGBA', size)
     px = grad.load()
@@ -72,7 +72,7 @@ def ramp(stops, length):
     return out
 
 def scrim_left():
-    # the hero text scrim (dobby .atv-hero-scrim::before), 1920x840 when drawn: a left-to-right #07080c ramp, faded out
+    # the hero text scrim (.atv-hero-scrim::before), 1920x840 when drawn: a left-to-right #07080c ramp, faded out
     # at its own foot from 300u to 420u
     w, h = 256, 128
     across = ramp([(0, .97), (.15, .94), (.28, .88), (.40, .78), (.50, .64), (.60, .46), (.70, .26), (.80, .10), (.90, 0), (1, 0)], w)
@@ -82,7 +82,7 @@ def scrim_left():
     return img
 
 def scrim_bottom():
-    # the hero's vertical scrim (dobby TV): clear to 187u, .45 at 400u, .5 at 460u, opaque at 560u; drawn 1920x1120
+    # the hero's vertical scrim (TV): clear to 187u, .45 at 400u, .5 at 460u, opaque at 560u; drawn 1920x1120
     h = 512
     alpha = ramp([(0, 0), (187 / 560, 0), (400 / 560, .45), (460 / 560, .5), (1, 1)], h)
     img = Image.new('RGBA', (1, h))
@@ -90,7 +90,7 @@ def scrim_bottom():
     return img
 
 def fade_bottom():
-    # diffuse mask for the sharp hero art: opaque to 60%, clear at its foot (dobby mask-image 180deg #000 60%)
+    # diffuse mask for the sharp hero art: opaque to 60%, clear at its foot (mask-image 180deg #000 60%)
     h = 256
     alpha = ramp([(0, 1), (.6, 1), (1, 0)], h)
     img = Image.new('RGBA', (8, h))
@@ -98,7 +98,7 @@ def fade_bottom():
     return img
 
 def bg_home():
-    # home page: #07080c under two radial glows (dobby skin.css 142-144), at 960x540 (1u = 1px), with a light dither
+    # home page: #07080c under two radial glows (skin.css 142-144), at 960x540 (1u = 1px), with a light dither
     w, h = 960, 540
     glows = [((.8 * w, -.1 * h), (900, 500), (26, 33, 64)), ((0, 1.1 * h), (700, 400), (32, 20, 46))]
     rnd = random.Random(10)
@@ -131,7 +131,7 @@ def star():
     return img.resize((64, 64), Image.LANCZOS)
 
 def ring_face():
-    # face focus ring (dobby .atvd-person focused: 3u #f5f6fa around the 88u face), drawn 6px outside the 176px face
+    # face focus ring (.atvd-person focused: 3u #f5f6fa around the 88u face), drawn 6px outside the 176px face
     size = 188
     img = Image.new('RGBA', (size * SS, size * SS), (0, 0, 0, 0))
     draw = ImageDraw.Draw(img)
@@ -140,8 +140,8 @@ def ring_face():
     return img.resize((size, size), Image.LANCZOS)
 
 def sheet():
-    # sheet glass (dobby rgba(62,64,80,.97) -> rgba(34,36,46,.97)), r44, 1px top highlight 2EFFFFFF; 9-sliced, border 48.
-    # Opaque: dobby's .97 sits on a backdrop blur, which Kodi cannot do, and at .97 the text behind still showed (live)
+    # sheet glass (rgba(62,64,80,.97) -> rgba(34,36,46,.97)), r44, 1px top highlight 2EFFFFFF; 9-sliced, border 48.
+    # Opaque: the .97 sits on a backdrop blur, which Kodi cannot do, and at .97 the text behind still showed (live)
     w = h = 128
     a, b = (62, 64, 80), (34, 36, 46)
     rows = []
@@ -156,7 +156,7 @@ def sheet():
     return img
 
 def tabbar():
-    # home top menu pill (dobby .atv-tabs: rgba(44,44,48,.94), inset 1u top highlight rgba(255,255,255,.14)), 46u tall
+    # home top menu pill (.atv-tabs: rgba(44,44,48,.94), inset 1u top highlight rgba(255,255,255,.14)), 46u tall
     # (92px) and fully round; 9-sliced with border 46
     w, h = 256, 92
     img = Image.new('RGBA', (w, h), (44, 44, 48, 240))

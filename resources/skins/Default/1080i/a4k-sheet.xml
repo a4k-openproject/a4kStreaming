@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
   a4kStreaming select sheet (tvOS-like): the source picker and any generic select. The same rules as a4k-home.xml:
-  1080p pixels = dobby units x2, no includes and no named colours, Estuary font names, every control places itself
+  1080p pixels = reference app units x2, no includes and no named colours, Estuary font names, every control places itself
   (left/top).
 
   A glass sheet on the right half over a veil; the rows are filled from Python (label = quality and formats, label2 =

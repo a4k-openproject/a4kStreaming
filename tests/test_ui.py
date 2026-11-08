@@ -404,7 +404,7 @@ def test_hero_buttons(core, home, monkeypatch, calls):
     assert [i['Property(a4k.id)'] for i in opened] == ['tt7']
 
 def test_back_walks_up_to_the_menu_then_closes_and_errors_close_with_the_traceback(core, home, monkeypatch):
-    # as dobby: a row goes to the top shelf's Play, the top shelf to Watch Now, the top menu closes the window
+    # a row goes to the top shelf's Play, the top shelf to Watch Now, the top menu closes the window
     closed = []
     monkeypatch.setattr(home.Home, 'close', lambda self: closed.append(True))
     win = window(core, home, monkeypatch, 301, {})

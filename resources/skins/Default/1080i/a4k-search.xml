@@ -1,13 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-  a4kStreaming search (dobby's Apple TV search, browse.html search branch and skin.css 536-600). The same rules as
-  a4k-home.xml: 1080p pixels = dobby units x2, no includes and no named colours, Estuary font names, every control places
+  a4kStreaming search (the Apple TV-style search). The same rules as
+  a4k-home.xml: 1080p pixels = reference app units x2, no includes and no named colours, Estuary font names, every control places
   itself (left/top), containers say noop at their edges (a container without an edge action wraps), and the results'
   <content> sorts by programcount so play and stop do not reload it.
 
-  Left: the keyboard, a ten-column panel of 60 x 68 keys at a 68 x 80 step (dobby's 30u keys at a 34u step in 40u rows),
+  Left: the keyboard, a ten-column panel of 60 x 68 keys at a 68 x 80 step,
   filled by Python. Right: the query line beside the first key row, the facet chips (two rows of three, 300 px at a 316 px
-  step) beside the other two. Under them the results, six columns of 216 x 324 posters, two rows on screen (dobby's 108u
+  step) beside the other two. Under them the results, six columns of 216 x 324 posters, two rows on screen (the reference app's 108u
   search posters). The results are the plugin's own listing at a4k.path; the panel is always visible (a hidden
   container never takes the items its provider fetched, spike 2b) and its no-op onclick keeps Kodi from opening or
   playing the item itself; Python handles the select (spike 2c).
@@ -238,7 +238,7 @@
 				</control>
 			</focusedlayout>
 		</control>
-		<!-- the list is loading: the traced D (dobby #405) -->
+		<!-- the list is loading: the traced D -->
 		<control type="group">
 			<left>870</left>
 			<top>582</top>

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Search window (a4k-search.xml), as dobby's Apple TV search: an on-screen QWERTY keyboard, the query line, the facet
+# Search window (a4k-search.xml), in the Apple TV style: an on-screen QWERTY keyboard, the query line, the facet
 # chips (Type, Genre, Era, Rating, Country, Clear) and a six-column results grid that follows the typing after a 500 ms
 # pause. The results are the plugin's own listing, loaded by Kodi from the a4k.path property (<content>): text alone is
 # IMDb's title search (type=find), any facet the advanced title search (type=facets), whose page grows as focus nears the
@@ -18,10 +18,10 @@ FACETS = 610
 RESULTS = 620
 HINT = 'Movies and TV shows'
 
-DEBOUNCE = 0.5  # dobby's handleSearch: the search runs once typing pauses this long
+DEBOUNCE = 0.5  # the search runs once typing pauses this long
 NEAR_END = 12  # two rows of six: focus this close to the end asks for the next page
 
-# the keyboard, a ten-column grid as dobby's (26-skins.js:716-729): three QWERTY rows, delete ends the second, space and
+# the keyboard, a ten-column grid: three QWERTY rows, delete ends the second, space and
 # Type (Kodi's own keyboard) end the third. No voice key: Kodi has no speech input.
 KEY_ROWS = [list('qwertyuiop'), list('asdfghjkl') + ['del'], list('zxcvbnm') + ['space', 'type']]
 ICONS = {'del': 'a4k/icon_delete.png', 'space': 'a4k/icon_space.png', 'type': 'a4k/icon_keyboard.png'}
@@ -145,7 +145,7 @@ class Search(kodi.xbmcgui.WindowXML):
         self.timer.start()
 
     def keyboard(self):
-        # Kodi's own keyboard (dobby's Type key opens the TV's search dialog): its text runs at once
+        # Kodi's own keyboard: its text runs at once
         keyboard = kodi.xbmc.Keyboard(self.query, HINT)
         keyboard.doModal()
         if keyboard.isConfirmed():
@@ -172,7 +172,7 @@ class Search(kodi.xbmcgui.WindowXML):
         self.apply()
 
     def pick_many(self, sheets, id, label, any, values):
-        # dobby's Genre picker toggles and stays open: the sheet comes back after each pick until Back; Any clears
+        # the Genre picker toggles and stays open: the sheet comes back after each pick until Back; Any clears
         choice = 0
         while True:
             chosen = self.filters[id]
@@ -187,7 +187,7 @@ class Search(kodi.xbmcgui.WindowXML):
             self.filters[id] = [v for v, _ in values if (v in chosen) != (v == value)]
 
     def apply(self, more=False):
-        # the listing for the query and the facets. An emptied query keeps the results that are there (dobby).
+        # the listing for the query and the facets. An emptied query keeps the results that are there.
         if self.closed:
             return
         self.count = self.count + imdb.SEARCH_PAGE if more else imdb.SEARCH_PAGE

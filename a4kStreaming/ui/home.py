@@ -194,7 +194,7 @@ class Home(kodi.xbmcgui.WindowXML):
             self.__fail()
 
     def back(self, focus):
-        # as dobby: Back on a row goes to the top shelf's Play, on the top shelf to Watch Now, on the top menu it leaves
+        # Back on a row goes to the top shelf's Play, on the top shelf to Watch Now, on the top menu it leaves
         if focus in MENU:
             return self.close()
         self.setFocusId(WATCH_NOW if focus in (HERO_PLAY, HERO_INFO) else HERO_PLAY)
@@ -205,7 +205,7 @@ class Home(kodi.xbmcgui.WindowXML):
                 return self.tab(control_id)
             info = labels(self.hero_item())
             if control_id == HERO_PLAY and info['Property(a4k.type)'] == 'tvSeries':
-                select(info)  # Go to Show, as dobby: a series' first button opens its detail
+                select(info)  # Go to Show: a series' first button opens its detail
             elif control_id == HERO_PLAY:
                 run(click_builtin(info))
             elif control_id == HERO_INFO and info['Property(a4k.id)']:

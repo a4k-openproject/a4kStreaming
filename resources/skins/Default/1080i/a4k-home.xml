@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-  a4kStreaming home (tvOS-like). Coordinates are 1080p pixels = dobby units x2. No includes and no named colours: a
+  a4kStreaming home (tvOS-like). Coordinates are 1080p pixels = reference app units x2. No includes and no named colours: a
   script window resolves both against the active skin (report 010-phase2, spike 7). Fonts are Estuary's names; an
   unknown name falls back to font13.
 
@@ -236,7 +236,7 @@
 			</control>
 
 			<!-- Browse (the Browse row setting, a4k.browse): the grid for the title listings, today's directory for Debrid. Four tiles a
-			     row, two rows in view, right under the top shelf as on dobby. Search and Settings are in the top menu. -->
+			     row, two rows in view, right under the top shelf as on the reference app. Search and Settings are in the top menu. -->
 			<control type="group" id="410">
 				<onup>200</onup>
 				<ondown>310</ondown>
@@ -2110,7 +2110,7 @@
 				</control>
 			</control>
 		</control>
-		<!-- Top menu (dobby's tab bar): one centred pill of tabs, shown only while it holds focus. Up from the top shelf
+		<!-- Top menu (the tab bar): one centred pill of tabs, shown only while it holds focus. Up from the top shelf
 		     reaches it, Down always lands on Play. It hides by a conditional slide and fade, never by <visible>: a hidden
 		     control cannot take focus. The category tabs follow the Category tabs setting (a4k.tabs); the pill has one
 		     width for each case: the tabs' fixed widths, the gaps and the padding. -->

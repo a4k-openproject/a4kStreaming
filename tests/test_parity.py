@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Offline tests for the dobby skin parity (#018): the home top menu, the Search window, the year chips over the category
+# Offline tests for the reference skin parity (#018): the home top menu, the Search window, the year chips over the category
 # grids, and the appearance settings (home rows, their order, the top shelf's source and rotation).
 
 import os
@@ -58,7 +58,7 @@ def opened(home, monkeypatch):
 
 # 1. home top menu
 
-def test_menu_is_in_the_xml_and_navigates_like_dobby(home):
+def test_menu_is_in_the_xml_and_navigates_like_the_reference(home):
     root = xml('a4k-home.xml')
     menu = control(root, 160)
     assert menu.get('type') == 'grouplist' and menu.findtext('ondown') == str(home.HERO_PLAY)
@@ -80,7 +80,7 @@ def test_category_tabs_follow_the_setting(core, home, monkeypatch, value, shown)
     settings(core, monkeypatch, {'appearance.tabs': value})
     assert opened(home, monkeypatch).get('a4k.tabs') == shown
 
-def test_category_tabs_open_dobbys_category_grids(core, home, grid, monkeypatch):
+def test_category_tabs_open_the_category_grids(core, home, grid, monkeypatch):
     shown = []
     monkeypatch.setattr(grid, 'show', lambda path, title, kicker='': shown.append((path, title)))
     window = home.Home('a4k-home.xml', '', 'Default', '1080i')
@@ -380,7 +380,7 @@ def test_grid_zoomed_poster_stays_inside_its_slot():
     captions_end = max(int(c.findtext('top')) + int(c.findtext('height')) for c in captions)
     assert zoomed_top >= 0 and zoomed_bottom <= title and captions_end <= height
 
-# the traced-D loader (dobby #405) in place of Kodi's busy dialog
+# the traced-D loader in place of Kodi's busy dialog
 
 MEDIA = os.path.join(WINDOWS, '..', 'media')
 
@@ -445,7 +445,7 @@ def test_busy_draws_the_windows_loader_over_an_a4k_window(core, calls, monkeypat
     core.kodi.close_busy_dialog()
     assert home_window.getProperty('a4k.busy') == '' and calls[-1] == 'Dialog.Close(busydialognocancel)'
 
-# 6. appearance settings (dobby's skin.json options and defaults)
+# 6. appearance settings (the reference app's options and defaults)
 
 def url(type):
     return PLUGIN + '?action=query&type=%s&widget=1' % type
@@ -453,7 +453,7 @@ def url(type):
 def slots(properties):
     return [(properties['a4k.title.%s' % slot], properties['a4k.row.%s' % slot]) for slot in range(301, 308)]
 
-def test_appearance_defaults_are_dobbys(core, home, monkeypatch):
+def test_appearance_defaults_are_the_references(core, home, monkeypatch):
     settings(core, monkeypatch, {'imdb.at-main': 'token'})
     shown = opened(home, monkeypatch)
     assert slots(shown) == [('Trending Movies', url('popularMovies')), ('Trending TV Shows', url('popularTVShows')),

@@ -118,7 +118,7 @@ def test_tiles_open_the_grid_and_debrid_keeps_its_directory(core, grid, home, la
         if tile and tile not in ('search', 'years'):
             expected.append((PLUGIN + '?action=query&type=%s&widget=1' % tile, label, ''))
     assert flows == ['years'] and shown == expected and calls == [] and win.error is None
-    # Search and Settings are in the top menu, as on dobby
+    # Search and Settings are in the top menu
     assert [label for label, _, _ in tiles()][:4] == ['Watchlist', 'Recommended', 'Lists', 'By Year']
     assert not {'Search', 'Settings'} & {label for label, _, _ in tiles()}
     assert dict((label, tile) for label, tile, _ in tiles())['Lists'] == 'lists'

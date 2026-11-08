@@ -23,7 +23,7 @@ def __check_imdb_auth_config(core, params):
 gallery_types = ['popularMovies', 'popularTVShows', 'popularAnimations', 'popularAnimationTVShows', 'popularRealityTVShows', 'popular', 'year', 'fan_picks', 'more_like_this']
 cursor_ttl = 30 * 60
 
-# The search window's facets, as dobby's SEARCH_FACETS (15-imdb-graphql.js:570-590): each value an (id, label). A genre
+# The search window's facets, as the reference app's search facets: each value an (id, label). A genre
 # id is IMDb's own, a country an ISO 3166 code, an era a (first year, last year) range ('' for an open end), a rating
 # the US certificates allowed at that level. Countries are in alphabetical order.
 SEARCH_TYPES = [('movies', 'Movies'), ('series', 'Series')]
@@ -49,7 +49,7 @@ SEARCH_PAGE = 36  # the facet search's first page (six rows of six); the window 
 SEARCH_MAX = 250  # IMDb's largest page
 
 def search_constraints(params):
-    # advancedTitleSearch constraints for the search window's text and facets (dobby's searchFacetConstraints)
+    # advancedTitleSearch constraints for the search window's text and facets
     constraints = {'titleTypeConstraint': {'anyTitleTypeIds': SEARCH_TITLE_TYPES.get(params.title_type or '', SEARCH_TITLE_TYPES[''])}}
     if params.query:
         constraints['titleTextConstraint'] = {'searchTerm': params.query}
@@ -183,7 +183,7 @@ def query(core, params):
     page_size = core.kodi.get_int_setting('general.page_size')
     lists_page_size = core.kodi.get_int_setting('general.lists_page_size')
 
-    # the category galleries: released by today, or within target_year (the grid's year chips, as dobby's)
+    # the category galleries: released by today, or within target_year (the grid's year chips)
     start_date, end_date = category_dates(now, params.target_year)
 
     requests = {
@@ -390,7 +390,7 @@ def query(core, params):
                 'paginationToken': params.paginationToken
             }
         }),
-        # the search window: text alone is IMDb's own title search, one page (as dobby's searchIMDb); any facet is an
+        # the search window: text alone is IMDb's own title search, one page; any facet is an
         # advanced title search, most popular first, whose page grows as the window asks for more
         'find': lambda: core.utils.get_graphql_query({
             'query': '''
