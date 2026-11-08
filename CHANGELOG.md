@@ -1,3 +1,13 @@
+* [v1.72.0](https://github.com/newt-sc/a4kStreaming/releases/tag/plugin.video.a4kstreaming%2Fplugin.video.a4kstreaming-1.72.0):
+  * Quick sources: cached sources show in about 2 seconds, with "Search all providers" for the full search
+  * Skip intro and Skip recap buttons, and a Next episode countdown at the credits (Auto, Button or Off in settings)
+  * Series page: episode cards with rating, air date and runtime, a plot panel for the focused episode, season marks
+  * Cards show runtime, a watched check and TV season count with ended or ongoing state
+  * Trailer button opens a picker when there is more than one video
+  * Simpler ··· menu: Rate, watchlist, IMDb lists, More Like This, Mark show watched
+  * Source list: Pick file manually, Search again for remembered results, uncached sources download to Premiumize and play when ready
+  * New setting: Remembered searches
+  * Smoother loading animation and a refreshed icon
 * [v1.71.0](https://github.com/newt-sc/a4kStreaming/releases/tag/plugin.video.a4kstreaming%2Fplugin.video.a4kstreaming-1.71.0):
   * Top menu on Up: Watch Now, Movies, TV Shows, Animations, Animated TV, Reality, Search and settings
   * Search window with an on-screen keyboard, type/genre/era/rating/country filters and live results
