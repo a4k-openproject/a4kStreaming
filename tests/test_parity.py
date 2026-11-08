@@ -588,7 +588,7 @@ def test_settings_xml_defaults_match_the_code(core):
              if (n.get('id') or '').startswith('appearance.')}
     toggles = {key: n.get('default') for key, n in nodes.items() if n.get('type') == 'bool'}
     assert toggles == {key: 'true' if key in appearance.ON else 'false' for key in
-                       ['browse', 'tabs'] + [key for key in appearance.ROWS if key != 'my_list']}
+                       ['browse', 'tabs', 'continue_watching'] + [key for key in appearance.ROWS if key != 'my_list']}
     assert appearance.HERO_TURNS[int(nodes['hero_turn'].get('default'))] == 15
     assert len(nodes['hero_turn'].get('lvalues').split('|')) == len(appearance.HERO_TURNS)
     assert appearance.HERO_SOURCES[int(nodes['hero_source'].get('default'))] == 'movies'
@@ -902,9 +902,10 @@ def test_menu_builtins(core, listing):
     assert menu['Unrate'] == 'RunPlugin(%s?action=profile&type=mark_as_unwatched&id=tt5)' % core.url
     assert menu['Mark show watched'] == 'RunPlugin(%s?action=profile&type=mark_as_watched&id=tt5&show=true)' % core.url
     play = 'plugin://plugin.video.a4kstreaming/?action=play&type=e1'
-    episode = dict(listing['title_context_menu'](core, {'id': 'tt6', 'titleType': 'tvEpisode', 'a4k.play': play, 'a4k.resumable': True}))
-    assert episode['Play from here'] == 'PlayMedia(%s)' % play
-    assert episode['Reset resume progress'] == 'RunPlugin(%s?action=reset_resume&path=%s)' % (
+    episode = dict(listing['title_context_menu'](core, {'id': 'tt6', 'titleType': 'tvEpisode', 'a4k.play': play, 'a4k.resumable': True,
+                                                        'a4k.key': 'tt1:1:2'}))
+    assert episode['Play from here'] == 'PlayMedia(%s,noresume)' % play
+    assert episode['Reset resume progress'] == 'RunPlugin(%s?action=reset_resume&path=%s&key=tt1%%3A1%%3A2)' % (
         core.url, 'plugin%3A%2F%2Fplugin.video.a4kstreaming%2F%3Faction%3Dplay%26type%3De1')
 
 def test_watchlist_gallery_titles_offer_remove_only(core, listing):

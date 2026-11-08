@@ -13,6 +13,7 @@
         <setting id="general.skip_intro"             label="33150" type="enum"   default="0" lvalues='33153|33154|33155'/>
         <setting id="general.skip_recap"             label="33151" type="enum"   default="0" lvalues='33153|33154|33155'/>
         <setting id="general.skip_credits"           label="33152" type="enum"   default="0" lvalues='33153|33154|33155'/>
+        <setting id="general.back_stops"             label="33162" type="bool"   default="true"/>
     </category>
     <category label="33003">
         <setting id="general.search_all_providers"   label="33140" type="bool"   default="false"/>
@@ -26,6 +27,7 @@
     <category label="33007">
         <setting id="appearance.browse"          label="33701" type="bool"   default="true"/>
         <setting id="appearance.tabs"            label="33709" type="bool"   default="true"/>
+        <setting id="appearance.continue_watching" label="33713" type="bool" default="true"/>
         <setting id="appearance.trending_movies" label="33702" type="bool"   default="true"/>
         <setting id="appearance.trending_tv"     label="33703" type="bool"   default="true"/>
         <setting id="appearance.reality"         label="33704" type="bool"   default="false"/>

@@ -2,6 +2,8 @@
 
 from urllib.parse import quote_plus
 
+from . import progress
+
 __action_menu_style = '[COLOR white][B]%s[/B][/COLOR]'
 
 def runtime_text(seconds):
@@ -86,9 +88,10 @@ def title_context_menu(core, title, autoplay=None):
     if titleType == 'tvEpisode':
         # watched is rated: Mark watched rates (general.mark_as_watched_rating), Unmark watched removes the rating
         play = title.get('a4k.play', None) or play_url(core, title)
-        items = [('Play from here', 'PlayMedia(%s)' % play)]
+        items = [('Play from here', 'PlayMedia(%s,noresume)' % play)]
         if title.get('a4k.resumable', False):
-            items.append(('Reset resume progress', 'RunPlugin(%s?action=reset_resume&path=%s)' % (core.url, quote_plus(play))))
+            items.append(('Reset resume progress', 'RunPlugin(%s?action=reset_resume&path=%s&key=%s)'
+                          % (core.url, quote_plus(play), quote_plus(title.get('a4k.key', None) or ''))))
         items.extend([
             ('Rate', profile('rate')),
             ('Unmark watched', profile('mark_as_unwatched')) if rated else ('Mark watched', profile('mark_as_watched')),
@@ -530,9 +533,47 @@ def play_url(core, title):
     type = __play_type(core, title, __video_meta(core, title, titleType), thumb_image or poster_image)
     return '%s?action=play&type=%s' % (core.url, type) if type else '%s?action=play&type=&id=%s' % (core.url, title['id'])
 
+def __episode_progress(core, title, list_item, store):
+    # the add-on's own play position of an episode (progress.py): its card's resume bar (ListItem.PercentPlayed) and
+    # the Reset resume progress row while in progress, the watched check once played to the end
+    number = (title.get('series', None) or {})
+    number = number.get('episodeNumber', None) if isinstance(number.get('episodeNumber', None), dict) else number
+    try:
+        entry_key = progress.key({'show': title['tvshowid'], 'season': number['seasonNumber'], 'episode': number['episodeNumber']})
+    except (KeyError, TypeError):
+        return
+    entry = store.get(entry_key, None)
+    if not entry:
+        return
+    if progress.in_progress(entry):
+        list_item.getVideoInfoTag().setResumePoint(entry['pos'], entry['dur'])
+        title['a4k.resumable'] = True
+        title['a4k.key'] = entry_key
+    if entry.get('watched', False) and title.get('userRating', None) is None:
+        core.kodi.set_info_tag(list_item, {'playcount': 1})
+
+def continue_watching(core):
+    # the Continue Watching row, from the store alone (no request): a movie's card opens its detail, an episode's the
+    # show's detail at that season and episode (a4k.at); ListItem.PercentPlayed draws the bar
+    list_items = []
+    for entry in progress.listing(progress.load()):
+        episode = entry.get('type', None) == 'episode'
+        list_item = core.kodi.xbmcgui.ListItem(label=entry['show_title'] if episode else entry['title'], offscreen=True)
+        art = entry.get('art', None) or ''
+        list_item.setArt({'thumb': art, 'poster': art, 'landscape': art, 'fanart': art})
+        list_item.setProperty('a4k.id', entry['show'] if episode else entry['id'])
+        list_item.setProperty('a4k.type', 'tvSeries' if episode else 'movie')
+        list_item.setProperty('a4k.at', '%s:%s' % (entry['season'], entry['episode']) if episode else '')
+        list_item.setProperty('a4k.meta', 'S%s E%s \u00b7 %s' % (entry['season'], entry['episode'], entry['title'])
+                              if episode else str(entry.get('year', None) or ''))
+        list_item.getVideoInfoTag().setResumePoint(entry['pos'], entry['dur'])
+        list_items.append(('%s?action=play&type=&id=%s' % (core.url, entry['id']), list_item, False))
+    core.utils.add_directory_items(core, list_items)
+
 def __add_titles(core, titles):
     list_items = []
     autoplay = core.kodi.get_bool_setting('general.autoplay')
+    store = progress.load() if any(title.get('tvshowid', None) for title in titles) else {}
 
     for title in titles:
         titleType = __title_type(title)
@@ -628,6 +669,8 @@ def __add_titles(core, titles):
         list_item.setContentLookup(False)
         if titleType == 'tvEpisode' and action == 'play':
             title['a4k.play'] = url
+        if titleType == 'tvEpisode' and store:
+            __episode_progress(core, title, list_item, store)
         __set_title_contextmenu(core, title, list_item, autoplay)
         list_items.append((url, list_item, action != 'play'))
 

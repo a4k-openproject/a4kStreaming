@@ -157,6 +157,18 @@ msgctxt "#33161"
 msgid "Next episode in %s"
 msgstr ""
 
+msgctxt "#33162"
+msgid "Back stops playback"
+msgstr ""
+
+msgctxt "#33163"
+msgid "Resume from %s"
+msgstr ""
+
+msgctxt "#33164"
+msgid "Start over"
+msgstr ""
+
 # Sources
 msgctxt "#33301"
 msgid "Install providers"
@@ -250,6 +262,10 @@ msgstr ""
 
 msgctxt "#33712"
 msgid "Home order"
+msgstr ""
+
+msgctxt "#33713"
+msgid "Continue Watching"
 msgstr ""
 
 msgctxt "#33720"

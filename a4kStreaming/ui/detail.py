@@ -10,6 +10,7 @@ import traceback
 from types import SimpleNamespace
 
 from ..lib import kodi, logger
+from .. import progress
 from . import app, home
 
 BUTTONS = (501, 502, 503, 504)
@@ -23,11 +24,14 @@ ACTION_MOVE_LEFT = 1
 ACTION_MOVE_RIGHT = 2
 
 SEASON_DWELL = 0.3  # seconds a season pill keeps focus before its episodes load
+EPISODE_LOOK = 0.1  # s between looks for the opened season's episodes, to focus the one asked for
+EPISODE_LOOKS = 50
 
 KIND = {'movie': 'Movie', 'tvSeries': 'TV Series', 'tvEpisode': 'Episode'}
 
 # a4k-detail.xml reads these window properties
-PROPERTIES = ('kicker', 'title', 'rating', 'meta', 'plot', 'fanart', 'blur', 'trailer', 'trailers', 'inwatchlist', 'wlabel', 'yours')
+PROPERTIES = ('kicker', 'title', 'rating', 'meta', 'plot', 'fanart', 'blur', 'trailer', 'trailers', 'inwatchlist', 'wlabel', 'yours',
+              'playlabel')
 
 # TitleFull by id, for this script process: back and forth between home and detail is free
 CACHE_TTL = 10 * 60
@@ -99,6 +103,8 @@ def from_card(info):
         'fanart': info.get('Art(fanart)', '') or info.get('Art(poster)', ''),
         'blur': info.get('Art(blur)', ''),
         'play': info.get('FolderPath', '') if type != 'tvSeries' else '',
+        'playlabel': play_label(title['id']),
+        'at': at(info),
         'seasons': [],
         'season': 0,
         'cast': [],
@@ -140,18 +146,34 @@ def __released(core, date):
     except Exception:
         return False
 
-def season_marks(season):
-    # the TV skin's season tab marks: watched when its last episode is rated (the seasons listing's check), else
-    # the share of its episodes rated as a progress bar (a signed-in user's ratings; signed out, neither shows)
-    rated = sum(1 for ep in season.episode_list if ep.get('userRating', None) is not None)
-    watched = (season.last_episode or {}).get('userRating', None) is not None
+def play_label(id):
+    # Play, or Resume for a movie in progress (its play asks Resume or Start over)
+    return 'Resume' if progress.in_progress(progress.load().get(id, None)) else 'Play'
+
+def at(info):
+    # a Continue Watching card's "<season>:<episode>": (season, episode), else None
+    try:
+        season, episode = info.get('Property(a4k.at)', '').split(':')
+        return int(season), int(episode)
+    except ValueError:
+        return None
+
+def season_marks(season, finished=()):
+    # the TV skin's season tab marks: watched when its last episode is watched (the seasons listing's check), else
+    # the share of its episodes watched as a progress bar. Watched is rated (a signed-in user's ratings) or played to
+    # the end (finished: the episode ids the progress store has), so the marks show signed out as well.
+    def seen(ep):
+        return ep.get('userRating', None) is not None or ep.get('id', None) in finished
+    rated = sum(1 for ep in season.episode_list if seen(ep))
+    watched = seen(season.last_episode or {})
     progress = rated * 100 // len(season.episode_list) if not watched and 0 < rated < len(season.episode_list) else 0
     return 'true' if watched else '', str(progress) if progress else ''
 
-def seasons(core, title):
-    # [{label, url, watched, progress}] for the season pills, and the one to open on: the latest season with an aired
-    # episode
+def seasons(core, title, wanted=None):
+    # [{label, url, watched, progress}] for the season pills, and the one to open on: the wanted season, else the latest
+    # season with an aired episode
     from .. import listing
+    finished = progress.watched_episodes(progress.load(), title['id'])
     episodes = (title.get('episodes', None) or {}).get('episodes', None) or []
     released = [ep['series']['seasonNumber'] for ep in episodes
                 if ep.get('series', None) and ep.get('releaseDate', None) and __released(core, ep['releaseDate'])]
@@ -159,14 +181,16 @@ def seasons(core, title):
     pills = []
     for key, season in grouped.items():
         season.episode_list = [ep for ep in episodes if ep['id'] in season.episode_ids]
-        watched, progress = season_marks(season)
-        pills.append({'key': key, 'label': 'Season %s' % key, 'watched': watched, 'progress': progress,
+        watched, share = season_marks(season, finished)
+        pills.append({'key': key, 'label': 'Season %s' % key, 'watched': watched, 'progress': share,
                       'url': listing.season_url(core, title['id'], key, season) + '&widget=1'})
     latest = max(released) if released else None
-    selected = next((i for i, pill in enumerate(pills) if pill['key'] == latest), 0)
+    selected = next((i for i, pill in enumerate(pills) if pill['key'] == wanted), None)
+    if selected is None:
+        selected = next((i for i, pill in enumerate(pills) if pill['key'] == latest), 0)
     return pills, selected
 
-def view_model(core, title):
+def view_model(core, title, wanted=None):
     # strings and URLs for the window, from a TitleFull (query type=browse, or type=seasons with every episode)
     from .. import listing
     type = 'movie' if title['titleType'] in ('tvMovie', 'tvSpecial', 'video') else title['titleType']
@@ -176,7 +200,7 @@ def view_model(core, title):
     rating = (title.get('ratingsSummary', None) or {}).get('aggregateRating', None)
     genres = title.get('genres', None) or []
     title = dict(title, **{'a4k.show_watched': show_watched(core, title)})
-    pills, selected = seasons(core, title) if series else ([], 0)
+    pills, selected = seasons(core, title, wanted) if series else ([], 0)
     # the TV skin's line: an ended series' years, else the release date (else the year); Unaired before it; the
     # signed-in user's own rating as its own mark
     year, end = title.get('releaseYear', None), title.get('releaseEndYear', None)
@@ -196,6 +220,7 @@ def view_model(core, title):
         'fanart': core.utils.fix_fanart_size(art) or '',
         'blur': core.utils.fix_blur_size(art) or '',
         'play': '' if series else listing.play_url(core, title),
+        'playlabel': play_label(title['id']),
         'seasons': pills,
         'season': selected,
         'cast': cast(core, title),
@@ -229,6 +254,8 @@ class Detail(kodi.xbmcgui.WindowXML):
     started = False
     closed = False
     timer = None
+    title = None  # the fetched title, for the season marks again after a play
+    stamp = None  # the progress store's change time the episodes listing was asked with (its t param)
 
     def paint(self, vm):
         self.vm = vm
@@ -242,9 +269,34 @@ class Detail(kodi.xbmcgui.WindowXML):
             kodi.xbmcgui.Window(app.HOME_WINDOW).setProperty(app.OPEN_WINDOW, str(kodi.xbmcgui.getCurrentWindowId()))
             if not self.started:
                 self.started = True
+                self.stamp = progress.stamp()
                 threading.Thread(target=self.fill).start()
+            elif self.title and self.stamp != progress.stamp():
+                threading.Thread(target=self.refresh).start()  # back from a play: the bars and marks move
         except Exception:
             self.__fail()
+
+    def refresh(self):
+        # the store changed under the window: the season marks and the Play label again, and the shown season's
+        # episodes reload under a new URL (once, from onInit, never next to a running plugin call)
+        try:
+            self.stamp = progress.stamp()
+            vm = view_model(plugin_core(), self.title, self.vm['seasons'][self.season_index()]['key'] if self.vm['seasons'] else None)
+            if self.closed:
+                return
+            self.vm = dict(self.vm, playlabel=vm['playlabel'], seasons=vm['seasons'])
+            self.setProperty('a4k.playlabel', vm['playlabel'])
+            control = self.getControl(SEASONS)
+            for index, pill in enumerate(vm['seasons']):
+                item = control.getListItem(index)
+                for key in ('watched', 'progress'):
+                    item.setProperty(key, pill[key])
+            self.select_season(self.season_index())
+        except Exception:
+            self.__fail()
+
+    def season_index(self):
+        return max(self.getControl(SEASONS).getSelectedPosition(), 0)
 
     def fill(self):
         try:
@@ -253,11 +305,15 @@ class Detail(kodi.xbmcgui.WindowXML):
             if title is None or self.closed:
                 return  # no answer: the card's text stays, the shelves stay empty
             # the watchlist state is asked on every open, never cached with the title
-            vm = view_model(core, dict(title, **{'a4k.in_watchlist': in_watchlist(core, self.vm['id'])}))
+            self.title = dict(title, **{'a4k.in_watchlist': in_watchlist(core, self.vm['id'])})
+            wanted = self.vm.get('at', None)
+            vm = view_model(core, self.title, wanted[0] if wanted else None)
             if self.closed:
                 return
             self.paint(vm)
             self.fill_lists(vm)
+            if wanted:
+                self.focus_episode(*wanted)
         except Exception:
             self.__fail()
 
@@ -290,9 +346,26 @@ class Detail(kodi.xbmcgui.WindowXML):
         if index is None:
             index = self.getControl(SEASONS).getSelectedPosition()
         pill = self.vm['seasons'][max(index, 0)]
-        if self.getProperty('a4k.episodes') != pill['url']:
+        url = '%s&t=%s' % (pill['url'], self.stamp)
+        if self.getProperty('a4k.episodes') != url:
             self.setProperty('a4k.season', pill['label'])
-            self.setProperty('a4k.episodes', pill['url'])
+            self.setProperty('a4k.episodes', url)
+
+    def focus_episode(self, season, episode):
+        # a Continue Watching card's episode: focused once the opened season's listing is in (a bounded wait, given
+        # up when the window closes)
+        label = 'S%s E%s' % (season, episode)
+        for _ in range(EPISODE_LOOKS):
+            if self.closed:
+                return
+            count = int(kodi.xbmc.getInfoLabel('Container(%s).NumItems' % EPISODES) or 0)
+            for index in range(count):
+                if kodi.xbmc.getInfoLabel('Container(%s).ListItemAbsolute(%s).Property(a4k.label)' % (EPISODES, index)) == label:
+                    kodi.xbmc.executebuiltin('Control.SetFocus(%s,%s,absolute)' % (EPISODES, index))
+                    return
+            if count:
+                return  # the listing is in and the episode is not in it
+            time.sleep(EPISODE_LOOK)
 
     def __dwell(self):
         # a season's episodes load once its pill keeps focus for a moment, so arrowing across pills starts no listings
@@ -345,7 +418,7 @@ class Detail(kodi.xbmcgui.WindowXML):
     def play(self):
         # a series has no Play button (the TV skin's row): its episodes play from the shelf
         if self.vm['play']:
-            home.run('PlayMedia(%s)' % self.vm['play'])
+            home.run(home.play_builtin(self.vm['play']))
 
     def menu(self):
         home.menu(self.vm['menu'], self.vm['id'], self.vm['title'], self.__changed)

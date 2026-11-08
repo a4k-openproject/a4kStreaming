@@ -239,7 +239,7 @@
 			     row, two rows in view, right under the top shelf as on the reference app. Search and Settings are in the top menu. -->
 			<control type="group" id="410">
 				<onup>200</onup>
-				<ondown>310</ondown>
+				<ondown>380</ondown>
 				<top>0</top>
 				<left>0</left>
 				<width>1920</width>
@@ -256,7 +256,7 @@
 				</control>
 				<control type="panel" id="400">
 					<onup>200</onup>
-					<ondown>310</ondown>
+					<ondown>380</ondown>
 					<onleft>noop</onleft>
 					<onright>noop</onright>
 					<left>0</left>
@@ -375,6 +375,163 @@
 				</control>
 			</control>
 
+			<!-- Continue Watching (the Continue Watching setting): the movies and episodes stopped partway, the latest first,
+			     from the add-on's progress store (action=continue). Landscape cards 472 x 266 at a 512 pitch, the art on the
+			     96 px margin, a white bar over the art's foot (track rgba(255,255,255,.28), 8 px, 20 px in, 18 px up) from
+			     the item's resume point. Hidden while empty, like the slots below. -->
+			<control type="group" id="380">
+				<onup>410</onup>
+				<ondown>310</ondown>
+				<top>0</top>
+				<left>0</left>
+				<width>1920</width>
+				<height>430</height>
+				<visible>!String.IsEmpty(Window.Property(a4k.row.308)) + [Integer.IsGreater(Container(308).NumItems,0) | Container(308).IsUpdating | !String.IsEmpty(Window.Property(a4k.fresh))]</visible>
+				<control type="label">
+					<left>96</left>
+					<top>0</top>
+					<width>1600</width>
+					<height>50</height>
+					<font>font32_title</font>
+					<textcolor>FFFFFFFF</textcolor>
+					<label>Continue Watching</label>
+				</control>
+				<control type="list" id="308">
+					<onup>410</onup>
+					<ondown>310</ondown>
+					<onleft>noop</onleft>
+					<onright>noop</onright>
+					<left>0</left>
+					<top>50</top>
+					<width>1920</width>
+					<height>380</height>
+					<orientation>horizontal</orientation>
+					<scrolltime tween="cubic" easing="out">320</scrolltime>
+					<preloaditems>2</preloaditems>
+					<onclick>SetProperty(a4k.click,308)</onclick>
+					<itemlayout width="512" height="380">
+						<control type="image">
+							<left>96</left>
+							<top>24</top>
+							<width>472</width>
+							<height>266</height>
+							<texture>a4k/placeholder_ep.png</texture>
+						</control>
+						<control type="image">
+							<left>96</left>
+							<top>24</top>
+							<width>472</width>
+							<height>266</height>
+							<aspectratio scalediffuse="false">scale</aspectratio>
+							<fadetime>200</fadetime>
+							<texture background="true" diffuse="a4k/mask_ep.png">$INFO[ListItem.Art(thumb)]</texture>
+						</control>
+						<control type="progress">
+							<left>116</left>
+							<top>264</top>
+							<width>432</width>
+							<height>8</height>
+							<texturebg border="4" colordiffuse="47FFFFFF">a4k/rr4.png</texturebg>
+							<lefttexture></lefttexture>
+							<midtexture border="4">a4k/rr4.png</midtexture>
+							<righttexture></righttexture>
+							<overlaytexture></overlaytexture>
+							<info>ListItem.PercentPlayed</info>
+							<visible>ListItem.IsResumable</visible>
+						</control>
+						<control type="label">
+							<left>96</left>
+							<top>306</top>
+							<width>472</width>
+							<height>32</height>
+							<font>font25_title</font>
+							<textcolor>99FFFFFF</textcolor>
+							<label>$INFO[ListItem.Label]</label>
+						</control>
+						<control type="label">
+							<left>96</left>
+							<top>340</top>
+							<width>472</width>
+							<height>30</height>
+							<font>font10</font>
+							<textcolor>80FFFFFF</textcolor>
+							<label>$INFO[ListItem.Property(a4k.meta)]</label>
+						</control>
+					</itemlayout>
+					<focusedlayout width="512" height="380">
+						<control type="group">
+							<left>0</left>
+							<top>0</top>
+							<animation effect="zoom" start="100" end="108" time="220" tween="cubic" easing="out" center="332,157" reversible="false">Focus</animation>
+							<animation effect="zoom" start="108" end="100" time="220" tween="cubic" easing="out" center="332,157" reversible="false">Unfocus</animation>
+							<control type="image">
+								<left>24</left>
+								<top>-20</top>
+								<width>616</width>
+								<height>410</height>
+								<texture border="96" colordiffuse="BFFFFFFF">a4k/shadow.png</texture>
+								<visible>Control.HasFocus(308)</visible>
+							</control>
+							<control type="image">
+								<left>96</left>
+								<top>24</top>
+								<width>472</width>
+								<height>266</height>
+								<texture>a4k/placeholder_ep.png</texture>
+							</control>
+							<control type="image">
+								<left>96</left>
+								<top>24</top>
+								<width>472</width>
+								<height>266</height>
+								<aspectratio scalediffuse="false">scale</aspectratio>
+								<texture background="true" diffuse="a4k/mask_ep.png">$INFO[ListItem.Art(thumb)]</texture>
+							</control>
+							<control type="image">
+								<left>87</left>
+								<top>15</top>
+								<width>490</width>
+								<height>284</height>
+								<texture border="40">a4k/ring.png</texture>
+								<visible>Control.HasFocus(308)</visible>
+							</control>
+							<control type="progress">
+								<left>116</left>
+								<top>264</top>
+								<width>432</width>
+								<height>8</height>
+								<texturebg border="4" colordiffuse="47FFFFFF">a4k/rr4.png</texturebg>
+								<lefttexture></lefttexture>
+								<midtexture border="4">a4k/rr4.png</midtexture>
+								<righttexture></righttexture>
+								<overlaytexture></overlaytexture>
+								<info>ListItem.PercentPlayed</info>
+								<visible>ListItem.IsResumable</visible>
+							</control>
+						</control>
+						<control type="label">
+							<left>96</left>
+							<top>306</top>
+							<width>472</width>
+							<height>32</height>
+							<font>font25_title</font>
+							<textcolor>FFFFFFFF</textcolor>
+							<label>$INFO[ListItem.Label]</label>
+						</control>
+						<control type="label">
+							<left>96</left>
+							<top>340</top>
+							<width>472</width>
+							<height>30</height>
+							<font>font10</font>
+							<textcolor>B8FFFFFF</textcolor>
+							<label>$INFO[ListItem.Property(a4k.meta)]</label>
+						</control>
+					</focusedlayout>
+					<content target="videos" sortby="programcount">$INFO[Window.Property(a4k.row.308)]</content>
+				</control>
+			</control>
+
 			<!-- Rows: seven slots, filled in order by the home rows that are on (Appearance settings), each with its title
 			     (a4k.title.30n) and listing (a4k.row.30n); a slot without a listing is hidden and navigation passes over it.
 			     304 x 536 slots: the art (264 x 396 at 96,40) overflows its slot to the right, so the first card
@@ -382,7 +539,7 @@
 			     A slot hides while its row is empty, but a hidden list never loads: a4k.fresh shows every slot with a listing
 			     for a moment after the settings change them, so the new listings start loading. -->
 			<control type="group" id="310">
-				<onup>410</onup>
+				<onup>380</onup>
 				<ondown>320</ondown>
 				<top>0</top>
 				<left>0</left>
@@ -399,7 +556,7 @@
 					<label>$INFO[Window.Property(a4k.title.301)]</label>
 				</control>
 				<control type="list" id="301">
-					<onup>410</onup>
+					<onup>380</onup>
 					<ondown>320</ondown>
 					<onleft>noop</onleft>
 					<onright>noop</onright>

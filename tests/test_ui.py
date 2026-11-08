@@ -148,7 +148,7 @@ def test_window_uses_no_includes_or_named_colours(path):
     colours += [node.get('colordiffuse') for node in root.iter() if node.get('colordiffuse')]
     assert colours and all(re.fullmatch(r'[0-9A-F]{8}', colour) for colour in colours)
 
-@pytest.mark.parametrize('name,count', [('a4k-home.xml', 9), ('a4k-detail.xml', 1), ('a4k-grid.xml', 1), ('a4k-search.xml', 1)])
+@pytest.mark.parametrize('name,count', [('a4k-home.xml', 10), ('a4k-detail.xml', 1), ('a4k-grid.xml', 1), ('a4k-search.xml', 1)])
 def test_rows_do_not_reload_on_play_or_stop(name, count):
     # Kodi reloads every unsorted <content> on each OnPlay/OnStop (DirectoryProvider::Announce). The reloads start new
     # Python interpreters next to the playing plugin call, and two starting at once crash Kodi 21 (seen live with the
@@ -173,7 +173,7 @@ def test_focusable_controls_navigate_explicitly():
     hidden = {'291', '292'}  # the top shelf's own lists: never drawn, never in the navigation
     focusable = [c for c in root.iter('control') if (c.get('type') in ('list', 'panel') or c.get('id') == '210')
                  and c.get('id') not in hidden]
-    assert len(focusable) == 9
+    assert len(focusable) == 10
     for control in focusable:
         assert {'onleft', 'onright', 'ondown'} <= {child.tag for child in control}
         targets = [control.findtext(tag) for tag in ('onup', 'ondown') if control.findtext(tag) not in (None, 'noop')]
@@ -182,7 +182,7 @@ def test_focusable_controls_navigate_explicitly():
 def test_python_control_ids_exist_in_the_xml(home):
     root = ElementTree.parse(os.path.join(WINDOWS, 'a4k-home.xml')).getroot()
     ids = {int(control.get('id')) for control in root.iter('control') if control.get('id')}
-    used = {100, home.HERO_PLAY, home.HERO_INFO, home.HERO_ROW, home.TILES} | set(home.ROWS)
+    used = {100, home.HERO_PLAY, home.HERO_INFO, home.HERO_ROW, home.TILES, home.CONTINUE} | set(home.ROWS)
     assert used <= ids
     xml_containers = {int(n) for n in re.findall(r'Container\((\d+)\)', open(os.path.join(WINDOWS, 'a4k-home.xml')).read())}
     assert xml_containers <= ids
@@ -326,9 +326,9 @@ def info(type, id='tt1', path='', rated='false', trailers=''):
 
 def test_click_on_a_movie_plays_it(home):
     path = PLUGIN + '?action=play&type=eyJ0aXRsZSI6ICJBIn0='
-    assert home.click_builtin(info('movie', path=path)) == 'PlayMedia(%s)' % path
-    assert home.click_builtin(info('movie')) == 'PlayMedia(%s?action=play&type=&id=tt1)' % PLUGIN
-    assert home.click_builtin(info('tvEpisode', 'tt9')) == 'PlayMedia(%s?action=play&type=&id=tt9)' % PLUGIN
+    assert home.click_builtin(info('movie', path=path)) == 'PlayMedia(%s,noresume)' % path
+    assert home.click_builtin(info('movie')) == 'PlayMedia(%s?action=play&type=&id=tt1,noresume)' % PLUGIN
+    assert home.click_builtin(info('tvEpisode', 'tt9')) == 'PlayMedia(%s?action=play&type=&id=tt9,noresume)' % PLUGIN
 
 def test_click_runs_nothing_but_plays(home):
     # series, people, lists and Next items are the windows' own steps, never a Videos listing
@@ -400,7 +400,7 @@ def test_hero_buttons(core, home, monkeypatch, calls):
     win = window(core, home, monkeypatch, home.HERO_PLAY, hero)
     win.onClick(home.HERO_PLAY)
     win.onClick(home.HERO_INFO)
-    assert calls == ['PlayMedia(%s?action=play&type=&id=tt7)' % PLUGIN]
+    assert calls == ['PlayMedia(%s?action=play&type=&id=tt7,noresume)' % PLUGIN]
     assert [i['Property(a4k.id)'] for i in opened] == ['tt7']
 
 def test_back_walks_up_to_the_menu_then_closes_and_errors_close_with_the_traceback(core, home, monkeypatch):

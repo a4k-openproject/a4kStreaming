@@ -32,6 +32,7 @@ HELP = {
     'general.skip_intro': 'Auto skips the intro, Button shows a Skip button, Off does neither.',
     'general.skip_recap': 'Auto skips the recap, Button shows a Skip button, Off does neither.',
     'general.skip_credits': 'At the credits Auto plays the next episode, Button shows a Next episode button.',
+    'general.back_stops': 'Back from the video stops it and keeps its place for Continue Watching. Off leaves it playing behind the menus.',
     'general.search_all_providers': 'Off: with a Premiumize key a quick search runs first, and every provider is searched '
                                     'when it finds nothing or when you ask for it.',
     'general.search_timeout': 'How long a source search waits for the providers. Left or Right to change, OK to type it.',
@@ -41,6 +42,7 @@ HELP = {
     'provider.check': 'Looks for a newer version of the installed provider package.',
     'appearance.browse': 'The Browse row of category tiles.',
     'appearance.tabs': 'The category tabs in the top menu.',
+    'appearance.continue_watching': 'The movies and episodes you stopped partway, as the first row on Home.',
     'appearance.trending_movies': 'Shows this row on Home.',
     'appearance.trending_tv': 'Shows this row on Home.',
     'appearance.reality': 'Shows this row on Home.',

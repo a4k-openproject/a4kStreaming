@@ -82,7 +82,6 @@ xbmcgui = lambda: None
 
 __video_info_tag = lambda: None
 __video_info_tag.setRating = lambda _, __, ___, ____: None
-def __get_video_info_tag(*args, **kwargs): return __video_info_tag
 
 __list_info_tag = lambda: None
 __list_info_tag.set_cast = lambda _: None
@@ -109,7 +108,11 @@ def __create_listitem(*args, **kwargs):
     listitem.setSubtitles = lambda _: None
     listitem.setContentLookup = lambda _: None
     listitem.addStreamInfo = lambda _, __: None
-    listitem.getVideoInfoTag = __get_video_info_tag
+    listitem.resume = None
+    tag = lambda: None
+    tag.setRating = __video_info_tag.setRating
+    tag.setResumePoint = lambda time, totalTime=0.0: setattr(listitem, 'resume', (time, totalTime))
+    listitem.getVideoInfoTag = lambda: tag
     return listitem
 xbmcgui.ListItem = __create_listitem
 

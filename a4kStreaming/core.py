@@ -78,6 +78,11 @@ def main(url, handle, paramstring):
     elif action == 'query':
         query(core, params)
 
+    elif action == 'continue':
+        # the home's Continue Watching row, from the progress store (never cached: the t param changes with it)
+        from .listing import continue_watching
+        continue_watching(core)
+
     elif action == 'profile':
         profile(core, params)
         return
@@ -87,9 +92,13 @@ def main(url, handle, paramstring):
         return
 
     elif action == 'reset_resume':
-        # the episode menu's Reset resume progress: Kodi keeps the resume point against the item's play URL
+        # the episode menu's Reset resume progress: the add-on's own entry, and the resume point Kodi keeps against the
+        # play URL. No Container.Refresh: a reload next to this running call is the Kodi 21 crash (the bar goes on the
+        # listing's next load).
+        from . import progress
+        if params.key:
+            progress.remove(params.key)
         kodi.json_rpc('Files.SetFileDetails', {'file': params.path, 'media': 'video', 'resume': {'position': 0, 'total': 0}})
-        kodi.xbmc.executebuiltin('Container.Refresh')
         return
 
     elif action == 'play':

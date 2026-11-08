@@ -204,7 +204,7 @@ def test_select_routes_titles_people_and_episodes(core, grid, home, opened, labe
     win.select(item('tvSeries', id='tt2'))
     win.select(item('tvEpisode', PLUGIN + '?action=play&type=ep', id='tt3'))
     person = item('person', PLUGIN + '?action=query&type=knownfor&id=nm1', 'Ana Torres', 'nm1')
-    assert selected == ['tt1', 'tt2'] and calls == ['PlayMedia(%s?action=play&type=ep)' % PLUGIN]
+    assert selected == ['tt1', 'tt2'] and calls == ['PlayMedia(%s?action=play&type=ep,noresume)' % PLUGIN]
     win.select(person)  # a person's titles are public: no login asked
     assert notes == []
     assert win.getProperty('a4k.title') == 'Ana Torres' and win.getProperty('a4k.kicker') == 'KNOWN FOR'
@@ -454,7 +454,7 @@ def test_hero_buttons_follow_the_shown_title(core, home, labels, calls, monkeypa
                    'Container(301).ListItemAbsolute(1).Property(a4k.id)': 'tt8'})
     win.turn()
     win.onClick(home.HERO_PLAY)
-    assert calls == ['PlayMedia(%s?action=play&type=&id=tt8)' % PLUGIN]
+    assert calls == ['PlayMedia(%s?action=play&type=&id=tt8,noresume)' % PLUGIN]
 
 # F. skin lint
 

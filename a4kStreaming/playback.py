@@ -8,6 +8,7 @@ from .imdb import (
     query,
 )
 from .ui import sheets, skip
+from . import progress
 
 def cache_sources(core, params, results=None):
     pm_apikey = core.utils.get_premiumize_apikey(core)
@@ -337,6 +338,19 @@ def transfer(core, apikey, result):
     finally:
         progress.close()
 
+def resume_from(core, entry, quiet):
+    # where the play starts: 0, or the position of a title in progress when the user picks Resume; None when the
+    # sheet is cancelled (no play). quiet (the next episode from the credits, a cache run) never asks.
+    found = progress.load().get(progress.key(entry)) if entry else None
+    if quiet or not progress.in_progress(found):
+        return 0
+    heading = '%s \u00b7 S%s E%s' % (entry['show_title'], entry['season'], entry['episode']) if entry['show'] else entry['title']
+    choice = sheets.select(heading, [core.kodi.string(33163, 'Resume from %s') % progress.clock(found['pos']),
+                                     core.kodi.string(33164, 'Start over')])
+    if choice is None or choice < 0:
+        return None
+    return int(found['pos']) if choice == 0 else 0
+
 def play(core, params):
     general = core.cache.get_general()
 
@@ -390,6 +404,13 @@ def play(core, params):
 
     if provider_params.title.tvshowid:
         provider_params.title.tvshowseasonid = '%s_%s' % (provider_params.title.tvshowid, provider_params.title.season)
+
+    entry = progress.meta(provider_params.title)
+    if params.start is None:
+        params.start = resume_from(core, entry, bool(params.cache_sources or params.next))
+        if params.start is None:
+            core.utils.end_action(core, True)
+            return
     provider_params.start_time = core.utils.time_ms()
 
     provider_params.refresh = params.refresh
@@ -579,6 +600,8 @@ def play(core, params):
 
     item = core.kodi.xbmcgui.ListItem(path=link, offscreen=True)
     item.setProperty('IsPlayable', 'true')
+    if params.start:
+        item.setProperty('StartOffset', str(params.start))
     item.setContentLookup(False)
 
     video_meta = provider_params.title.copy()
@@ -594,6 +617,6 @@ def play(core, params):
     info_tag = core.kodi.set_info_tag(item, video_meta)
     info_tag.add_stream_info('video', { 'codec': result['videocodec'], 'duration': result['ref'].duration })
 
-    skip.hand_off(provider_params.title)
+    skip.hand_off(provider_params.title, entry)
     core.utils.end_action(core, True, item)
     return link

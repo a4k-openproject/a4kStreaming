@@ -201,7 +201,7 @@
 						<width>220</width>
 						<height>76</height>
 						<font>font30_title</font>
-						<label>Play</label>
+						<label>$INFO[Window.Property(a4k.playlabel)]</label>
 						<visible>String.IsEmpty(Window.Property(a4k.series))</visible>
 						<align>center</align>
 						<aligny>center</aligny>

@@ -390,7 +390,7 @@ def test_watch_countdown_label_fires_next_once(watch, skip):
     w.step(0)
     assert w.log['shown'] == 'Next episode in 10'
     w.step(10)
-    assert w.log['builtins'] == ['PlayMedia(%s?action=play&type=&id=tt2)' % skip.app.PLUGIN] and w.log['next'] == 1
+    assert w.log['builtins'] == ['PlayMedia(%s?action=play&type=&id=tt2&next=1,noresume)' % skip.app.PLUGIN] and w.log['next'] == 1
     w.ended()
     assert len(w.log['builtins']) == 1 and w.log['next'] == 1
 
@@ -428,7 +428,7 @@ def test_hand_off_and_take(core, skip):
     assert skip.take() == {}
     skip.hand_off(DictAsObject({'mediatype': 'movie', 'imdbnumber': 'tt6'}))
     assert skip.take() == {}
-    assert skip.start(core, None, None) is None
+    assert skip.start(core, None, None, {}) is None
 
 def test_modes_follow_the_settings_and_default_to_auto(core, skip, monkeypatch):
     values = {'general.skip_intro': '1', 'general.skip_recap': '2'}

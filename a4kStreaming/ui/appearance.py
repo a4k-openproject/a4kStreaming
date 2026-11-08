@@ -18,7 +18,8 @@ ROWS = {
     'my_list': ('My List', 'list', ''),  # the list's own name as title and kicker
     'watchlist': ('Watchlist', 'watchlist', ''),
 }
-ON = ('browse', 'tabs', 'trending_movies', 'trending_tv', 'watchlist')  # the toggles on by default
+# the toggles on by default; continue_watching is its own row (list 308), never one of the ordered slots or a hero source
+ON = ('browse', 'tabs', 'continue_watching', 'trending_movies', 'trending_tv', 'watchlist')
 ACCOUNT = ('my_list', 'watchlist')  # need an IMDb login
 NOT_IN_HERO = ('watchlist',)  # "My home sections" draws from the others that are on
 HERO_TURNS = (10, 15, 20, 30, 0)  # appearance.hero_turn, seconds; 0 is Off

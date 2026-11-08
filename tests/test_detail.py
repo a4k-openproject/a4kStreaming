@@ -234,13 +234,13 @@ def test_series_window_opens_the_latest_season_and_switches_on_dwell(core, detai
     win = opened[0]
     assert win.getProperty('a4k.series') == 'true'
     assert [i.label for i in win.getControl(detail.SEASONS).items] == ['Season 1', 'Season 2']
-    assert win.getProperty('a4k.season') == 'Season 2' and win.getProperty('a4k.episodes') == PLUGIN + GOLDEN[SERIES][1][0] + '&widget=1'
+    assert win.getProperty('a4k.season') == 'Season 2' and win.getProperty('a4k.episodes') == PLUGIN + GOLDEN[SERIES][1][0] + '&widget=1&t=0'
     # the mock list reports position 0: a pill that keeps focus loads its season (the mock doModal has returned, so the
     # window counts as closed; reopen it)
     win.closed = False
     win.setFocusId(detail.SEASONS)
     win.onAction(Action(detail.ACTION_MOVE_LEFT))
-    assert win.getProperty('a4k.season') == 'Season 1' and win.getProperty('a4k.episodes') == PLUGIN + GOLDEN[SERIES][0][0] + '&widget=1'
+    assert win.getProperty('a4k.season') == 'Season 1' and win.getProperty('a4k.episodes') == PLUGIN + GOLDEN[SERIES][0][0] + '&widget=1&t=0'
 
 def test_on_init_again_does_not_refetch(core, detail, opened, monkeypatch):
     detail.open(card())
@@ -268,14 +268,14 @@ def test_buttons_episodes_and_menu(core, detail, home, opened, calls, monkeypatc
     win.onClick(detail.MORE)
     win.setFocusId(detail.WATCHLIST)
     win.onAction(Action(home.ACTION_CONTEXT_MENU))
-    assert calls == ['PlayMedia(%s)' % episode, win.vm['trailer']]
+    assert calls == ['PlayMedia(%s,noresume)' % episode, win.vm['trailer']]
     # signed out: the select sheet without the account actions, so only More Like This is left
     assert menus == [(win.vm['title'], ['More Like This'])] * 2 and win.error is None
 
 def test_movie_play_uses_the_title_play_url(core, detail, listing, opened, calls):
     detail.open(card())
     opened[0].onClick(detail.PLAY)
-    assert calls == ['PlayMedia(%s)' % listing['play_url'](core, fixture()['movie'])]
+    assert calls == ['PlayMedia(%s,noresume)' % listing['play_url'](core, fixture()['movie'])]
 
 def test_back_closes(core, detail, opened, monkeypatch):
     detail.open(card())
@@ -311,7 +311,7 @@ def test_episodes_play_and_people_do_nothing_from_home(core, home, calls, monkey
     monkeypatch.setattr(importlib.import_module('a4kStreaming.ui.detail'), 'open', lambda info: pytest.fail('opened detail'))
     home.select(card('tvEpisode', 'tt9', FolderPath=''))
     home.select(card('person', 'nm1'))
-    assert calls == ['PlayMedia(%s?action=play&type=&id=tt9)' % PLUGIN]
+    assert calls == ['PlayMedia(%s?action=play&type=&id=tt9,noresume)' % PLUGIN]
 
 @pytest.mark.parametrize('focus, type, fetched', [
     (302, 'tvSeries', [(SERIES, True)]), (301, 'movie', [(SERIES, False)]), (302, 'tvEpisode', []), (201, 'movie', []),
@@ -377,3 +377,31 @@ def test_focusable_controls_navigate_explicitly(detail):
         assert {'onup', 'ondown', 'onleft', 'onright'} <= {child.tag for child in control}
         targets = [control.findtext(tag) for tag in ('onup', 'ondown') if control.findtext(tag) != 'noop']
         assert targets and set(targets) <= groups
+
+# F. Continue Watching (#029): opened at a season and episode, marks from the progress store
+
+def test_continue_watching_opens_the_season_and_focuses_the_episode(core, detail, opened, calls, monkeypatch, progress_store):
+    labels = {'Container(530).NumItems': '2', 'Container(530).ListItemAbsolute(1).Property(a4k.label)': 'S1 E2'}
+    monkeypatch.setattr(core.kodi.xbmc, 'getInfoLabel', lambda label: labels.get(label, ''))
+    detail.open(card('tvSeries', SERIES, **{'Property(a4k.at)': '1:2'}))
+    win = opened[0]
+    assert win.getProperty('a4k.season') == 'Season 1' and calls == ['Control.SetFocus(530,1,absolute)']
+
+def test_season_marks_count_episodes_played_to_the_end(core, detail, progress_store):
+    episodes = fixture()['series']['episodes']['episodes']
+    season_one = [ep for ep in episodes if ep['series']['seasonNumber'] == 1]
+    store = {}
+    for ep in season_one[:3]:
+        meta = {'type': 'episode', 'id': ep['id'], 'show': SERIES, 'season': 1, 'episode': ep['series']['episodeNumber']}
+        store = progress_store.record(store, meta, 3000, 3000, 100)
+    progress_store.save(store)
+    pills, _ = detail.seasons(core, fixture()['series'])
+    assert (pills[0]['watched'], pills[0]['progress']) == ('', str(3 * 100 // len(season_one)))  # signed out
+    assert (pills[1]['watched'], pills[1]['progress']) == ('', '')
+
+def test_movie_in_progress_reads_resume(core, detail, opened, progress_store):
+    progress_store.save({MOVIE: {'pos': 600, 'dur': 6000}})
+    detail.open(card())
+    assert opened[0].getProperty('a4k.playlabel') == 'Resume'
+    progress_store.save({})
+    assert detail.play_label(MOVIE) == 'Play'

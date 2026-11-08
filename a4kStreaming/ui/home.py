@@ -8,9 +8,12 @@ import traceback
 from types import SimpleNamespace
 
 from ..lib import kodi, logger
+from .. import progress
 from . import app, appearance
 
 ROWS = (301, 302, 303, 304, 305, 306, 307)  # slots for the rows that are on, in their order (a4k.row.30n, a4k.title.30n)
+CONTINUE = 308  # Continue Watching (its own landscape row under Browse, a4k.row.308)
+CONTINUE_SETTLE = 1.5  # s after the window comes back before the row reloads (see Home.onInit)
 HERO_PLAY = 201
 HERO_INFO = 202
 HERO_ROW = 301
@@ -54,6 +57,7 @@ ACTION_MOVES = (1, 2, 3, 4)
 PREFETCH_DWELL = 0.4
 
 INFO = ('FolderPath', 'Property(a4k.id)', 'Property(a4k.type)', 'Property(a4k.rated)', 'Property(a4k.trailers)',
+        'Property(a4k.at)',  # a Continue Watching episode: the show's detail opens at "<season>:<episode>"
         # what the detail window paints before its own request lands
         'Label', 'Plot', 'Year', 'Rating', 'MPAA', 'Genre', 'Duration(secs)', 'Art(fanart)', 'Art(blur)', 'Art(poster)')
 
@@ -61,11 +65,16 @@ def labels(item):
     # read before any dialog opens: Container(id) resolves against the topmost dialog first
     return {key: kodi.xbmc.getInfoLabel('%s.%s' % (item, key)) for key in INFO}
 
+def play_builtin(url):
+    # noresume: Kodi keeps its own resume point for a play URL it played and would ask about it; the play's own sheet
+    # asks Resume or Start over from the add-on's store (playback.resume_from)
+    return 'PlayMedia(%s,noresume)' % url
+
 def click_builtin(info):
     # what selecting a movie or an episode does: it plays (series, people, lists and Next are the windows' own steps)
     type = info.get('Property(a4k.type)', '')
     if type in ('movie', 'tvEpisode'):
-        return 'PlayMedia(%s)' % (info.get('FolderPath', '') or '%s?action=play&type=&id=%s' % (app.PLUGIN, info.get('Property(a4k.id)', '')))
+        return play_builtin(info.get('FolderPath', '') or '%s?action=play&type=&id=%s' % (app.PLUGIN, info.get('Property(a4k.id)', '')))
     return None
 
 def title_from_info(info):
@@ -122,6 +131,13 @@ def prefetch(item):
         from . import detail
         detail.fetch(detail.plugin_core(), id, type == 'tvSeries')
 
+def continue_url():
+    # the row's listing; t is the store's change time, so a changed store is a new URL (Kodi reloads it, and never
+    # serves an older listing it kept for the same URL)
+    if not appearance.on('continue_watching'):
+        return ''
+    return '%s?action=continue&widget=1&t=%s' % (app.PLUGIN, progress.stamp())
+
 def apply(window):
     # the Appearance settings as the window's properties: the Browse row, the category tabs, each row slot's title and
     # listing (a slot without one is hidden), and the top shelf's sources and rotation
@@ -129,6 +145,7 @@ def apply(window):
     flags = {'a4k.auth': signed_in, 'a4k.tabs': appearance.on('tabs'), 'a4k.browse': appearance.on('browse')}
     for key, value in flags.items():
         window.setProperty(key, 'true' if value else '')
+    window.setProperty('a4k.row.%s' % CONTINUE, continue_url())
     shown = appearance.rows(signed_in)
     slots = {}
     for slot, row in zip(ROWS, shown + [('', '', '', '')] * (len(ROWS) - len(shown))):
@@ -169,8 +186,24 @@ class Home(kodi.xbmcgui.WindowXML):
             if self.stopped is None:
                 self.stopped = threading.Event()
                 threading.Thread(target=self.rotate).start()
+            elif self.getProperty('a4k.row.%s' % CONTINUE) not in ('', continue_url()):
+                # back from a play (or a detail window that played): the Continue Watching row reloads once, a moment
+                # later and only with nothing over the window. Rows reloading next to a running plugin call, or right as
+                # a window of this interpreter closes, crashed Kodi (a4k-home.xml, ui/settings.py).
+                threading.Timer(CONTINUE_SETTLE, self.reload_continue).start()
         except Exception:
             self.__fail()
+
+    def reload_continue(self):
+        try:
+            url = continue_url()
+            if self.stopped.is_set() or not self.idle() or self.getProperty('a4k.row.%s' % CONTINUE) == url:
+                return  # the next return to the window looks again
+            self.setProperty('a4k.row.%s' % CONTINUE, url)
+            self.setProperty(FRESH, 'true')  # an empty row is hidden, and a hidden list never loads
+            threading.Timer(FRESH_TIME, self.setProperty, (FRESH, '')).start()
+        except Exception:
+            logger.debug(traceback.format_exc())
 
     def onAction(self, action):
         try:
@@ -181,7 +214,9 @@ class Home(kodi.xbmcgui.WindowXML):
             if action_id in ACTION_MOVES:
                 return self.dwell()
             selected = action_id in (ACTION_SELECT_ITEM, ACTION_MOUSE_LEFT_CLICK)
-            if selected and focus in ROWS:
+            if selected and focus == CONTINUE:
+                select(labels('Container(%s).ListItem' % CONTINUE))
+            elif selected and focus in ROWS:
                 info = labels('Container(%s).ListItem' % focus)
                 if not info['Property(a4k.type)'] and 'paginationToken=' in info['FolderPath']:
                     from . import grid  # the row's Next item: the rest of the row in the grid
@@ -272,6 +307,8 @@ class Home(kodi.xbmcgui.WindowXML):
         # Down on the last row that shows stays there. Past it only hidden slots follow, their chain ends in noop, and
         # Kodi then wrapped focus around to the top shelf (seen live). The other rows keep the XML's Down.
         shown = [slot for slot in ROWS if self.getProperty('a4k.row.%s' % slot)]
+        if not shown:  # Continue Watching is the last row
+            self.getControl(CONTINUE).controlDown(self.getControl(CONTINUE))
         for slot in shown:
             row = self.getControl(slot)
             last = slot == shown[-1]
@@ -363,7 +400,7 @@ class Home(kodi.xbmcgui.WindowXML):
     def prefetch(self):
         try:
             focus = self.getFocusId()
-            item = 'Container(%s).ListItem' % focus if focus in ROWS else self.hero_item() if focus == HERO_INFO else None
+            item = 'Container(%s).ListItem' % focus if focus in ROWS + (CONTINUE,) else self.hero_item() if focus == HERO_INFO else None
             if item:
                 prefetch(item)
         except Exception:

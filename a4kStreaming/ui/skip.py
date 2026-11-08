@@ -40,14 +40,17 @@ def modes():
         out[kind] = MODES[int(value)] if value in ('0', '1', '2') else 'auto'
     return out
 
-def hand_off(title):
-    # play(): the episode about to play, for the service; anything else clears it
+def hand_off(title, progress=None):
+    # play(): the title about to play, for the service: the episode for skip, progress the Continue Watching entry it
+    # records (progress.meta); one payload, taken once as playback starts
     handoff = {}
     try:
         if title.mediatype == 'episode' and title.tvshowid and title.season and title.episode:
             handoff = {'id': title.imdbnumber, 'tvshowid': title.tvshowid, 'season': int(title.season), 'episode': int(title.episode)}
     except Exception:
         pass
+    if progress:
+        handoff['progress'] = progress
     kodi.xbmcgui.Window(app.HOME_WINDOW).setProperty(HANDOFF, json.dumps(handoff))
 
 def take():
@@ -190,7 +193,7 @@ class Watch(object):
         self.hide()
         if self.on_next:
             self.on_next()
-        kodi.xbmc.executebuiltin('PlayMedia(%s?action=play&type=&id=%s)' % (app.PLUGIN, self.next_id))
+        kodi.xbmc.executebuiltin('PlayMedia(%s?action=play&type=&id=%s&next=1,noresume)' % (app.PLUGIN, self.next_id))
 
     def ended(self):
         # the natural end: with the auto countdown running it counts as Next episode
@@ -198,9 +201,8 @@ class Watch(object):
         if self.model and self.model.next_on_natural_end():
             self.play_next()
 
-def start(core, player, monitor, on_next=None):
-    # onPlayBackStarted: a Watch for the handed-off episode, None for anything else
-    handoff = take()
+def start(core, player, monitor, handoff, on_next=None):
+    # onPlayBackStarted, with the hand-off the service took: a Watch for the handed-off episode, None for anything else
     if not handoff.get('tvshowid'):
         return None
     watch = Watch(core, player, monitor, handoff, on_next)
