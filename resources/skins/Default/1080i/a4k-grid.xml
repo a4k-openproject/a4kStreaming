@@ -67,16 +67,12 @@
 				<height>180</height>
 				<texture>a4k/loader_base.png</texture>
 			</control>
-			<control type="multiimage">
+			<control type="image">
 				<left>0</left>
 				<top>0</top>
 				<width>180</width>
 				<height>180</height>
-				<imagepath>special://home/addons/plugin.video.a4kstreaming/resources/skins/Default/media/loader/</imagepath>
-				<timeperimage>50</timeperimage>
-				<fadetime>0</fadetime>
-				<loop>yes</loop>
-				<randomize>false</randomize>
+				<texture>loader/comet.apng</texture>
 			</control>
 		</control>
 		<control type="label">
@@ -523,16 +519,12 @@
 				<height>180</height>
 				<texture>a4k/loader_base.png</texture>
 			</control>
-			<control type="multiimage">
+			<control type="image">
 				<left>0</left>
 				<top>0</top>
 				<width>180</width>
 				<height>180</height>
-				<imagepath>special://home/addons/plugin.video.a4kstreaming/resources/skins/Default/media/loader/</imagepath>
-				<timeperimage>50</timeperimage>
-				<fadetime>0</fadetime>
-				<loop>yes</loop>
-				<randomize>false</randomize>
+				<texture>loader/comet.apng</texture>
 			</control>
 		</control>
 	</controls>

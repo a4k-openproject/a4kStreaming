@@ -384,25 +384,31 @@ def test_grid_zoomed_poster_stays_inside_its_slot():
 
 MEDIA = os.path.join(WINDOWS, '..', 'media')
 
-def test_loader_frames_are_small_clean_pngs():
+def test_loader_is_one_animated_png_stepped_once_a_frame():
     import struct
-    frames = sorted(os.listdir(os.path.join(MEDIA, 'loader')))
-    assert frames == ['%02d.png' % i for i in range(32)]  # one turn per 1.6 s at 50 ms a frame
-    for name in [os.path.join('loader', f) for f in frames] + [os.path.join('a4k', 'loader_base.png')]:
-        data = open(os.path.join(MEDIA, name), 'rb').read()
-        chunks, i = [], 8
-        while i < len(data):
-            size, kind = struct.unpack('>I4s', data[i:i + 8])
-            chunks.append(kind)
-            i += 12 + size
-        assert set(chunks) == {b'IHDR', b'IDAT', b'IEND'} and struct.unpack('>II', data[16:24]) == (180, 180), name
-        assert len(data) < 8000, name
+    # Kodi decodes an .apng once into a texture array and steps it per drawn frame; a multiimage of PNGs held each
+    # frame 3 or 4 vsyncs at random (measured on a TV box) and reloaded them from disk
+    assert os.listdir(os.path.join(MEDIA, 'loader')) == ['comet.apng']
+    data = open(os.path.join(MEDIA, 'loader', 'comet.apng'), 'rb').read()
+    chunks, i = [], 8
+    while i < len(data):
+        size, kind = struct.unpack('>I4s', data[i:i + 8])
+        chunks.append((kind, data[i + 8:i + 8 + size]))
+        i += 12 + size
+    assert struct.unpack('>II', chunks[0][1][:8]) == (180, 180)
+    frames, plays = struct.unpack('>II', dict(chunks)[b'acTL'])
+    assert (frames, plays) == (96, 0)  # one turn in 96 frames, looped forever
+    delays = set(struct.unpack('>HH', c[20:24]) for k, c in chunks if k == b'fcTL')
+    assert delays == {(12, 1000)}  # under a 60 Hz frame: one step per vsync, 1.6 s a turn
+    assert len(data) < 150000
+    base = open(os.path.join(MEDIA, 'a4k', 'loader_base.png'), 'rb').read()
+    assert struct.unpack('>II', base[16:24]) == (180, 180) and len(base) < 8000
 
 @pytest.mark.parametrize('name', ['a4k-home.xml', 'a4k-grid.xml', 'a4k-search.xml', 'a4k-detail.xml'])
 def test_windows_draw_the_loader_while_the_add_on_is_busy(name):
     root = xml(name)
-    images = [c for c in root.iter('control') if c.get('type') == 'multiimage']
-    assert images and all(c.findtext('imagepath').endswith('/resources/skins/Default/media/loader/') and c.findtext('timeperimage') == '50' for c in images)
+    assert not [c for c in root.iter('control') if c.get('type') == 'multiimage']
+    assert [c for c in root.iter('control') if c.findtext('texture') == 'loader/comet.apng']
     busy = [c for c in root.iter('control') if c.findtext('visible') == '!String.IsEmpty(Window(Home).Property(a4k.busy))']
     assert len(busy) == 2  # the dim layer and the loader
     assert 'Loading…' not in open(os.path.join(WINDOWS, name)).read()
