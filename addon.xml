@@ -20,7 +20,9 @@ IMDb-based media browser addon for KODI with streaming support via external prov
 A TV-style interface of its own: a top shelf and rows, title detail, browse grid and search, the same in any skin.
         </description>
         <platform>all</platform>
-        <reuselanguageinvoker>true</reuselanguageinvoker>
+        <!-- a fresh interpreter per call: Kodi 21 reusing one crashes as calls start and end at once (xbmc/xbmc#27025,
+             fixed in 22 only), as the home rows reload after a play -->
+        <reuselanguageinvoker>false</reuselanguageinvoker>
         <license>MIT License</license>
         <website>https://github.com/newt-sc/a4kStreaming</website>
         <source>https://github.com/newt-sc/a4kStreaming</source>

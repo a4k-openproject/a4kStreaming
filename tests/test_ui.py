@@ -162,6 +162,12 @@ def test_rows_do_not_reload_on_play_or_stop(name, count):
     rows = [node for node in root.iter('content') if (node.text or '').strip()]
     assert len(rows) == count and all(node.get('sortby') == 'programcount' for node in rows)
 
+def test_every_call_gets_a_fresh_interpreter():
+    # Kodi 21 crashes when reused interpreters start and end at once (xbmc/xbmc#27025, fixed only in 22): the home rows
+    # reloading as a detail closes after a play crashed it in 6 of 9 tries on the TV box, and none in 10 with reuse off
+    root = ElementTree.parse(os.path.join(os.path.dirname(__file__), '..', 'addon.xml')).getroot()
+    assert [node.text for node in root.iter('reuselanguageinvoker')] == ['false']
+
 def test_controls_place_themselves():
     # the active skin's Defaults.xml fills in any tag a control leaves out: under Confluence a textbox without left/top
     # landed at 330,333 and pushed the hero's meta line and plot out of view (seen live)
