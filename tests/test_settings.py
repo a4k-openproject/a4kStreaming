@@ -4,6 +4,7 @@
 
 import os
 import re
+import types
 import importlib
 from xml.etree import ElementTree
 from .common import pytest, api
@@ -215,7 +216,7 @@ def test_my_list_runs_its_picker_in_process(window, values, monkeypatch):
     item = go(win, 'appearance.my_list_pick')
     assert item.label2 == 'None'
     win.onClick(200)
-    assert item.label2 == 'Weekend Picks' and 'appearance.my_list' in win.changed
+    assert item.label2 == 'Weekend Picks'
 
 # 3. secrets
 
@@ -285,7 +286,7 @@ def test_secret_remove_needs_the_confirm(window, values, sheets, monkeypatch):
     win.onClick(200)
     assert values['imdb.at-main'] == SECRET
     win.onClick(200)
-    assert values['imdb.at-main'] == '' and item.label2 == 'Not set' and win.changed == {'imdb.at-main'}
+    assert values['imdb.at-main'] == '' and item.label2 == 'Not set'
 
 def test_premiumize_check_reads_the_account_status(settings, core, monkeypatch):
     sent = []
@@ -378,6 +379,13 @@ def test_rail_moves_switch_the_pane_and_back_steps_out_one_level(window):
     press(win, 92)
     assert win.closed
 
+def test_right_on_the_rail_enters_the_pane_without_stepping_its_first_row(window, values):
+    win = window()  # Playback, whose first row is an enum
+    assert win.getFocusId() == 100
+    before = win.pane.items[0].label2
+    press(win, 2)
+    assert win.getFocusId() == 200 and win.pane.items[0].label2 == before and 'general.max_quality' not in values
+
 def test_the_window_reopens_on_the_last_category_and_row(window):
     win = window()
     win.show(3, 2)
@@ -402,32 +410,31 @@ def home(core, monkeypatch):
     monkeypatch.setattr(home.Home, 'rotate', lambda self: None)
     return home
 
-@pytest.mark.parametrize('changed,reapplied', [(set(), 0), ({'general.autoplay'}, 0), ({'appearance.reality'}, 1),
-                                               ({'imdb.at-main'}, 1)])
-def test_gear_opens_the_window_and_reapplies_home_on_a_home_change(home, settings, monkeypatch, changed, reapplied):
-    import types
-    monkeypatch.setattr(settings, 'open', lambda: types.SimpleNamespace(changed=changed, native=False))
+def test_gear_runs_the_window_in_its_own_interpreter_and_watches_it(home, core, monkeypatch):
+    calls, threads = [], []
+    monkeypatch.setattr(home, 'run', calls.append)
+    monkeypatch.setattr(home.threading, 'Thread', lambda target: types.SimpleNamespace(start=lambda: threads.append(target)))
     window = home.Home('a4k-home.xml', '', 'Default', '1080i')
-    log = []
-    monkeypatch.setattr(window, 'reapply', lambda: log.append('reapply'))
-    monkeypatch.setattr(window, 'native_settings', lambda: log.append('native'))
     window.onClick(home.SETTINGS)
-    assert log == ['reapply'] * reapplied and window.error is None
+    assert calls == ['RunScript(plugin.video.a4kstreaming,settings)'] and threads == [window.settings_closed]
+    assert window.error is None
 
-@pytest.mark.parametrize('opened', [None, 'native'])
-def test_gear_falls_back_to_kodis_dialog(home, settings, monkeypatch, opened):
-    import types
-    monkeypatch.setattr(settings, 'open', lambda: opened and types.SimpleNamespace(changed=set(), native=True))
-    window = home.Home('a4k-home.xml', '', 'Default', '1080i')
+@pytest.mark.parametrize('native,only_order,opened', [(False, False, []), (True, False, ['dialog']), (True, True, [])])
+def test_run_opens_kodis_dialog_when_the_window_fails_or_asks(settings, core, monkeypatch, native, only_order, opened):
     log = []
-    monkeypatch.setattr(window, 'native_settings', lambda: log.append('native'))
-    window.onClick(home.SETTINGS)
-    assert log == ['native']
+    monkeypatch.setattr(settings, 'open', lambda only_order: native)
+    monkeypatch.setattr(core.kodi.xbmc, 'executebuiltin', lambda builtin: log.append('dialog'), raising=False)
+    settings.run(only_order)
+    assert log == opened  # the order editor alone is already over Kodi's dialog
 
-def test_a_window_error_is_logged_and_returns_none(settings, monkeypatch):
+def test_kodis_dialog_row_makes_open_return_true(settings, values, monkeypatch):
+    monkeypatch.setattr(settings.Window, 'doModal', lambda self: setattr(self, 'native', True), raising=False)
+    assert settings.open() is True
+
+def test_a_window_error_is_logged_and_asks_for_kodis_dialog(settings, monkeypatch):
     errors = []
     monkeypatch.setattr(settings.logger, 'error', errors.append)
     def broken(self):
         raise RuntimeError('no control 100')
     monkeypatch.setattr(settings.Window, 'getControl', lambda self, id: broken(self))
-    assert settings.open() is None and len(errors) == 1 and 'no control 100' in errors[0]
+    assert settings.open() is True and len(errors) == 1 and 'no control 100' in errors[0]

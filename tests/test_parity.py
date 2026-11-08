@@ -93,15 +93,15 @@ def test_category_tabs_open_the_category_grids(core, home, grid, monkeypatch):
 
 def test_watch_now_focuses_play_and_settings_opens_the_settings_window(core, home, monkeypatch, calls):
     from types import SimpleNamespace
-    settings_window = importlib.import_module('a4kStreaming.ui.settings')
     opened = []
-    monkeypatch.setattr(settings_window, 'open', lambda: opened.append(1) or SimpleNamespace(changed=set(), native=False))
+    monkeypatch.setattr(home, 'run', lambda builtin: opened.append(builtin))
+    monkeypatch.setattr(home.threading, 'Thread', lambda target: SimpleNamespace(start=lambda: None))
     window = home.Home('a4k-home.xml', '', 'Default', '1080i')
     window.setFocusId(home.WATCH_NOW)
     window.onClick(home.WATCH_NOW)
     assert window.getFocusId() == home.HERO_PLAY
     window.onClick(home.SETTINGS)
-    assert opened == [1] and calls == [] and window.error is None
+    assert opened == ['RunScript(plugin.video.a4kstreaming,settings)'] and calls == [] and window.error is None
 
 # 2. search window
 
@@ -691,13 +691,14 @@ def test_hero_series_reads_go_to_show_and_opens_its_detail(core, home, monkeypat
     window.onClick(home.HERO_PLAY)
     assert [info['Property(a4k.id)'] for info in opened_detail] == ['tt5'] and calls == []
 
-def test_kodis_settings_dialog_applies_the_new_appearance_once_it_closes(core, home, monkeypatch, calls):
+def test_the_settings_apply_the_new_appearance_once_closed(core, home, monkeypatch, calls):
     import threading
     values = {}
     settings(core, monkeypatch, values)
-    looks = iter([False, True, True, False])  # not up yet, up (the user changes two settings), closed
+    # not up yet, up (the user changes two settings), a gap (the window hands over to Kodi's dialog), up, closed
+    looks = iter([False, True, True, False, True, True, False, False])
     def active(condition):
-        assert condition == 'Window.IsActive(addonsettings)'
+        assert condition == home.SETTINGS_SHOWN
         up = next(looks)
         if up:
             values.update({'appearance.hero_source': '1', 'appearance.reality': 'true'})
@@ -711,9 +712,9 @@ def test_kodis_settings_dialog_applies_the_new_appearance_once_it_closes(core, h
     monkeypatch.setattr(window.stopped, 'wait', lambda seconds: False)
     home.apply(window)
     window.hero = 3
-    window.native_settings()  # the settings window failed or asked for Kodi's own dialog
+    window.onClick(home.SETTINGS)
     # opened without waiting (a blocking builtin holds Python's lock), watched from a thread
-    assert calls == ['Addon.OpenSettings(plugin.video.a4kstreaming)'] and threads == [window.settings_closed]
+    assert calls == ['RunScript(plugin.video.a4kstreaming,settings)'] and threads == [window.settings_closed]
     assert window.getProperty('a4k.title.303') == ''
     window.settings_closed()
     assert window.getProperty('a4k.title.303') == 'Reality TV' and list(window.sources) == [(302, 'TRENDING NOW')]
@@ -721,7 +722,7 @@ def test_kodis_settings_dialog_applies_the_new_appearance_once_it_closes(core, h
     assert window.getProperty('a4k.fresh') == 'true' and timers == [(window.setProperty, ('a4k.fresh', '')), (window.turn, ())]
     assert window.hero == -1 and window.error is None
 
-def test_settings_watch_stops_looking_for_the_dialog_after_two_seconds(core, home, monkeypatch):
+def test_settings_watch_stops_looking_when_nothing_opens(core, home, monkeypatch):
     import threading
     looks = []
     monkeypatch.setattr(core.kodi.xbmc, 'getCondVisibility', lambda condition: looks.append(1) and False, raising=False)
@@ -731,7 +732,7 @@ def test_settings_watch_stops_looking_for_the_dialog_after_two_seconds(core, hom
     reapplied = []
     monkeypatch.setattr(window, 'reapply', lambda: reapplied.append(1))
     window.settings_closed()
-    assert len(looks) == home.SETTINGS_OPEN + 2 and reapplied == [1]
+    assert len(looks) == home.SETTINGS_OPEN + 3 and reapplied == [1]  # and once more after the settle
     monkeypatch.setattr(window.stopped, 'wait', lambda seconds: seconds == home.SETTINGS_SETTLE)  # closes meanwhile
     window.settings_closed()
     assert reapplied == [1]

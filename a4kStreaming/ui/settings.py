@@ -3,7 +3,8 @@
 # a pane. The rows are read from that file (ids, types, defaults, ranges, options, order), so Kodi's own dialog and
 # this window cannot drift apart; only the help lines and value formats live here. Two rows are the window's own: Reset
 # this section (not on a category with secrets: accounts are never reset) and, last, Kodi's own settings dialog.
-# Every change is written at once; the caller reapplies the home window from `changed` once the window closes.
+# Every change is written at once. It runs in an interpreter of its own (RunScript, ui.py), as Kodi's own dialog does;
+# the home window reapplies its settings once the window has closed.
 
 import io
 import os
@@ -132,10 +133,6 @@ def shown(categories):
         panes.append(pane)
     return panes
 
-def touches_home(changed):
-    # the settings the home window reads (ui/home.py apply): its own and the IMDb login
-    return any(id.startswith('appearance.') or id == IMDB for id in changed)
-
 def get(id, default=''):
     return kodi.get_setting(id) or (default or '')
 
@@ -175,7 +172,6 @@ class Window(kodi.xbmcgui.WindowXMLDialog):
         if self.started:
             return
         self.started = True
-        self.changed = set()
         self.rejected = set()
         self.order = None  # the Home order editor's keys while it is open
         self.grab = None  # the index of the row picked up in it
@@ -251,7 +247,6 @@ class Window(kodi.xbmcgui.WindowXMLDialog):
 
     def set(self, id, value):
         kodi.xbmcaddon.Addon(kodi.addon_id).setSetting(id, value)
-        self.changed.add(id)
 
     def refresh(self):
         position = self.pane.getSelectedPosition()
@@ -270,6 +265,8 @@ class Window(kodi.xbmcgui.WindowXMLDialog):
             focus = self.getFocusId()
             if action_id in (ACTION_PREVIOUS_MENU, ACTION_NAV_BACK):
                 return self.back(focus)
+            if focus == RAIL and action_id == RIGHT:  # here, not the rail's onright: Kodi would move the focus first,
+                return self.setFocusId(PANE)  # and the Right then stepped the pane's first row too (seen live)
             if focus == RAIL and action_id in (UP, DOWN):  # Kodi moved the rail already: its pane follows at once
                 position = self.rail.getSelectedPosition()
                 if position != self.cat:
@@ -335,7 +332,6 @@ class Window(kodi.xbmcgui.WindowXMLDialog):
             self.secret(row)
         elif id == 'appearance.my_list_pick':
             appearance.pick_my_list()  # in this process: no second interpreter
-            self.changed.add('appearance.my_list')
         elif kind == 'action':
             kodi.xbmc.executebuiltin(row['action'])
         elif kind == 'order':
@@ -449,15 +445,23 @@ class Window(kodi.xbmcgui.WindowXMLDialog):
         self.close()
 
 def open(only_order=False):
-    # the window, once closed (its changed and native), or None when it failed (logged): the caller falls back to
-    # Kodi's own dialog
+    # True when Kodi's own dialog should follow: the window failed (logged) or its last row asked for it
     try:
         window = Window('a4k-settings.xml', kodi.addon_path, 'Default', '1080i')
         window.only_order = only_order
         window.doModal()
-        if window.error:
-            raise RuntimeError(window.error)
-        return window
+        native, error = window.native, window.error
+        del window
+        if error:
+            raise RuntimeError(error)
+        return native
     except Exception:
         logger.error('settings window failed: %s' % traceback.format_exc())
-        return None
+        return True
+
+def run(only_order=False):
+    # RunScript(<add-on>,settings|order) (ui.py). Run inside the home window's interpreter, the home rows reloading after
+    # the window closed crashed Kodi (seen on the TV box); Kodi's own dialog runs its actions this way too. The
+    # Home order editor alone is opened from that dialog, so it never opens it again.
+    if open(only_order) and not only_order:
+        kodi.xbmc.executebuiltin('Addon.OpenSettings(%s)' % kodi.addon_id)
