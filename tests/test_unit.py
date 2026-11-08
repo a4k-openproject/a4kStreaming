@@ -876,11 +876,18 @@ def test_transfer_plays_once_a_resolve_answers(core, monkeypatch, playback):
 def test_transfer_cancel_keeps_it_in_premiumize(core, monkeypatch, playback):
     pm = __FakePremiumize(core, monkeypatch, ready_after=None, cancel_at=1, keep=0)
     assert playback.transfer(core, 'key', __uncached_source(core)) is False
-    assert pm.asked == [['Keep downloading in Premiumize', 'Remove from Premiumize']]
+    assert pm.asked == [['Keep downloading in Premiumize', 'Open Downloads', 'Remove from Premiumize']]
     assert 'transfer/delete' not in pm.calls
 
-def test_transfer_cancel_can_remove_it(core, monkeypatch, playback):
+def test_transfer_cancel_can_open_downloads(core, monkeypatch, playback):
     pm = __FakePremiumize(core, monkeypatch, ready_after=None, cancel_at=1, keep=1)
+    opened = []
+    monkeypatch.setattr(importlib.import_module('a4kStreaming.ui.debrid'), 'open', lambda *a, **k: opened.append((a, k)))
+    assert playback.transfer(core, 'key', __uncached_source(core)) is False
+    assert opened == [(('downloads',), {'over_call': True})] and 'transfer/delete' not in pm.calls
+
+def test_transfer_cancel_can_remove_it(core, monkeypatch, playback):
+    pm = __FakePremiumize(core, monkeypatch, ready_after=None, cancel_at=1, keep=2)
     assert playback.transfer(core, 'key', __uncached_source(core)) is False
     assert pm.calls[-1] == 'transfer/delete' and pm.notes == ['Removed from Premiumize']
 

@@ -282,6 +282,18 @@ def test_window_hidden_under_a_dialog_or_the_loader(core, debrid, window, monkey
     monkeypatch.setattr(core.kodi.xbmcgui, 'getCurrentWindowDialogId', lambda: 10138)
     assert not window.visible()
 
+def test_over_a_play_call_the_loader_does_not_hide_it_and_play_waits(core, debrid, window, monkeypatch, toasts):
+    # Open Downloads from the uncached wait: the play call's loader stamp is live the whole time
+    monkeypatch.setattr(core.kodi.xbmcgui, 'getCurrentWindowId', lambda: window.own_id)
+    monkeypatch.setattr(debrid.kodi, 'busy_live', lambda: True)
+    assert not window.visible()
+    window.over_call = True
+    assert window.visible()
+    ran = []
+    monkeypatch.setattr(debrid.home, 'run', ran.append)
+    window.play('f1')
+    assert ran == [] and toasts == ['Go back and pick the source again to play it']
+
 # E. actions
 
 def test_finished_transfer_opens_its_folder_or_plays_its_file(core, debrid, window, monkeypatch):

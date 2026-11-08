@@ -293,7 +293,8 @@ def __pm_json(core, request):
 def transfer(core, apikey, result):
     # the TV skin's uncached pick: add the source to Premiumize and wait for it with a progress dialog. Ready is a
     # resolve that answers (directdl lists the files only once the cloud copy exists), not the transfer status, which
-    # is only the progress text. Cancel asks to keep the transfer or remove it. True once ready
+    # is only the progress text. Cancel asks to keep the transfer, follow it in the Debrid window or remove it. True
+    # once ready
     link = result[core.utils.result_link_key]
     progress = core.kodi.xbmcgui.DialogProgress()
     progress.create('Premiumize', 'Adding to Premiumize…')
@@ -327,8 +328,11 @@ def transfer(core, apikey, result):
                 waited += 0.25
             if progress.iscanceled():
                 progress.close()
-                keep = sheets.select('Premiumize', ['Keep downloading in Premiumize', 'Remove from Premiumize'])
-                if keep == 1 and id:
+                keep = sheets.select('Premiumize', ['Keep downloading in Premiumize', 'Open Downloads', 'Remove from Premiumize'])
+                if keep == 1:
+                    from .ui import debrid
+                    debrid.open('downloads', over_call=True)  # Back returns to the uncached list
+                elif keep == 2 and id:
                     __pm_json(core, core.debrid.premiumize_transfer_delete(apikey, id))
                     core.kodi.notification('Removed from Premiumize')
                 return False

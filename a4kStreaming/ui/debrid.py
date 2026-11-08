@@ -198,6 +198,7 @@ class Debrid(kodi.xbmcgui.WindowXML):
     seen = None
     fair = None
     threads = ()
+    over_call = False  # opened from a running play call (the uncached wait): its loader stamp is not ours
 
     def onInit(self):
         # runs again on every return (after playback, a sheet, Settings): no network here
@@ -234,7 +235,7 @@ class Debrid(kodi.xbmcgui.WindowXML):
 
     def visible(self):
         return kodi.xbmcgui.getCurrentWindowId() == self.own_id and \
-            kodi.xbmcgui.getCurrentWindowDialogId() == NO_DIALOG and not kodi.busy_live()
+            kodi.xbmcgui.getCurrentWindowDialogId() == NO_DIALOG and (self.over_call or not kodi.busy_live())
 
     def poll(self):
         while not self.stopped.wait(TICK):
@@ -448,6 +449,8 @@ class Debrid(kodi.xbmcgui.WindowXML):
                 self.load_cloud_later(self.folder)
 
     def play(self, file_id):
+        if self.over_call:  # a second play inside the waiting one: Back to the sources, which play it once it is ready
+            return kodi.notification('Go back and pick the source again to play it')
         home.run('PlayMedia(%s?action=cloud&type=play&id=%s)' % (app.PLUGIN, file_id))
 
     def transfer_actions(self, row):
@@ -520,13 +523,16 @@ class Debrid(kodi.xbmcgui.WindowXML):
         self.error = traceback.format_exc()
         self.close()
 
-def open(tab='downloads', folder=''):
-    # the Browse row's Debrid tile and action=cloud (cloud.py); a window error is logged and closes the window
+def open(tab='downloads', folder='', over_call=False):
+    # the Browse row's Debrid tile, action=cloud (cloud.py) and the uncached wait's Open Downloads (playback.transfer,
+    # over_call); a window error is logged and closes the window
     try:
         window = Debrid('a4k-debrid.xml', kodi.addon_path, 'Default', '1080i')
         # a reopened add-on (after the Home key) comes back to this window, not to the one under it
         window.setProperty('a4k.home', 'true')
         window.setProperty('a4k.loading', 'true')
+        window.over_call = over_call
+        window.setProperty('a4k.overcall', 'true' if over_call else '')  # the play call's loader is not drawn
         window.tab = CLOUD if tab == 'cloud' else DOWNLOADS
         window.folder = folder or ''
         try:
