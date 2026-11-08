@@ -482,13 +482,44 @@ def test_nested_busy_keeps_the_outer_loader_until_the_outer_closes(core, calls, 
     assert calls == [] and busy(core) == ''
 
 @pytest.mark.parametrize('screen, loader', [(42, 'true'), (13, '')])
-def test_the_play_action_runs_behind_the_loader_over_an_a4k_window(core, calls, on_screen, monkeypatch, screen, loader):
-    # from the start of the call Kodi waits on until Kodi has the stream; elsewhere Kodi's own busy dialog alone
+@pytest.mark.parametrize('link', ['https://host/v.mkv', None])
+def test_the_play_action_runs_behind_the_loader_over_an_a4k_window(core, calls, on_screen, monkeypatch, screen,
+                                                                   loader, link):
+    # from the start of the call Kodi waits on until the stream plays; elsewhere Kodi's own busy dialog alone
     on_screen(screen)
     seen = []
-    monkeypatch.setattr(core, 'play', lambda core, params: seen.append(busy(core)))
+    monkeypatch.setattr(core, 'play', lambda core, params: seen.append(busy(core)) or link)
+    monkeypatch.setattr(core.kodi, 'wait_for_playback', lambda: seen.append('wait %s' % busy(core)))
     core.main(PLUGIN, 1, 'action=play&type=&id=tt1')
-    assert seen == [loader] and calls == [] and busy(core) == ''
+    assert seen == [loader] + (['wait %s' % loader] if link else []) and calls == [] and busy(core) == ''
+
+@pytest.mark.parametrize('states, looks', [
+    ([False, True, True, False], 4),  # the player takes the stream, then stops (failed): the loader goes
+    ([False] * 60, 51),  # the player never takes it: 5 s
+    ([True, True, 'fullscreen'], 3),  # the video window takes over
+])
+def test_the_loader_holds_until_the_stream_plays(core, on_screen, monkeypatch, states, looks):
+    # Kodi's own wait for the first frame shows its busy dialog over the add-on's windows (seen on the TV box)
+    states = list(states)
+    seen = []
+    def media(condition):
+        if condition != 'Player.HasMedia':
+            return False
+        seen.append(1)
+        state = states.pop(0)
+        if state == 'fullscreen':
+            on_screen(12005)
+            return True
+        return state
+    monkeypatch.setattr(core.kodi.xbmc, 'getCondVisibility', media)
+    with core.kodi.busy_dialog():
+        core.kodi.wait_for_playback()
+    assert len(seen) == looks
+    on_screen(13)
+    with core.kodi.busy_dialog():  # elsewhere: nothing to stand in for
+        del seen[:]
+        core.kodi.wait_for_playback()
+    assert seen == []
 
 def test_busy_over_an_a4k_window_closes_kodis_busy_dialog(core, monkeypatch, on_screen):
     # Kodi opens its busy dialog 220 ms into a PlayMedia it waits on, often after the loader is up: closed as it shows

@@ -1261,7 +1261,7 @@ def trailer(core, params):
     }
     request.update(core.utils.imdb_auth_request_props())
 
-    # the loader (or Kodi's busy dialog) until the stream is known, closed on every way out
+    # the loader (or Kodi's busy dialog) until the trailer plays, closed on every way out
     with core.kodi.busy_dialog() if params.play == 'true' else nullcontext():
         response = core.request.execute(core, request, False)
         trailerUrl = None
@@ -1275,16 +1275,17 @@ def trailer(core, params):
         else:
             core.logger.notice(response.text)
 
-    if not trailerUrl:
-        core.utils.end_action(core, False)
-        core.kodi.notification('Trailer not found')
-        return []
+        if not trailerUrl:
+            core.utils.end_action(core, False)
+            core.kodi.notification('Trailer not found')
+            return []
 
-    item = core.kodi.xbmcgui.ListItem(path=trailerUrl, offscreen=True)
-    core.kodi.set_info_tag(item, {'mediatype': 'video'})
-    if params.play == 'true':
-        core.kodi.xbmc.Player().play(item=trailerUrl, listitem=item)
-    else:
-        core.utils.end_action(core, True, item)
+        item = core.kodi.xbmcgui.ListItem(path=trailerUrl, offscreen=True)
+        core.kodi.set_info_tag(item, {'mediatype': 'video'})
+        if params.play == 'true':
+            core.kodi.xbmc.Player().play(item=trailerUrl, listitem=item)
+            core.kodi.wait_for_playback()
+        else:
+            core.utils.end_action(core, True, item)
 
     return [trailerUrl]

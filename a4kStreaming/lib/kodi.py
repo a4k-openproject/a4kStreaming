@@ -129,6 +129,28 @@ def close_busy_dialog():
         __busy['native'] = False
         xbmc.executebuiltin('Dialog.Close(busydialognocancel)')
 
+PLAYBACK_LOOK = 0.1  # s
+PLAYBACK_START = 50  # looks (5 s) for the player to take the stream
+PLAYBACK_LOOKS = 300  # looks (30 s) for its first frame: Kodi's own wait has no limit
+
+def wait_for_playback():
+    # Kodi opens the stream after the add-on hands it over and waits for the first frame behind its busy dialog. Over
+    # the add-on's windows the loader stays up instead, until the video window takes over, the stream fails, or 30 s
+    # pass; elsewhere there is nothing to stand in for.
+    if not __busy['done']:
+        return
+    monitor = xbmc.Monitor()
+    started = False
+    for look in range(PLAYBACK_LOOKS):
+        if not __over_window():
+            return
+        playing = xbmc.getCondVisibility('Player.HasMedia')
+        if started and not playing or not started and look >= PLAYBACK_START:
+            return
+        started = started or playing
+        if monitor.waitForAbort(PLAYBACK_LOOK):
+            return
+
 @contextmanager
 def busy_dialog(native=True):
     open_busy_dialog(native)
