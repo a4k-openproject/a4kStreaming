@@ -464,7 +464,32 @@ def test_values_are_chips_by_kind(window, values):
     win.rejected.add('premiumize.apikey')
     assert tone('premiumize.apikey') == ('warn', 's')
     assert tone('provider.manage') == ('', '') and tone('appearance.watchlist') == ('', '')  # signed out: plain text
-    assert tone('kodi.mode') == ('off', 'l') and tone('appearance.my_list_pick') == ('', '')
+    assert tone('kodi.mode') == ('off', 's') and tone('appearance.my_list_pick') == ('', '')
+    values['trakt.username'] = 'maria'
+    assert tone('trakt.username') == ('value', 'l')
+
+def visible(node, props, focused):
+    # a layout control's <visible> for a row's properties, as Kodi reads it (String.IsEmpty / IsEqual, HasFocus, ! + |)
+    text = node.findtext('visible')
+    if not text:
+        return True
+    text = re.sub(r'String\.IsEmpty\(ListItem\.Property\(([\w.]+)\)\)', lambda m: str(not props.get(m.group(1))), text)
+    text = re.sub(r'String\.IsEqual\(ListItem\.Property\(([\w.]+)\),(\w+)\)',
+                  lambda m: str(props.get(m.group(1)) == m.group(2)), text)
+    text = text.replace('Control.HasFocus(200)', str(focused)).replace('[', '(').replace(']', ')')
+    return eval(text.replace('!', ' not ').replace('+', ' and ').replace('|', ' or '))
+
+@pytest.mark.parametrize('tone,size', [('on', 's'), ('off', 's'), ('value', 's'), ('warn', 's'), ('on', 'l'),
+                                       ('value', 'l'), ('', '')])
+def test_each_value_look_draws_one_chip_and_one_value_label(tone, size):
+    pane = next(n for n in ElementTree.parse(os.path.join(ROOT, 'resources', 'skins', 'Default', '1080i',
+                                                          'a4k-settings.xml')).iter('control') if n.get('id') == '200')
+    props = {'a4k.tone': tone, 'a4k.chip': size}
+    for layout, focused in (('itemlayout', False), ('focusedlayout', False), ('focusedlayout', True)):
+        shown = [n for n in pane.find(layout).iter('control') if n.get('type') != 'group' and visible(n, props, focused)]
+        chips = [n.findtext('texture') for n in shown if 'chip' in (n.findtext('texture') or '')]
+        values = [n for n in shown if n.findtext('label') == '$INFO[ListItem.Label2]']
+        assert len(chips) == (1 if tone else 0) and len(values) == 1, (layout, focused)
 
 def test_the_window_reopens_on_the_last_category_and_row(window):
     win = window()

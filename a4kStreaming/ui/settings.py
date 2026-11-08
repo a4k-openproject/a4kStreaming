@@ -156,7 +156,7 @@ def chip(row, value):
         tone = 'off' if value == 'Off' else 'on'
     else:  # a secret, the Trakt username, My List
         tone = {'Rejected': 'warn', 'Not set': 'off', 'None': 'off'}.get(value, 'value')
-    return tone, CHIP.get(kind, 'l')
+    return tone, 's' if tone == 'off' else CHIP.get(kind, 'l')  # an empty name or list: as short as Off
 
 def get(id, default=''):
     return kodi.get_setting(id) or (default or '')

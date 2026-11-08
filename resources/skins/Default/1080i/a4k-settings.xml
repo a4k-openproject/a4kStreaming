@@ -13,7 +13,7 @@
 
   Rows: label left, value right as a chip. a4k.tone: on (accent fill, dark text), off (outline, light text), value
   (neutral fill; white with dark text on the focused row), warn (red fill), empty (plain text: an arrow, or "Sign in to
-  IMDb first"). a4k.chip: s (On / Off / Set) or l (options, numbers, names). The focused row is a lighter surface with
+  IMDb first"). a4k.chip: s (On / Off / Set / Not set) or l (options, numbers, names). The focused row is a lighter surface with
   a white outline, lifted 1.02. a4k.step (Left/Right change the value: ‹ › inside the chip), a4k.off (needs the IMDb
   sign-in: dimmed), a4k.header (a group header: accent capitals, the row's top left blank as the gap between groups),
   a4k.grabbed (the Home order row being moved: accent outline, shadow), a4k.help (the line under the pane).
@@ -226,14 +226,6 @@
 						<top>18</top>
 						<width>400</width>
 						<height>60</height>
-						<texture border="30" colordiffuse="A6FFFFFF">a4k/chip_line.png</texture>
-						<visible>String.IsEqual(ListItem.Property(a4k.chip),l) + String.IsEqual(ListItem.Property(a4k.tone),off)</visible>
-					</control>
-					<control type="image">
-						<left>848</left>
-						<top>18</top>
-						<width>400</width>
-						<height>60</height>
 						<texture border="30" colordiffuse="33FFFFFF">a4k/chip.png</texture>
 						<visible>String.IsEqual(ListItem.Property(a4k.chip),l) + String.IsEqual(ListItem.Property(a4k.tone),value)</visible>
 					</control>
@@ -433,14 +425,6 @@
 							<top>18</top>
 							<width>400</width>
 							<height>60</height>
-							<texture border="30" colordiffuse="A6FFFFFF">a4k/chip_line.png</texture>
-							<visible>!Control.HasFocus(200) + String.IsEqual(ListItem.Property(a4k.chip),l) + String.IsEqual(ListItem.Property(a4k.tone),off)</visible>
-						</control>
-						<control type="image">
-							<left>848</left>
-							<top>18</top>
-							<width>400</width>
-							<height>60</height>
 							<texture border="30" colordiffuse="33FFFFFF">a4k/chip.png</texture>
 							<visible>!Control.HasFocus(200) + String.IsEqual(ListItem.Property(a4k.chip),l) + String.IsEqual(ListItem.Property(a4k.tone),value)</visible>
 						</control>
@@ -543,14 +527,6 @@
 							<height>60</height>
 							<texture border="30" colordiffuse="FF6CB6FF">a4k/chip.png</texture>
 							<visible>Control.HasFocus(200) + String.IsEqual(ListItem.Property(a4k.chip),l) + String.IsEqual(ListItem.Property(a4k.tone),on)</visible>
-						</control>
-						<control type="image">
-							<left>848</left>
-							<top>18</top>
-							<width>400</width>
-							<height>60</height>
-							<texture border="30" colordiffuse="FFFFFFFF">a4k/chip_line.png</texture>
-							<visible>Control.HasFocus(200) + String.IsEqual(ListItem.Property(a4k.chip),l) + String.IsEqual(ListItem.Property(a4k.tone),off)</visible>
 						</control>
 						<control type="image">
 							<left>848</left>
