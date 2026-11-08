@@ -15,6 +15,9 @@ if __name__ == '__main__':
     elif action == 'my_list':
         from a4kStreaming.ui import appearance
         appearance.pick_my_list()
+    elif action in ('kodi_mode', 'kodi_mode_prompt'):  # its row in Kodi's own dialog; the home window's one-time question
+        from a4kStreaming import kodi_mode
+        kodi_mode.sheet() if action == 'kodi_mode' else kodi_mode.prompt()
     else:
         from a4kStreaming.ui import app
         app.run()

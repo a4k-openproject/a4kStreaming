@@ -63,6 +63,8 @@ HELP = {
     'trakt.migrate_collections': 'Adds your Trakt collections to the IMDb lists Movies Collection and Shows Collection, which must exist.',
     'general.page_size': 'Titles per page in the rows and grids.',
     'general.lists_page_size': 'Titles per page in the Watchlist and your lists.',
+    'kodi.mode': 'Makes Kodi an a4kStreaming device: opens it at start, home shows only a4kStreaming, menu sounds off. '
+                 'Lists each change first; turning it off puts them back.',
 }
 DESCRIPTIONS = {  # by the category's label id
     '33001': 'What plays, and what happens around it.',
@@ -91,10 +93,12 @@ def strings():
 
 def kind(node):
     type = node.get('type')
+    if node.get('visible') == 'false':
+        return 'hidden'
     if type == 'action':
         return 'order' if node.get('id') == 'appearance.order_pick' else 'action'
     if type == 'text':
-        return 'hidden' if node.get('visible') == 'false' else 'secret' if node.get('option') == 'hidden' else 'text'
+        return 'secret' if node.get('option') == 'hidden' else 'text'
     return {'slider': 'number'}.get(type, type)  # bool, enum
 
 def categories():
@@ -236,6 +240,9 @@ class Window(kodi.xbmcgui.WindowXMLDialog):
         if id == 'appearance.my_list_pick':
             chosen = appearance.my_list()
             return chosen[1] if chosen else 'None'
+        if id == 'kodi.mode':
+            from .. import kodi_mode
+            return kodi_mode.status()
         return MORE if kind in ('action', 'order') else ''
 
     def index(self, row):
@@ -334,6 +341,9 @@ class Window(kodi.xbmcgui.WindowXMLDialog):
             self.secret(row)
         elif id == 'appearance.my_list_pick':
             appearance.pick_my_list()  # in this process: no second interpreter
+        elif id == 'kodi.mode':
+            from .. import kodi_mode
+            kodi_mode.sheet()
         elif kind == 'action':
             kodi.xbmc.executebuiltin(row['action'])
         elif kind == 'order':
@@ -387,7 +397,7 @@ class Window(kodi.xbmcgui.WindowXMLDialog):
         if not confirm('Reset %s to defaults?' % label, 'Reset'):
             return
         for row in rows:
-            if row['default'] is not None:
+            if row['default'] is not None and row['id'] != 'kodi_mode.prompted':  # the one-time question stays asked
                 self.set(row['id'], row['default'])
         self.show(self.cat, self.pane.getSelectedPosition())
 

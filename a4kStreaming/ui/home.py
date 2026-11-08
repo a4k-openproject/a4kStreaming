@@ -9,7 +9,7 @@ import traceback
 from types import SimpleNamespace
 
 from ..lib import kodi, logger
-from .. import progress
+from .. import kodi_mode, progress
 from . import app, appearance
 
 ROWS = (301, 302, 303, 304, 305, 306, 307)  # slots for the rows that are on, in their order (a4k.row.30n, a4k.title.30n)
@@ -50,6 +50,8 @@ SETTINGS_SETTLE = 1  # seen live: read at once, the Home order just saved was st
 SETTINGS_OPEN = 20  # looks for the settings window or dialog to open (5 s: the window starts an interpreter)
 SETTINGS_WAIT = 4 * 3600 * 4  # looks while it stays open (4 h)  # the hero text's fade-out in a4k-home.xml (a4k.hero.shown), before the next title is set
 NO_DIALOG = 9999  # getCurrentWindowDialogId() with no modal dialog up
+
+LEAVE = ['Exit', "Kodi's menu", 'Cancel']  # Back on the top menu in Kodi setup mode
 
 ACTION_PREVIOUS_MENU = 10
 ACTION_NAV_BACK = 92
@@ -176,6 +178,7 @@ class Home(kodi.xbmcgui.WindowXML):
     sources = ((HERO_ROW, appearance.ROWS['trending_movies'][2]),)  # (container, kicker) per source, set by apply()
     hero_turn = HERO_TURN
     shown = None  # (container, index, kicker) of the title on the top shelf
+    asked = False
 
     def onInit(self):
         # runs again on every return to the window (after playback, after a listing): no network, nothing to undo
@@ -243,10 +246,26 @@ class Home(kodi.xbmcgui.WindowXML):
             self.__fail()
 
     def back(self, focus):
-        # Back on a row goes to the top shelf's Play, on the top shelf to Watch Now, on the top menu it leaves
-        if focus in MENU:
+        # Back on a row goes to the top shelf's Play, on the top shelf to Watch Now, on the top menu it leaves (asking
+        # first in Kodi setup mode, where Kodi's menu is not the way out)
+        if focus not in MENU:
+            return self.setFocusId(WATCH_NOW if focus in (HERO_PLAY, HERO_INFO) else HERO_PLAY)
+        if not kodi_mode.active():
             return self.close()
-        self.setFocusId(WATCH_NOW if focus in (HERO_PLAY, HERO_INFO) else HERO_PLAY)
+        from . import sheets
+        choice = sheets.select('Leave a4kStreaming?', LEAVE, preselect=2)
+        if choice == 0:  # Android: Kodi goes to the background and stays warm, as Back at a TV app's root does
+            kodi.xbmc.executebuiltin('Minimize' if kodi.xbmc.getCondVisibility('System.Platform.Android') else 'Quit')
+        elif choice == 1:
+            self.close()
+
+    def ask_kodi_mode(self):
+        # the one-time question about Kodi setup mode, in an interpreter of its own (as the settings window), once the
+        # page is up with nothing over it and nothing playing
+        if self.asked or not self.idle() or playing() or not kodi_mode.prompt_due():
+            return
+        self.asked = True  # the question itself marks it asked (kodi_mode.prompt)
+        run('RunScript(%s,kodi_mode_prompt)' % kodi.addon_id)
 
     def onClick(self, control_id):
         try:
@@ -373,7 +392,9 @@ class Home(kodi.xbmcgui.WindowXML):
             if not self.stopped.is_set():
                 self.show_hero()
             self.setProperty('a4k.loading', '')  # the page fades in, with the title or after 15 s without one
+            self.ask_kodi_mode()  # its sheet starts an interpreter first: the page has faded in by then
             while not self.stopped.wait(self.hero_turn or HERO_IDLE):
+                self.ask_kodi_mode()
                 if self.hero_turn:
                     self.turn()
         except Exception:

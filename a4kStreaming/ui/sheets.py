@@ -25,6 +25,7 @@ class Sheet(kodi.xbmcgui.WindowXMLDialog):
     choice = -1
     rows = ()
     preselect = -1
+    actions = 0  # when set, only the first rows act; the rest are lines to read
 
     def onInit(self):
         try:
@@ -41,7 +42,10 @@ class Sheet(kodi.xbmcgui.WindowXMLDialog):
     def onClick(self, control_id):
         try:
             if control_id == LIST:
-                self.choice = self.getControl(LIST).getSelectedPosition()
+                position = self.getControl(LIST).getSelectedPosition()
+                if self.actions and position >= self.actions:
+                    return
+                self.choice = position
                 self.close()
         except Exception:
             self.__fail()
@@ -55,9 +59,10 @@ class Sheet(kodi.xbmcgui.WindowXMLDialog):
         self.error = traceback.format_exc()
         self.close()
 
-def select(heading, labels, preselect=-1, rows=None):
+def select(heading, labels, preselect=-1, rows=None, actions=0):
     # Dialog().select's contract: the chosen index, -1 on cancel. rows are the sheet's (label, label2) per item, the
-    # labels themselves when not given (without colours: the focused row is white)
+    # labels themselves when not given (without colours: the focused row is white). actions: only the first rows can be
+    # chosen, OK on a later one does nothing
     try:
         window = Sheet('a4k-sheet.xml', kodi.addon_path, 'Default', '1080i')
         window.setProperty('a4k.heading', heading)

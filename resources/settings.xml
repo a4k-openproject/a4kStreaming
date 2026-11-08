@@ -53,5 +53,8 @@
     <category label="33008">
         <setting id="general.page_size"              label="33104" type="slider" default="29" option="int" range="10,100"/>
         <setting id="general.lists_page_size"        label="33105" type="slider" default="29" option="int" range="10,100"/>
+        <!-- Kodi setup mode (a4kStreaming/kodi_mode.py); prompted: its one-time question on the home window was asked -->
+        <setting id="kodi.mode"                      label="33801" type="action" action="RunScript(plugin.video.a4kstreaming,kodi_mode)"/>
+        <setting id="kodi_mode.prompted"             type="bool"   default="false" visible="false"/>
     </category>
 </settings>

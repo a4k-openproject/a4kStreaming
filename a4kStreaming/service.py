@@ -32,7 +32,7 @@ def start(api):
     from .imdb import cursor_ttl
     from .ui import app as ui_app
     from .ui import skip
-    from . import progress
+    from . import kodi_mode, progress
     monitor = core.kodi.xbmc.Monitor()
 
     class XBMCPlayer(core.kodi.xbmc.Player):
@@ -120,6 +120,8 @@ def start(api):
     player.onPlayBackStarted = started
     player.onPlayBackEnded = lambda: ended(natural=True)
     player.onPlayBackStopped = lambda: ended(natural=False)
+
+    kodi_mode.autoopen(monitor)  # Kodi setup mode: the add-on opens once Kodi's Home is up
 
     while not monitor.abortRequested():
         if monitor.waitForAbort(TICK if ours.meta else IDLE):

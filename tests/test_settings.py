@@ -102,7 +102,7 @@ def test_categories_kinds_and_ranges_come_from_settings_xml(settings):
     assert [label for _, label, _ in cats] == ['Playback', 'Sources', 'Home', 'Accounts', 'Advanced']
     rows = {row['id']: row for _, _, rows in cats for row in rows}
     assert sorted(id for id, row in rows.items() if row['kind'] == 'secret') == ['imdb.at-main', 'premiumize.apikey', 'trakt.clientid']
-    assert {id for id, row in rows.items() if row['kind'] == 'hidden'} == {'appearance.order', 'appearance.my_list'}
+    assert {id for id, row in rows.items() if row['kind'] == 'hidden'} == {'appearance.order', 'appearance.my_list', 'kodi_mode.prompted'}
     assert rows['appearance.order_pick']['kind'] == 'order' and rows['provider.install']['kind'] == 'action'
     assert rows['provider.install']['action'] == 'RunPlugin(plugin://plugin.video.a4kstreaming/?action=provider&type=install)'
     assert (rows['general.remembered_searches']['min'], rows['general.remembered_searches']['step'],
@@ -197,6 +197,16 @@ def test_action_rows_run_their_builtin(window, core, monkeypatch):
     assert go(win, 'provider.manage').label2 == '›'
     win.onClick(200)
     assert ran == ['RunPlugin(plugin://plugin.video.a4kstreaming/?action=provider&type=manage)'] and win.error is None
+
+def test_kodi_setup_mode_row_shows_its_state_and_opens_its_sheet_in_process(window, core, monkeypatch):
+    mode = importlib.import_module('a4kStreaming.kodi_mode')
+    opened, ran = [], []
+    monkeypatch.setattr(mode, 'sheet', lambda: opened.append(True))
+    monkeypatch.setattr(core.kodi.xbmc, 'executebuiltin', lambda builtin, wait=False: ran.append(builtin))
+    win = window()
+    assert go(win, 'kodi.mode').label2 == 'Off'
+    win.onClick(200)
+    assert opened == [True] and ran == [] and win.error is None
 
 def test_account_rows_are_disabled_signed_out_and_lead_to_the_imdb_row(window, values):
     win = window()
@@ -319,6 +329,16 @@ def test_reset_writes_its_categorys_defaults_after_the_confirm(window, values, s
     assert (values['appearance.browse'], values['appearance.order'], values['appearance.hero_turn']) == ('true', '', '1')
     assert values['general.autoplay'] == 'true' and values['imdb.at-main'] == SECRET  # other categories untouched
     assert go(win, 'appearance.browse').label2 == 'On'
+
+def test_reset_of_advanced_keeps_the_kodi_setup_question_asked(window, values, sheets, monkeypatch):
+    values.update({'kodi_mode.prompted': 'true', 'general.page_size': '50'})
+    win = window()
+    cat, _ = win.find('general.page_size')
+    win.show(cat, len(win.panes[cat]) - 2)  # Reset this section; Kodi's dialog is last
+    win.setFocusId(200)
+    monkeypatch.setattr(sheets, 'select', lambda heading, labels, **k: 0)
+    win.onClick(200)
+    assert values['general.page_size'] == '29' and values['kodi_mode.prompted'] == 'true'
 
 # 5. the Home order editor
 

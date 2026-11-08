@@ -303,3 +303,7 @@ msgstr ""
 msgctxt "#33728"
 msgid "My home sections"
 msgstr ""
+
+msgctxt "#33801"
+msgid "Kodi setup mode"
+msgstr ""
