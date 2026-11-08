@@ -330,6 +330,30 @@ def test_cloud_click_opens_folders_plays_videos_and_back_goes_up(core, debrid, w
     assert window.folder == 'r' and window.getControl(debrid.CLOUD).position == 0  # back on Movies
     assert 'includebreadcrumbs=true' in server.requests[0][0]['url'] and all(cache is False for _, cache in server.requests)
 
+def test_close_waits_for_the_window_threads(core, debrid, monkeypatch):
+    # a window freed on its own thread crashed Kodi 21 (SIGSEGV on close): open() joins them first
+    import threading
+    monkeypatch.setattr(core.kodi.xbmcgui, 'ListItem', FakeItem)
+    gate, done = threading.Event(), []
+    def poll(self):
+        gate.wait(5)
+        done.append(True)
+    def modal(window):
+        for id in (debrid.TABS, debrid.DOWNLOADS, debrid.CLOUD, debrid.FAIR_USE):
+            window.controls[id] = FakeList()
+        window.onInit()
+        threading.Timer(0.1, gate.set).start()  # the refresh still running as the window closes
+    monkeypatch.setattr(debrid.Debrid, 'poll', poll)
+    monkeypatch.setattr(debrid.home, 'modal', modal)
+    debrid.open()
+    assert done == [True] and not debrid.LEFT_OVER
+
+def test_fair_use_bar_comes_back_after_playback(debrid, window):
+    window.paint_account({'status': 'success', 'premium_until': 0, 'limit_used': 0.5, 'space_used': 0})
+    window.controls[debrid.FAIR_USE] = FakeList()  # the XML reloaded on return
+    window.onInit()
+    assert window.getControl(debrid.FAIR_USE).percent == 50
+
 # F. action=cloud
 
 @pytest.fixture

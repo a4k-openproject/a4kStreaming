@@ -30,6 +30,9 @@ TAB_NAMES = ((DOWNLOADS, 'Downloads'), (CLOUD, 'Cloud'))
 ACTIVE = 2  # s between transfer refreshes while one is queued or downloading
 IDLE = 15  # s between them otherwise, and after a failure
 TICK = 0.25  # s between looks whether the window is on screen and a refresh is due
+TIMEOUT = 10  # s a Premiumize request may take, so a closing window waits for its threads a bounded time
+JOIN = TIMEOUT + 2  # s the close waits for them
+LEFT_OVER = []  # windows whose threads outlived JOIN: never freed off the main thread
 
 # the status chips, as the reference app draws them; any other status shows as it comes
 CHIPS = {'queued': 'Queued', 'running': 'Downloading', 'waiting': 'Downloading', 'seeding': 'Downloading',
@@ -162,6 +165,7 @@ def plugin_core():
 
 def fetch(core, request):
     # Premiumize's answer as a dict, never from the cache; Failure carries the line the banner shows
+    request.setdefault('timeout', TIMEOUT)
     response = core.request.execute(core, request, False)
     try:
         body = json.loads(response.content)
@@ -192,6 +196,8 @@ class Debrid(kodi.xbmcgui.WindowXML):
     cloud_loaded = False
     account_due = True
     seen = None
+    fair = None
+    threads = ()
 
     def onInit(self):
         # runs again on every return (after playback, a sheet, Settings): no network here
@@ -200,8 +206,11 @@ class Debrid(kodi.xbmcgui.WindowXML):
             self.own_id = kodi.xbmcgui.getCurrentWindowId()
             kodi.xbmcgui.Window(app.HOME_WINDOW).setProperty(app.OPEN_WINDOW, str(self.own_id))
             if self.started:
+                if self.fair is not None:  # the XML reloads on return (after playback): the bar starts at 0 again
+                    self.getControl(FAIR_USE).setPercent(self.fair)
                 return
             self.started = True
+            self.threads = []
             self.lock = threading.RLock()
             self.stopped = threading.Event()
             self.schedule = Schedule()
@@ -210,11 +219,18 @@ class Debrid(kodi.xbmcgui.WindowXML):
             self.tabs.addItems([kodi.xbmcgui.ListItem(label=label, offscreen=True) for _, label in TAB_NAMES])
             self.show_tab(self.tab)
             self.setFocusId(TABS)
-            threading.Thread(target=self.poll).start()
+            self.spawn(self.poll)
         except Exception:
             self.__fail()
 
     # the refresh thread, alive as long as the window
+
+    def spawn(self, target, *args):
+        # every thread of the window is joined before the window is freed (open)
+        self.threads = [thread for thread in self.threads if thread.is_alive()]
+        thread = threading.Thread(target=target, args=args)
+        self.threads.append(thread)
+        thread.start()
 
     def visible(self):
         return kodi.xbmcgui.getCurrentWindowId() == self.own_id and \
@@ -267,6 +283,7 @@ class Debrid(kodi.xbmcgui.WindowXML):
         self.setProperty('a4k.fairuse', '' if fair is None else '%s%%' % fair)
         self.setProperty('a4k.storage', stored)
         if fair is not None:
+            self.fair = fair
             self.getControl(FAIR_USE).setPercent(fair)
 
     def banner(self, text, kind=''):
@@ -337,7 +354,7 @@ class Debrid(kodi.xbmcgui.WindowXML):
     # Cloud
 
     def load_cloud_later(self, folder, back_to=None, focus=False):
-        threading.Thread(target=self.load_cloud, args=(folder, back_to, focus)).start()
+        self.spawn(self.load_cloud, folder, back_to, focus)
 
     def load_cloud(self, folder, back_to=None, focus=False):
         try:
@@ -516,6 +533,12 @@ def open(tab='downloads', folder=''):
             home.modal(window)
         finally:
             window.stop()
+        # a window freed on one of its own threads races the interpreter's main thread: Kodi 21 dies with SIGSEGV
+        deadline = time.time() + JOIN
+        for thread in window.threads:
+            thread.join(max(0, deadline - time.time()))
+        if any(thread.is_alive() for thread in window.threads):
+            LEFT_OVER.append(window)  # ponytail: kept until the interpreter ends; a hung request costs one window
         error = window.error
         del window
         if error:
