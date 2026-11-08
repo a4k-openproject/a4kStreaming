@@ -4,8 +4,9 @@
 # separators start), so Kodi's own dialog and this window cannot drift apart; only the help lines and value formats
 # live here. A group is a header row in the pane that the focus steps over. Two rows are the window's own: Reset
 # this section (not on a category with secrets: accounts are never reset) and, last, Kodi's own settings dialog.
-# Every change is written at once. It runs in an interpreter of its own (RunScript, ui.py), as Kodi's own dialog does;
-# the home window reapplies its settings once the window has closed.
+# The Subtitles category (ui/subtitles.py) is not in settings.xml: its rows are Kodi's and a4kSubtitles' settings, and
+# an id with a colon is routed there. Every change is written at once. It runs in an interpreter of its own (RunScript,
+# ui.py), as Kodi's own dialog does; the home window reapplies its settings once the window has closed.
 
 import io
 import os
@@ -15,7 +16,7 @@ import traceback
 from xml.etree import ElementTree
 
 from ..lib import kodi, logger
-from . import app, appearance
+from . import app, appearance, subtitles
 from .home import ACTION_PREVIOUS_MENU, ACTION_NAV_BACK
 
 RAIL = 100
@@ -116,6 +117,11 @@ def categories():
         found.append((category.get('label'), text(category.get('label')), rows))
     return found
 
+def window_categories():
+    # settings.xml's categories, with Subtitles after Playback
+    cats = categories()
+    return cats[:1] + [('subtitles', 'Subtitles', subtitles.rows())] + cats[1:]
+
 def header(label):
     return {'id': '', 'kind': 'header', 'label': label, 'help': '', 'group': label}
 
@@ -133,7 +139,7 @@ def shown(categories):
                 pane.append(header(group))
             pane.append(row)
         own = []
-        if not any(row['kind'] == 'secret' for row in rows):
+        if not any(row['kind'] == 'secret' or ':' in row['id'] for row in rows):  # never accounts, Kodi or a4kSubtitles
             own.append({'id': '', 'kind': 'reset', 'label': 'Reset this section', 'group': '',
                         'help': 'Every %s setting back to its default.' % label})
         if index == len(categories) - 1:
@@ -144,7 +150,7 @@ def shown(categories):
 
 def title(row):
     # a row named with its group, for a dialog's heading: "Premiumize API key"
-    return ('%s %s' % (row['group'], row['label'])).strip()
+    return row.get('title') or ('%s %s' % (row['group'], row['label'])).strip()
 
 def chip(row, value):
     # the value's look (a4k-settings.xml): on (accent fill), off (outline), value (neutral fill), warn (red fill), or
@@ -161,7 +167,11 @@ def chip(row, value):
     return tone, 's' if tone == 'off' else CHIP.get(kind, 'l')  # an empty name or list: as short as Off
 
 def get(id, default=''):
-    return kodi.get_setting(id) or (default or '')
+    return (subtitles.get(id) if ':' in id else kodi.get_setting(id)) or (default or '')
+
+def stored(row, index):
+    # an enum option as written: its value where the row has values (Kodi's), else its index
+    return row['values'][index] if 'values' in row else str(index)
 
 def number(row):
     try:
@@ -191,7 +201,7 @@ def confirm(heading, yes):
 
 class Window(kodi.xbmcgui.WindowXMLDialog):
     error = None
-    native = False  # Kodi's own dialog asked for: the caller opens it once this window closes
+    native = False  # Kodi's own dialog asked for (True), or a builtin: the caller runs it once this window closes
     only_order = False  # opened for the Home order alone (its action in Kodi's own dialog): leaving it closes
     started = False
 
@@ -204,7 +214,7 @@ class Window(kodi.xbmcgui.WindowXMLDialog):
         self.grab = None  # the index of the row picked up in it
         self.before = None
         try:
-            self.cats = categories()
+            self.cats = window_categories()
             self.panes = shown(self.cats)
             self.rail = self.getControl(RAIL)
             self.pane = self.getControl(PANE)
@@ -264,14 +274,17 @@ class Window(kodi.xbmcgui.WindowXMLDialog):
         if kind == 'bool':
             return 'On' if get(id, row['default']) == 'true' else 'Off'
         if kind == 'enum':
-            return row['options'][self.index(row)]
+            index = self.index(row)
+            return row['options'][index] if index >= 0 else 'Custom'  # a colour picked in Kodi's own window
         if kind == 'number':
             n = number(row)
-            return FORMATS.get(id, str)(n)
+            return FORMATS.get(id, row.get('format', str))(n)
         if kind == 'text':
             return get(id) or 'Not set'
         if kind == 'secret':  # never the value itself
             return 'Rejected' if id in self.rejected else 'Set' if get(id) else 'Not set'
+        if id == subtitles.ADDON:
+            return row['version'] or MORE
         if id == 'appearance.my_list_pick':
             chosen = appearance.my_list()
             return chosen[1] if chosen else 'None'
@@ -281,6 +294,9 @@ class Window(kodi.xbmcgui.WindowXMLDialog):
         return MORE if kind in ('action', 'order') else ''
 
     def index(self, row):
+        if 'values' in row:  # -1: none of them
+            value = get(row['id'])
+            return row['values'].index(value) if value in row['values'] else -1
         try:
             return min(max(int(get(row['id'], row['default'])), 0), len(row['options']) - 1)
         except ValueError:
@@ -290,7 +306,16 @@ class Window(kodi.xbmcgui.WindowXMLDialog):
         return next((cat, i) for cat, rows in enumerate(self.panes) for i, row in enumerate(rows) if row['id'] == id)
 
     def set(self, id, value):
-        kodi.xbmcaddon.Addon(kodi.addon_id).setSetting(id, value)
+        if ':' not in id:
+            return kodi.xbmcaddon.Addon(kodi.addon_id).setSetting(id, value)
+        if subtitles.set(id, value):
+            self.rebuild()
+
+    def rebuild(self):
+        # the rows again, after a4kSubtitles was installed or enabled, or a Kodi setting showed or hid others
+        self.cats = window_categories()
+        self.panes = shown(self.cats)
+        self.show(self.cat, self.pane.getSelectedPosition())
 
     def refresh(self):
         position = self.pane.getSelectedPosition()
@@ -367,9 +392,9 @@ class Window(kodi.xbmcgui.WindowXMLDialog):
             from . import sheets
             choice = sheets.select(title(row), row['options'], preselect=self.index(row))
             if choice is not None and choice >= 0:
-                self.set(id, str(choice))
+                self.set(id, stored(row, choice))
         elif kind == 'enum':
-            self.set(id, str((self.index(row) + 1) % len(row['options'])))
+            self.set(id, stored(row, (self.index(row) + 1) % len(row['options'])))
         elif kind == 'number':
             typed = kodi.xbmcgui.Dialog().numeric(0, title(row), str(number(row)))
             if typed:
@@ -385,6 +410,9 @@ class Window(kodi.xbmcgui.WindowXMLDialog):
         elif id == 'kodi.mode':
             from .. import kodi_mode
             kodi_mode.sheet()
+        elif id == subtitles.ADDON:
+            if subtitles.act():
+                return self.rebuild()
         elif kind == 'action':
             kodi.xbmc.executebuiltin(row['action'])
         elif kind == 'order':
@@ -392,7 +420,7 @@ class Window(kodi.xbmcgui.WindowXMLDialog):
         elif kind == 'reset':
             return self.reset()
         elif kind == 'native':
-            self.native = True
+            self.native = row.get('action') or True  # Kodi's subtitle settings, or the add-on's own dialog
             self.remember()
             return self.close()
         self.refresh()
@@ -405,7 +433,7 @@ class Window(kodi.xbmcgui.WindowXMLDialog):
             current = number(row)
             new = min(max(current + delta * row['step'], row['min']), row['max'])
         if new != current:
-            self.set(row['id'], str(new))
+            self.set(row['id'], stored(row, new) if row['kind'] == 'enum' else str(new))
             self.refresh()
 
     def secret(self, row):
@@ -501,7 +529,8 @@ class Window(kodi.xbmcgui.WindowXMLDialog):
         self.close()
 
 def open(only_order=False):
-    # True when Kodi's own dialog should follow: the window failed (logged) or its last row asked for it
+    # True when Kodi's own dialog should follow: the window failed (logged) or its last row asked for it; a builtin
+    # when a row asked for another of Kodi's windows
     try:
         window = Window('a4k-settings.xml', kodi.addon_path, 'Default', '1080i')
         window.only_order = only_order
@@ -519,5 +548,6 @@ def run(only_order=False):
     # RunScript(<add-on>,settings|order) (ui.py). Run inside the home window's interpreter, the home rows reloading after
     # the window closed crashed Kodi (seen on the TV box); Kodi's own dialog runs its actions this way too. The
     # Home order editor alone is opened from that dialog, so it never opens it again.
-    if open(only_order) and not only_order:
-        kodi.xbmc.executebuiltin('Addon.OpenSettings(%s)' % kodi.addon_id)
+    native = open(only_order)
+    if native and not only_order:
+        kodi.xbmc.executebuiltin(native if native is not True else 'Addon.OpenSettings(%s)' % kodi.addon_id)

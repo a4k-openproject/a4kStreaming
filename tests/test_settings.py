@@ -140,7 +140,7 @@ def test_reset_rows_skip_accounts_and_kodis_dialog_is_last(settings):
 
 def test_first_open_shows_playback_on_the_rail(window):
     win = window()
-    assert [item.label for item in win.rail.items] == ['Playback', 'Sources', 'Home', 'Accounts', 'Advanced']
+    assert [item.label for item in win.rail.items] == ['Playback', 'Subtitles', 'Sources', 'Home', 'Accounts', 'Advanced']
     assert win.getFocusId() == 100 and win.cat == 0 and labels(win)[:2] == ['SOURCE CHOICE', 'Highest quality']
     assert win.pane.getSelectedPosition() == 1  # the first row, under its header
     assert win.getProperty('a4k.desc') == 'Playback' and win.pane.items[0].getProperty('a4k.header') == 'true'
@@ -412,9 +412,9 @@ def test_order_editor_alone_closes_when_left(window, values):
 
 def test_rail_moves_switch_the_pane_and_back_steps_out_one_level(window):
     win = window()
-    win.rail.selectItem(2)
+    win.rail.selectItem(3)
     press(win, 4)
-    assert win.cat == 2 and labels(win)[:2] == ['TOP OF THE SCREEN', 'Category tabs']
+    assert win.cat == 3 and labels(win)[:2] == ['TOP OF THE SCREEN', 'Category tabs']
     win.onClick(100)
     assert win.getFocusId() == 200
     press(win, 92)
