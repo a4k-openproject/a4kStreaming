@@ -16,6 +16,10 @@ PATH = os.path.join(kodi.addon_profile, 'kodi_mode.json')
 PROMPTED = 'kodi_mode.prompted'  # hidden setting: the one-time question on the add-on's home was asked
 AUTOOPENED = 'a4k.kodi_mode.opened'  # on Kodi's Home window: the add-on opened itself this Kodi session
 AUTOOPEN_WAIT = 30  # s the service waits for Kodi's Home to be idle after start
+# s Home must stay idle with nothing playing first: Kodi started by an Android "open with" shows Home and asks for the
+# play about 3.5 s later (seen on the TV box)
+# ponytail: a timing guess; a slower play request still finds the add-on open and plays over it
+AUTOOPEN_SETTLE = 4
 LOOK = 0.5
 ESTUARY = 'skin.estuary'
 KEYMAP = 'a4kstreaming.xml'
@@ -303,18 +307,21 @@ def prompt_due():
 # the service
 
 def autoopen(monitor):
-    # once per Kodi session, with the mode on: open the add-on once Kodi's Home is on screen with no dialog over it.
-    # Not when Kodi started to play something (an Android "open with"), not when the add-on is open already.
+    # once per Kodi session, with the mode on: open the add-on once Kodi's Home has been on screen for a moment with
+    # no dialog over it. Not when Kodi started to play something (an Android "open with"), not when the add-on is open
+    # already.
     home = kodi.xbmcgui.Window(10000)
     if not active() or home.getProperty(AUTOOPENED):
         return False
     home.setProperty(AUTOOPENED, 'true')
     xbmc = kodi.xbmc
+    idle = 0
     for _ in range(int(AUTOOPEN_WAIT / LOOK)):
         if xbmc.getCondVisibility('Player.HasMedia') or home.getProperty('a4k.ui.window'):
             return False
-        if xbmc.getCondVisibility('Window.IsActive(home) + !System.HasActiveModalDialog'):
-            xbmc.executebuiltin('RunScript(%s)' % kodi.addon_id)
+        idle = idle + 1 if xbmc.getCondVisibility('Window.IsActive(home) + !System.HasActiveModalDialog') else 0
+        if idle * LOOK >= AUTOOPEN_SETTLE:
+            xbmc.executebuiltin('RunScript(%s,autoopen)' % kodi.addon_id)
             return True
         if monitor.waitForAbort(LOOK):
             return False

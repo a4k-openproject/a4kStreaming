@@ -264,7 +264,7 @@ def test_either_answer_marks_it_asked_and_set_it_up_opens_the_confirm(mode, fake
 
 def autoopen(mode, fake, looks):
     # looks: the conditions true at each look
-    seen = iter(looks)
+    seen = iter(looks[1:])
     monitor = types.SimpleNamespace(waitForAbort=lambda _: False)
     def step(_):
         fake.conditions = dict.fromkeys(next(seen, ()), True)
@@ -275,18 +275,26 @@ def autoopen(mode, fake, looks):
 
 HOME_IDLE = 'Window.IsActive(home) + !System.HasActiveModalDialog'
 
-def test_it_opens_once_per_session_once_home_is_idle(mode, fake):
+SETTLED = [(HOME_IDLE,)] * 8  # 4 s of looks
+
+def test_it_opens_once_per_session_once_home_stayed_idle(mode, fake):
     turn_on(mode)
     fake.builtins = []
-    assert autoopen(mode, fake, [(), (), (HOME_IDLE,)])
-    assert fake.builtins == ['RunScript(plugin.video.a4kstreaming)']
-    assert not autoopen(mode, fake, [(HOME_IDLE,)]) and len(fake.builtins) == 1
+    assert autoopen(mode, fake, [(), (HOME_IDLE,), (HOME_IDLE,), ()] + SETTLED)
+    assert fake.builtins == ['RunScript(plugin.video.a4kstreaming,autoopen)']
+    assert not autoopen(mode, fake, SETTLED) and len(fake.builtins) == 1
 
 def test_it_does_not_open_with_the_mode_off_or_a_play(mode, fake):
     assert not autoopen(mode, fake, [(HOME_IDLE,)])
     turn_on(mode)
     fake.builtins = []
     assert not autoopen(mode, fake, [('Player.HasMedia', HOME_IDLE)]) and fake.builtins == []
+
+def test_a_play_starting_while_home_settles_keeps_it_closed(mode, fake):
+    # Kodi started by an Android "open with": Home shows, then the play starts
+    turn_on(mode)
+    fake.builtins = []
+    assert not autoopen(mode, fake, SETTLED[:6] + [('Player.HasMedia',)] + SETTLED) and fake.builtins == []
 
 def test_it_gives_up_when_home_never_settles(mode, fake):
     turn_on(mode)
