@@ -6,6 +6,7 @@
 import os
 import re
 import threading
+import time
 import importlib
 from types import SimpleNamespace
 from datetime import datetime
@@ -444,6 +445,56 @@ def test_hero_buttons_follow_the_shown_title(core, home, labels, calls, monkeypa
     win.turn()
     win.onClick(home.HERO_PLAY)
     assert calls == ['PlayMedia(%s?action=play&type=&id=tt8,noresume)' % PLUGIN]
+
+def test_new_hero_sources_clear_the_title_and_the_buttons_wait_for_the_next(core, home, labels, calls, monkeypatch):
+    # the settings swapped the sources: the old title stayed drawn while its index named a title of the new rows
+    win = shelf(core, home, labels, monkeypatch)
+    labels.update({'Container(301).ListItemAbsolute(0).Property(a4k.type)': 'movie',
+                   'Container(301).ListItemAbsolute(0).Property(a4k.id)': 'tt0',
+                   'Container(302).NumItems': '1', 'Container(302).ListItemAbsolute(0).Label': 'Show 0',
+                   'Container(302).ListItemAbsolute(0).Property(a4k.type)': 'movie',
+                   'Container(302).ListItemAbsolute(0).Property(a4k.id)': 'tt9'})
+    win.show_hero()
+    spawned = Spawned(run=False)
+    monkeypatch.setattr(home, 'spawn', spawned)
+    monkeypatch.setattr(home, 'apply', lambda window: setattr(window, 'sources', ((302, 'NEW'),)))
+    monkeypatch.setattr(win, 'wire', lambda: None)
+    win.reapply()
+    assert win.hero == -1 and win.getProperty('a4k.hero.shown') == ''
+    win.onClick(home.HERO_PLAY)
+    win.onClick(home.HERO_INFO)
+    win.onAction(SimpleNamespace(getId=lambda: home.ACTION_CONTEXT_MENU))
+    assert calls == [] and win.error is None
+    def wait(seconds):  # a dialog opens during the restart's fade: nothing old comes back
+        monkeypatch.setattr(core.kodi.xbmcgui, 'getCurrentWindowDialogId', lambda: 10138)
+        return False
+    monkeypatch.setattr(win.stopped, 'wait', wait)
+    spawned[-1].fire()
+    assert win.hero == -1 and win.getProperty('a4k.hero.shown') == ''
+    monkeypatch.setattr(core.kodi.xbmcgui, 'getCurrentWindowDialogId', lambda: home.NO_DIALOG)
+    monkeypatch.setattr(win.stopped, 'wait', lambda seconds: False)
+    win.turn()  # the rotation's next look
+    assert (win.getProperty('a4k.hero.shown'), win.getProperty('a4k.hero.label')) == ('true', 'Show 0')
+    win.onClick(home.HERO_PLAY)
+    assert calls == ['PlayMedia(%s?action=play&type=&id=tt9,noresume)' % PLUGIN]
+
+def test_two_turns_never_run_at_once(core, home, labels, monkeypatch):
+    # the restart after a settings change and the rotation: each reads and writes hero, so the shelf skipped a title
+    win = shelf(core, home, labels, monkeypatch)
+    inside, most = [0], [0]
+    def wait(seconds):
+        inside[0] += 1
+        most[0] = max(most[0], inside[0])
+        time.sleep(0.05)
+        inside[0] -= 1
+        return False
+    win.stopped = SimpleNamespace(wait=wait)
+    turns = [threading.Thread(target=win.turn) for _ in range(2)]
+    for turn in turns:
+        turn.start()
+    for turn in turns:
+        turn.join(2)
+    assert most == [1] and win.hero == 2
 
 # F. skin lint
 

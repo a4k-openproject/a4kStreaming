@@ -691,6 +691,12 @@ def test_hero_rotation_off_never_turns(core, monkeypatch):
     monkeypatch.setattr(core.kodi.xbmc, 'getInfoLabel', lambda label: '5' if label.endswith('NumItems') else 'Heat')
     win.rotate()
     assert waits == [module.HERO_IDLE] * 4 and turns == []
+    # new sources whose delayed restart found a dialog up: the next looks paint it, rotation off or not
+    del waits[:]
+    win.hero = -1
+    monkeypatch.setattr(win, 'show_hero', lambda items=None: None)
+    win.rotate()
+    assert turns == [1] * 3
 
 def test_hero_takes_one_title_of_each_source_in_turn_without_repeats(core, home, monkeypatch):
     ids = {(301, 0): 'tt1', (301, 1): 'tt2', (302, 0): 'tt2', (302, 1): 'tt3', (302, 2): 'tt4'}

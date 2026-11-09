@@ -187,6 +187,7 @@ class Home(kodi.xbmcgui.WindowXML):
     sources = ((HERO_ROW, appearance.ROWS['trending_movies'][2]),)  # (container, kicker) per source, set by apply()
     hero_turn = HERO_TURN
     shown = None  # (container, index, kicker) of the title on the top shelf
+    turning = threading.Lock()  # one turn at a time: the restart after a settings change and the rotation
     asked = False
 
     def onInit(self):
@@ -280,6 +281,8 @@ class Home(kodi.xbmcgui.WindowXML):
         try:
             if control_id in MENU:
                 return self.tab(control_id)
+            if self.hero < 0:
+                return  # the top shelf restarts on new sources (reapply): the index it showed now names another title
             info = labels(self.hero_item())
             if control_id == HERO_PLAY and info['Property(a4k.type)'] == 'tvSeries':
                 select(info)  # Go to Show: a series' first button opens its detail
@@ -338,6 +341,7 @@ class Home(kodi.xbmcgui.WindowXML):
         spawn(self, self.setProperty, FRESH, '', delay=FRESH_TIME)
         if self.sources != sources:
             self.hero = -1
+            self.setProperty('a4k.hero.shown', '')  # the old title goes; the buttons do nothing until the next paints
             spawn(self, self.turn, delay=HERO_RELOAD)
 
     def wire(self):
@@ -404,7 +408,7 @@ class Home(kodi.xbmcgui.WindowXML):
             self.ask_kodi_mode()  # its sheet starts an interpreter first: the page has faded in by then
             while not self.stopped.wait(self.hero_turn or HERO_IDLE):
                 self.ask_kodi_mode()
-                if self.hero_turn:
+                if self.hero_turn or self.hero < 0:  # a restart the delayed turn could not paint: once in view
                     self.turn()
         except Exception:
             logger.debug(traceback.format_exc())
@@ -415,18 +419,19 @@ class Home(kodi.xbmcgui.WindowXML):
 
     def turn(self):
         # never under a dialog, the detail or grid window or the player; only properties change, focus stays put
-        if not self.idle():
-            return
-        items = self.hero_items()
-        if not items or (len(items) < 2 and self.hero >= 0):  # one title stays; a restart (hero -1) paints even one
-            return
-        self.setProperty('a4k.hero.shown', '')  # the shown title fades out first; the buttons act on it until then
-        if not self.stopped.wait(HERO_FADE):
-            if not self.idle():  # something opened during the fade: keep the shown title
-                self.setProperty('a4k.hero.shown', 'true')
+        with self.turning:
+            if not self.idle():
                 return
-            self.hero = (self.hero + 1) % max(len(items), 1)
-            self.show_hero(items)
+            items = self.hero_items()
+            if not items or (len(items) < 2 and self.hero >= 0):  # one title stays; a restart (hero -1) paints even one
+                return
+            self.setProperty('a4k.hero.shown', '')  # the shown title fades out first; the buttons act on it until then
+            if not self.stopped.wait(HERO_FADE):
+                if not self.idle():  # something opened during the fade: keep the shown title (none while it restarts)
+                    self.setProperty('a4k.hero.shown', 'true' if self.hero >= 0 else '')
+                    return
+                self.hero = (self.hero + 1) % max(len(items), 1)
+                self.show_hero(items)
 
     def dwell(self):
         # a title card that keeps focus for PREFETCH_DWELL gets its detail request made now, on a thread of the window,
@@ -454,7 +459,7 @@ class Home(kodi.xbmcgui.WindowXML):
 
     def hero_menu(self):
         info = labels(self.hero_item())
-        if not info['Property(a4k.id)']:
+        if not info['Property(a4k.id)'] or self.hero < 0:
             return
         from .. import listing
         items = listing.title_context_menu(SimpleNamespace(url=app.PLUGIN, kodi=kodi), title_from_info(info))
