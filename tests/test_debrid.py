@@ -342,6 +342,41 @@ def test_cloud_click_opens_folders_plays_videos_and_back_goes_up(core, debrid, w
     assert window.folder == 'r' and window.getControl(debrid.CLOUD).position == 0  # back on Movies
     assert 'includebreadcrumbs=true' in server.requests[0][0]['url'] and all(cache is False for _, cache in server.requests)
 
+def test_a_cloud_load_that_answers_after_a_later_one_is_dropped(core, debrid, window, monkeypatch):
+    # Cloud (the root, slow), then Open in Cloud on a finished transfer: the transfer's folder answers first, and the
+    # root landing after it must not take its place (cloud_loaded would then block the reload)
+    import threading
+    asked, gate = threading.Event(), threading.Event()
+    def execute(core, request, cache=True, stale_ok=False):
+        root = 'id=' not in request['url']
+        if root:
+            asked.set()
+            gate.wait(5)
+        content = [{'id': 'root.mkv' if root else 'x.mkv', 'name': 'root.mkv' if root else 'x.mkv', 'type': 'file', 'created_at': 1}]
+        return SimpleNamespace(status_code=200, content=json.dumps({'status': 'success', 'content': content}))
+    monkeypatch.setattr(core.request, 'execute', execute)
+    slow = threading.Thread(target=window.load_cloud, args=('',))
+    slow.start()
+    asked.wait(5)
+    window.load_cloud('X')
+    gate.set()
+    slow.join(5)
+    assert window.folder == 'X' and [item.label for item in window.getControl(debrid.CLOUD).items] == ['x.mkv']
+
+def test_a_refresh_that_answers_after_the_close_paints_and_toasts_nothing(core, debrid, window, monkeypatch, toasts):
+    server = Premiumize({'transfer/list': [{'status': 'success', 'transfers': [transfer(1, 'running', 0.9)]},
+                                           {'status': 'success', 'transfers': [transfer(1, 'finished')]}]})
+    monkeypatch.setattr(core.request, 'execute', server)
+    window.account_due = False
+    window.refresh()
+    window.close()  # the next request was out as Back was pressed
+    assert window.refresh() is False and toasts == []
+    assert window.getProperty('a4k.finished') == '' and window.getControl(debrid.DOWNLOADS).items[0].label2 == '90%'
+    window.account_due = True
+    requests = len(server.requests)
+    window.refresh()
+    assert len(server.requests) == requests + 1  # the account answered after the close: the transfers are not asked
+
 def test_close_waits_for_the_window_threads(core, debrid, monkeypatch):
     # a window freed on its own thread crashed Kodi 21 (SIGSEGV on close): home.modal joins them first
     import threading

@@ -192,6 +192,7 @@ class Debrid(kodi.xbmcgui.WindowXML):
     folder = ''  # the Cloud folder shown ('' = the root)
     parent = None
     cloud_loaded = False
+    cloud_seq = 0  # the last Cloud load started: an older one that answers later is dropped
     account_due = True
     seen = None
     fair = None
@@ -249,13 +250,20 @@ class Debrid(kodi.xbmcgui.WindowXML):
         if not key:
             self.banner(NO_KEY, 'settings')
             return False
+        # the window may close while a request is out: no second request, paint or toast after that
         try:
             if self.account_due:
-                self.paint_account(fetch(core, core.debrid.premiumize_account(key)))
+                body = fetch(core, core.debrid.premiumize_account(key))
+                if self.stopped.is_set():
+                    return False
+                self.paint_account(body)
                 self.account_due = False
             rows = [transfer_row(transfer) for transfer in fetch(core, core.debrid.premiumize_transfers(key)).get('transfers') or []]
         except Failure as failure:
-            self.banner(str(failure), 'retry')
+            if not self.stopped.is_set():
+                self.banner(str(failure), 'retry')
+            return False
+        if self.stopped.is_set():
             return False
         names = ready(self.seen, rows)
         if names:
@@ -355,15 +363,22 @@ class Debrid(kodi.xbmcgui.WindowXML):
             key = core.utils.get_premiumize_apikey(core)
             if not key:
                 return self.banner(NO_KEY, 'settings')
+            with self.lock:
+                self.cloud_seq += 1
+                seq = self.cloud_seq
             self.setProperty('a4k.loading.cloud', 'true')
             try:
                 body = fetch(core, core.debrid.premiumize_files(key, folder))
             except Failure as failure:
-                return self.banner(str(failure), 'cloud')  # the last list stays; Retry loads the folder again
+                body = failure
             finally:
                 self.setProperty('a4k.loading.cloud', '')
-            rows = cloud_rows(body.get('content') or [], core.utils.video_containers())
             with self.lock:
+                if seq != self.cloud_seq or self.stopped.is_set():
+                    return  # a later load, or the close, came first: this answer paints nothing
+                if isinstance(body, Failure):
+                    return self.banner(str(body), 'cloud')  # the last list stays; Retry loads the folder again
+                rows = cloud_rows(body.get('content') or [], core.utils.video_containers())
                 self.folder, self.parent, self.cloud_loaded = folder, body.get('parent_id') or None, True
                 self.setProperty('a4k.crumb', crumb(body))
                 ids = [row['id'] for row in rows]
@@ -460,7 +475,8 @@ class Debrid(kodi.xbmcgui.WindowXML):
             return
         action = actions[choice]
         if action == 'Open in Cloud':
-            self.folder, self.cloud_loaded = row['folder'], False
+            with self.lock:
+                self.folder, self.cloud_loaded = row['folder'], False
             self.setFocusId(TABS)  # the Downloads list hides; the Cloud list takes the focus once loaded
             self.show_tab(CLOUD, focus=True)
         elif action == 'Play':
