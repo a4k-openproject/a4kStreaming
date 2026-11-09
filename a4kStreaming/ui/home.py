@@ -62,8 +62,10 @@ ACTION_MOVES = (1, 2, 3, 4)
 PREFETCH_DWELL = 0.4
 
 # a window's threads (spawn, release)
-TIMEOUT = 10  # s a request on a window's thread may take (lib/request's default is 60), so its close waits a bounded time
-JOIN = TIMEOUT + 2  # s a closing window waits for its threads
+TIMEOUT = 10  # s per attempt of a request on a window's thread (lib/request's default is 60); no retry once it stopped
+# s a closing window waits for its threads. It waits on the interpreter's main thread, inside the callback of the window
+# below, which takes no keys meanwhile: threads that only wait end at once, one with a request out is left over
+JOIN = 0.5
 LEFT_OVER = []  # windows whose threads outlived JOIN: kept, so they are never freed on one of those threads
 LOCK = threading.Lock()
 
@@ -512,13 +514,15 @@ def spawn(window, target, *args, delay=None):
         if not window.stopped.is_set():
             thread = threading.Thread(target=run)
             thread.request_timeout = TIMEOUT  # lib/request: the default timeout of this thread's requests
+            thread.stopped = window.stopped  # lib/request: no retry once the window stopped
             window.threads = [alive for alive in window.threads if alive.is_alive()] + [thread]
             thread.start()
     return cancel
 
 def release(window):
     # on the interpreter's main thread once the window's doModal returned: its waits end, its threads are joined against
-    # one deadline, and a window with a thread still running is kept rather than freed on that thread
+    # one deadline, and a window with a thread still running is kept rather than freed on that thread. Kept windows whose
+    # threads have all ended since are dropped here, so they are freed on this thread.
     with LOCK:
         if window.stopped:
             window.stopped.set()
@@ -527,7 +531,8 @@ def release(window):
     for thread in threads:
         thread.join(max(0, deadline - time.time()))
     if any(thread.is_alive() for thread in threads):
-        LEFT_OVER.append(window)  # ponytail: a hung request costs one window until the interpreter ends
+        LEFT_OVER.append(window)  # ponytail: a hung request keeps its window until a later close finds it ended
+    LEFT_OVER[:] = [kept for kept in LEFT_OVER if any(thread.is_alive() for thread in kept.threads)]
 
 def modal(window):
     # doModal for a window opened over another a4k window (detail, grid). It takes the open-window slot in its onInit;

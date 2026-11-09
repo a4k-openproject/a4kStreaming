@@ -57,8 +57,11 @@ def graphql_failed(content):
 
 def __send(core, session, request):
     response = None
+    stopped = getattr(threading.current_thread(), 'stopped', None)  # an a4k window's thread (ui/home.py spawn)
     for attempt in range(attempts):
         if attempt:
+            if stopped is not None and stopped.is_set():
+                break  # its window closed: no retry, so the thread ends soon after
             if response is not None:
                 response.close()
             core.time.sleep(0.35 * 2 ** (attempt - 1))
@@ -95,7 +98,7 @@ def execute(core, request, cache=True, stale_ok=False):
     # stale_ok: an older read (up to a day) is answered at once and fetched again after the listing renders.
     session = get_session()
 
-    # a thread of an a4k window carries a shorter one (ui/home.py spawn): the window's close waits for its requests
+    # a thread of an a4k window carries a shorter one (ui/home.py spawn): a closed window's thread ends sooner
     request.setdefault('timeout', getattr(threading.current_thread(), 'request_timeout', 60))
     headers = request.setdefault('headers', {})
     headers.setdefault('User-Agent', user_agent)

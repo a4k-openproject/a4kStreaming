@@ -630,6 +630,35 @@ def test_a_thread_that_outlives_the_join_keeps_its_window(home, monkeypatch):
     gate.set()
     win.threads[0].join(1)
 
+def test_a_close_waits_at_most_join_and_a_later_close_frees_the_left_over(home, monkeypatch):
+    # the join runs inside the callback of the window below, which takes no keys meanwhile: a request still out does
+    # not hold it, and the window it keeps goes, on this thread, at the first close after its thread ended
+    monkeypatch.setattr(home, 'LEFT_OVER', [])
+    win, gate = Win(), threading.Event()
+    home.spawn(win, gate.wait, 30)
+    started = time.time()
+    home.release(win)
+    assert time.time() - started < home.JOIN + 0.2 <= 1 and home.LEFT_OVER == [win]
+    gate.set()
+    win.threads[0].join(1)
+    window = weakref.ref(win)
+    del win
+    home.release(Win())
+    assert home.LEFT_OVER == [] and window() is None
+
+def test_a_stopped_window_thread_makes_no_retry(core, home):
+    # a window closed while its request was out: no second or third attempt (each up to TIMEOUT)
+    request = importlib.import_module('a4kStreaming.lib.request')
+    win, sent, answers = Win(), [], []
+    def send(**kwargs):
+        sent.append(kwargs['url'])
+        win.stopped.set()  # the close, during the first attempt
+        raise IOError('unreachable')
+    session = SimpleNamespace(request=send)
+    home.spawn(win, lambda: answers.append(getattr(request, '__send')(core, session, {'method': 'GET', 'url': 'https://example.com/'})))
+    win.threads[0].join(5)
+    assert sent == ['https://example.com/'] and answers[0].status_code == 500
+
 def test_a_delayed_call_runs_once_unless_cancelled_or_its_window_stops(home):
     win, ran = Win(), []
     home.spawn(win, ran.append, 'stopped', delay=5)
