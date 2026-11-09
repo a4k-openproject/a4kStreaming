@@ -9,7 +9,7 @@ import os
 import re
 import time
 
-from .lib import kodi
+from .lib import kodi, utils
 
 PATH = os.path.join(kodi.addon_profile, 'progress.json')
 IN_PROGRESS = (1, 94)  # percent; from 95 % on a title counts as finished and leaves the row
@@ -83,21 +83,24 @@ def watched_episodes(store, show):
     return {e.get('id') for e in store.values() if e.get('show') == show and e.get('watched')}
 
 def load(path=None):
+    path = path or PATH
     try:
-        with open(path or PATH, encoding='utf-8') as f:
+        with open(path, encoding='utf-8') as f:
             store = json.load(f)
-        return store if isinstance(store, dict) else {}
+    except ValueError:  # unparsable: moved aside to progress.json.bad, so the next save does not wipe what it held
+        try:
+            os.replace(path, path + '.bad')
+        except OSError:
+            pass
+        return {}
     except Exception:  # none yet, or unreadable: an empty store
         return {}
+    return store if isinstance(store, dict) else {}
 
 def save(store, path=None):
-    # a temp file renamed over the store: the service and the plugin both write, and a reader never sees half a file
-    path = path or PATH
-    temp = '%s.%s.tmp' % (path, os.getpid())
+    # the service, its threads and the plugin all write; utils.write_atomic gives each its own temp file
     try:
-        with open(temp, 'w', encoding='utf-8') as f:
-            json.dump(store, f)
-        os.replace(temp, path)
+        utils.write_atomic(path or PATH, json.dumps(store))
     except Exception:
         from .lib import logger
         logger.notice('progress: not saved')

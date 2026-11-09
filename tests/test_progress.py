@@ -67,6 +67,41 @@ def test_save_load_remove_and_stamp(progress):
         f.write('{half')
     assert progress.load() == {}  # unreadable: empty
 
+def test_a_corrupt_store_is_moved_aside_not_wiped_by_the_next_save(progress):
+    with open(progress.PATH, 'w') as f:
+        f.write('{"tt5": {"pos": 1, "dur": 2}}{"tt')
+    assert progress.load() == {}
+    progress.save({'tt7': {'pos': 1, 'dur': 2}})
+    with open(progress.PATH + '.bad') as f:
+        assert f.read() == '{"tt5": {"pos": 1, "dur": 2}}{"tt'
+    assert progress.load() == {'tt7': {'pos': 1, 'dur': 2}}
+
+def test_two_writers_never_share_a_temp_file(progress, monkeypatch):
+    # Kodi runs every interpreter in one process: a save that starts while another is mid-way gets a temp file of its own,
+    # so both renames land and the store stays whole
+    import os
+    replace, nested = os.replace, []
+    def interleaved(src, dst):
+        if not nested:
+            nested.append(src)
+            progress.save({'b': {'pos': 1, 'dur': 2}})
+        replace(src, dst)
+    monkeypatch.setattr(os, 'replace', interleaved)
+    progress.save({'a': {'pos': 1, 'dur': 2}})
+    assert progress.load() == {'a': {'pos': 1, 'dur': 2}}
+    assert [n for n in os.listdir(os.path.dirname(progress.PATH)) if n.endswith('.tmp')] == []
+
+def test_a_failed_save_leaves_the_store_and_no_temp_file(progress, monkeypatch):
+    import os
+    progress.save({'a': {'pos': 1, 'dur': 2}})
+    def fail(src, dst):
+        raise OSError('disk full')
+    with monkeypatch.context() as patch:
+        patch.setattr(os, 'replace', fail)
+        progress.save({'b': {'pos': 1, 'dur': 2}})
+    assert progress.load() == {'a': {'pos': 1, 'dur': 2}}
+    assert sorted(os.listdir(os.path.dirname(progress.PATH))) == ['progress.json']
+
 # B. Back stops playback (service.BackStop)
 
 @pytest.fixture

@@ -8,6 +8,7 @@ import random
 import string
 import zipfile
 import shutil
+import tempfile
 import time
 import hashlib
 import unicodedata
@@ -73,6 +74,19 @@ def open_file_wrapper(file, mode='r', encoding='utf-8'):
     if mode.endswith('b'):
         return lambda: open(file, mode)
     return lambda: open(file, mode, encoding=encoding)
+
+def write_atomic(path, text):
+    # a temp file of its own, in path's folder, renamed over path: a reader never sees half a file, a kill mid-write
+    # leaves the old file, and two writers never share a temp file (Kodi runs every interpreter in one process)
+    fd, temp = tempfile.mkstemp(dir=os.path.dirname(path) or '.', prefix=os.path.basename(path) + '.', suffix='.tmp')
+    try:
+        with open(fd, 'w', encoding='utf-8') as f:
+            f.write(text)
+        os.replace(temp, path)
+    except BaseException:
+        if os.path.exists(temp):
+            os.remove(temp)
+        raise
 
 def get_json(path, filename):
     path = path if os.path.isdir(path) else os.path.dirname(path)
