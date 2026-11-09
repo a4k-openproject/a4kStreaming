@@ -61,7 +61,9 @@ def json_rpc(method, params, log_error=True):
         if 'error' in result and log_error:
             from . import logger
             logger.error(result)
-        return json.loads(result)['result']['value']
+        result = json.loads(result).get('result')
+        # Settings.* answer {"value": ...}; Files.SetFileDetails answers the bare string "OK"
+        return result.get('value') if isinstance(result, dict) else result
     except KeyError:
         return None
 

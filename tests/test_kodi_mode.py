@@ -378,3 +378,10 @@ def test_back_on_the_top_menu_asks_in_the_mode(mode, fake, home, monkeypatch, on
     window = home.Home('a4k-home.xml', '', 'Default', '1080i')
     window.back(home.WATCH_NOW)
     assert (closed, fake.builtins) == expected and asked == ([home.LEAVE] if on else [])
+
+def test_json_rpc_handles_string_result_and_errors(core, monkeypatch):
+    # Files.SetFileDetails answers {"result": "OK"}; it used to raise TypeError on ['value']
+    for answer, expected in (({'result': 'OK'}, 'OK'), ({'result': {'value': 3}}, 3),
+                             ({'result': {'files': []}}, None), ({'error': {'code': -32602}}, None)):
+        monkeypatch.setattr(core.kodi.xbmc, 'executeJSONRPC', lambda request, a=answer: json.dumps(a))
+        assert core.kodi.json_rpc('X.Y', {}, log_error=False) == expected
