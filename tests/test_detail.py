@@ -8,6 +8,7 @@ import re
 import json
 import importlib
 from datetime import date
+from types import SimpleNamespace
 from xml.etree import ElementTree
 from .common import pytest, api
 from .utils import Spawned
@@ -203,11 +204,26 @@ def test_query_raw_returns_the_title(core, monkeypatch):
 
 # D. the window
 
+def shelf(core, labels, menu=()):
+    # what detail.episodes answers: (play URL, the listing's item, its menu rows) per episode
+    items = []
+    for label in labels:
+        item = core.kodi.xbmcgui.ListItem(label=label, offscreen=True)
+        for key, value in (('a4k.label', label), ('a4k.name', 'Chapter'), ('a4k.id', 'tt9')):
+            item.setProperty(key, value)
+        items.append((PLUGIN + '?action=play&type=' + label.replace(' ', ''), item, list(menu)))
+    return items
+
+def season_shelf(core, count=3):
+    # the plugin's episodes query, stubbed: count episodes of the season the URL asks for
+    return lambda c, url: shelf(core, ['S%s E%s' % (re.search(r'season=(\d+)', url).group(1), e) for e in range(1, count + 1)])
+
 @pytest.fixture
 def opened(core, detail, monkeypatch):
     # open() runs the window the way Kodi would: onInit, then the worker (at once); the window is kept for the test
     monkeypatch.setattr(detail.home, 'spawn', Spawned())
     monkeypatch.setattr(detail, 'fetch', lambda core, id, series: fixture()['series' if series else 'movie'])
+    monkeypatch.setattr(detail, 'episodes', season_shelf(core))
     windows = []
     # Kodi focuses the buttons (group 500) as the window opens
     monkeypatch.setattr(detail.Detail, 'doModal', lambda self: windows.append(self) or self.setFocusId(detail.TRAILER) or self.onInit())
@@ -237,8 +253,6 @@ def watch(progress_store, *keys):
 
 def test_series_window_opens_on_the_next_up_and_switches_on_ok(core, detail, home, opened, calls, monkeypatch, progress_store):
     watch(progress_store, *[(1, e) for e in range(1, 10)] + [(2, 1), (2, 2)])
-    labels = {'Container(530).NumItems': '3', 'Container(530).ListItemAbsolute(2).Property(a4k.label)': 'S2 E3'}
-    monkeypatch.setattr(core.kodi.xbmc, 'getInfoLabel', lambda label: labels.get(label, ''))
     detail.open(card('tvSeries', SERIES))
     win = opened[0]
     stamp = progress_store.stamp()
@@ -248,6 +262,7 @@ def test_series_window_opens_on_the_next_up_and_switches_on_ok(core, detail, hom
     assert win.getProperty('a4k.season') == 'Season 2' and win.getProperty('a4k.episodes') == season(1) and win.open == 1
     assert open_pill(win, detail) == ['Season 2']
     assert calls == ['Control.SetFocus(530,2,absolute)']
+    assert [detail.Detail.label(e) for e in win.shelf] == ['S2 E1', 'S2 E2', 'S2 E3']
     # the mock list's cursor is on Season 1: moving along the pills loads nothing, OK opens the cursor's season (the
     # mock doModal has returned, so the window counts as closed; reopen it)
     win.closed = False
@@ -257,13 +272,14 @@ def test_series_window_opens_on_the_next_up_and_switches_on_ok(core, detail, hom
     assert win.getProperty('a4k.episodes') == season(1)
     win.onClick(detail.SEASONS)
     assert win.getProperty('a4k.season') == 'Season 1' and win.getProperty('a4k.episodes') == season(0) and win.open == 0
-    assert open_pill(win, detail) == ['Season 1']
+    assert open_pill(win, detail) == ['Season 1'] and detail.Detail.label(win.shelf[0]) == 'S1 E1'
     # back from a play with the cursor left on Season 1 and Season 2 open: the open season reloads
     win.select_season(1)
     monkeypatch.setattr(home, 'after_play', lambda stopped: True)
     win.stamp = '-1'
     win.refresh()
     assert win.getProperty('a4k.season') == 'Season 2' and win.getProperty('a4k.episodes') == season(1) and win.error is None
+    assert detail.Detail.label(win.shelf[0]) == 'S2 E1' and len(win.getControl(detail.EPISODES).items) == 3
 
 def test_on_init_again_does_not_refetch(core, detail, opened, monkeypatch):
     detail.open(card())
@@ -277,10 +293,8 @@ class Action(object):
 def test_buttons_episodes_and_menu(core, detail, home, opened, calls, monkeypatch):
     detail.open(card('tvSeries', SERIES))
     win = opened[0]
-    episode = PLUGIN + '?action=play&type=ep1'
-    labels = {'Container(530).ListItem.Property(a4k.type)': 'tvEpisode', 'Container(530).ListItem.FolderPath': episode,
-              }
-    monkeypatch.setattr(core.kodi.xbmc, 'getInfoLabel', lambda label: labels.get(label, ''))
+    episode, item, _ = win.shelf[0]
+    assert item.getPath() == episode  # ListItem.FolderPath
     win.setFocusId(detail.EPISODES)
     win.onAction(Action(home.ACTION_SELECT_ITEM))
     win.onClick(detail.PLAY)  # a series has no Play: nothing runs
@@ -294,6 +308,69 @@ def test_buttons_episodes_and_menu(core, detail, home, opened, calls, monkeypatc
     assert calls == ['PlayMedia(%s,noresume)' % episode, win.vm['trailer']]
     # signed out: the select sheet without the account actions, so only More Like This is left
     assert menus == [(win.vm['title'], ['More Like This'])] * 2 and win.error is None
+
+def test_episode_long_press_opens_the_add_on_sheet_with_its_rows(core, detail, home, opened, calls, monkeypatch):
+    # #044: the shelf is filled from Python, so the long-press reaches onAction (a <content> row's opened Kodi's menu)
+    rows = [('Play from here', 'PlayMedia(%s?action=play&type=S1E2,noresume)' % PLUGIN),
+            ('Rate', 'RunPlugin(%s?action=profile&type=rate&id=tt9)' % PLUGIN), ('Episode details', 'Action(Info)')]
+    monkeypatch.setattr(detail, 'episodes', lambda c, url: shelf(core, ['S1 E1', 'S1 E2'], rows))
+    detail.open(card('tvSeries', SERIES))
+    win = opened[0]
+    win.closed = False
+    monkeypatch.setattr(win.getControl(detail.EPISODES), 'getSelectedPosition', lambda: 1)
+    menus = []
+    sheets = importlib.import_module('a4kStreaming.ui.sheets')
+    monkeypatch.setattr(sheets, 'select', lambda heading, items: menus.append((heading, items)) or 0)
+    win.setFocusId(detail.EPISODES)
+    win.onAction(Action(home.ACTION_CONTEXT_MENU))
+    # signed out: the account rows go; the first row runs
+    assert menus == [('S1 E2 \u00b7 Chapter', ['Play from here', 'Episode details'])] and calls == [rows[0][1]]
+    # Episode details runs Action(Info): Kodi's info dialog for the item, as the provider opened it
+    infos = []
+    monkeypatch.setattr(core.kodi.xbmcgui, 'Dialog', lambda: SimpleNamespace(info=infos.append))
+    win.onAction(Action(detail.ACTION_SHOW_INFO))
+    assert infos == [win.shelf[1][1]] and win.error is None
+    # an empty shelf: nothing opens, nothing plays
+    win.shelf = []
+    win.onAction(Action(home.ACTION_CONTEXT_MENU))
+    win.onAction(Action(home.ACTION_SELECT_ITEM))
+    assert len(menus) == 1 and calls == [rows[0][1]] and win.error is None
+
+def test_a_reload_keeps_the_cursors_episode_and_a_stale_season_is_dropped(core, detail, opened, monkeypatch):
+    detail.open(card('tvSeries', SERIES))
+    win = opened[0]
+    win.closed = False
+    control = win.getControl(detail.EPISODES)
+    picked = []
+    monkeypatch.setattr(control, 'getSelectedPosition', lambda: 2)
+    monkeypatch.setattr(control, 'selectItem', picked.append)
+    url = win.getProperty('a4k.episodes')
+    win.load_episodes(url)  # the open season again, after a play
+    assert picked == [2] and len(control.items) == 3
+    before = win.shelf
+    win.load_episodes(url.replace('season=1', 'season=2'))  # a season the user switched away from meanwhile
+    assert win.shelf is before and len(control.items) == 3 and win.error is None
+
+def test_the_shelf_is_the_plugins_episodes_query_run_here(core, detail, monkeypatch):
+    asked = []
+    monkeypatch.setattr(core, 'query', lambda core, params: asked.append(dict(params)) or None)
+    assert detail.episodes(core, PLUGIN + GOLDEN[SERIES][0][0] + '&widget=1&t=5') == []
+    assert {k: asked[0][k] for k in ('type', 'id', 'season', 'year', 'day_end', 'silent', 'raw')} == {
+        'type': 'episodes', 'id': SERIES, 'season': '1', 'year': '2022', 'day_end': '8', 'silent': True, 'raw': True}
+
+def test_query_raw_episodes_returns_the_shelf_not_a_listing(core, monkeypatch):
+    monkeypatch.setattr(core.kodi.addon, 'getSetting', lambda key: '29' if key.endswith('page_size') else '')
+    episodes = [{'id': 'tt9%s' % n, 'titleType': 'tvEpisode', 'titleText': 'Chapter %s' % n, 'primaryImage': None,
+                 'series': {'seasonNumber': 1, 'episodeNumber': n}, 'releaseDate': {'year': 2022, 'month': 2, 'day': n}}
+                for n in (1, 2)]
+    title = {'id': 'tt1', 'titleText': 'A Show', 'episodes': {'seasons': [1], 'episodes': episodes}}
+    monkeypatch.setattr(core.request, 'execute', lambda *a, **k: type('R', (), {'status_code': 200, 'content': '{"data": {}}', 'text': ''})())
+    monkeypatch.setattr(core.utils, 'sanitize_response', lambda data: title)
+    monkeypatch.setattr(core.kodi.xbmcplugin, 'addDirectoryItems', lambda *a: pytest.fail('listed'))
+    items = core.query(core, core.utils.DictAsObject({'type': 'episodes', 'id': 'tt1', 'season': '1', 'silent': True, 'raw': True}))
+    assert [item.getProperty('a4k.label') for _, item, _ in items] == ['S1 E1', 'S1 E2']
+    assert items[0][0] == PLUGIN + '?action=play&type=&id=tt91' and items[0][2] == items[0][1].context_menu
+    assert items[0][2][0] == ('Play from here', 'PlayMedia(%s,noresume)' % items[0][0])
 
 def test_movie_play_uses_the_title_play_url(core, detail, listing, opened, calls):
     detail.open(card())
@@ -391,9 +468,12 @@ def test_open_pill_look_compares_the_label_with_the_open_season():
     assert 'ListItem.Property(url),Window.Property(a4k.episodes)' not in text
     assert text.count('String.IsEqual(ListItem.Label,Window.Property(a4k.season))') == 12
 
+def test_no_list_is_a_content_row():
+    # #044: Kodi opens its own context menu on a <content> row's long-press, before the window's onAction runs
+    assert list(root().iter('content')) == []
+
 def test_episodes_row_shows_on_its_url_alone():
-    # the URL arrives after the window opened; a row hidden until it has items never loads them (Kodi skips updating a
-    # hidden container), so the episodes shelf stayed empty on the rig
+    # the season's label shows as soon as it opens, while its episodes load
     group = [c for c in root().iter('control') if c.get('id') == '330'][0]
     assert group.findtext('visible') == '!String.IsEmpty(Window.Property(a4k.episodes))'
 
@@ -411,8 +491,6 @@ def test_focusable_controls_navigate_explicitly(detail):
 
 def test_continue_watching_opens_the_season_and_focuses_the_episode(core, detail, opened, calls, monkeypatch, progress_store):
     watch(progress_store, *[(1, e) for e in range(1, 10)])  # the next up is S2 E1: the card's episode wins
-    labels = {'Container(530).NumItems': '2', 'Container(530).ListItemAbsolute(1).Property(a4k.label)': 'S1 E2'}
-    monkeypatch.setattr(core.kodi.xbmc, 'getInfoLabel', lambda label: labels.get(label, ''))
     detail.open(card('tvSeries', SERIES, **{'Property(a4k.at)': '1:2'}))
     win = opened[0]
     assert win.getProperty('a4k.season') == 'Season 1' and calls == ['Control.SetFocus(530,1,absolute)']
@@ -420,8 +498,6 @@ def test_continue_watching_opens_the_season_and_focuses_the_episode(core, detail
 def test_next_up_focus_leaves_a_user_who_moved_alone(core, detail, opened, calls, monkeypatch, progress_store):
     # the listing arrives after the user went to the cast row: the episode is not focused over them
     watch(progress_store, *[(1, e) for e in range(1, 10)] + [(2, 1), (2, 2)])
-    labels = {'Container(530).NumItems': '3', 'Container(530).ListItemAbsolute(2).Property(a4k.label)': 'S2 E3'}
-    monkeypatch.setattr(core.kodi.xbmc, 'getInfoLabel', lambda label: labels.get(label, ''))
     monkeypatch.setattr(detail.Detail, 'doModal', lambda self: opened.append(self) or self.setFocusId(detail.CAST) or self.onInit())
     detail.open(card('tvSeries', SERIES))
     assert opened[0].getProperty('a4k.season') == 'Season 2' and calls == []

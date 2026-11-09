@@ -191,6 +191,15 @@ def test_episode_cards_carry_the_stores_resume_point_and_watched(core, progress,
     assert 'key=tt1%3A1%3A1' in dict(first.context_menu)['Reset resume progress']
     assert 'Reset resume progress' not in dict(second.context_menu)
 
+def test_the_detail_shelf_gets_the_same_cards_and_menus(core, progress, items):
+    # the detail window's shelf (listing.episode_items) is built in its process: nothing listed, the same resume bar
+    progress.save(progress.record({}, progress.meta(dict(EPISODE, episode=1, imdbnumber='tt91')), 900, 3000, 100))
+    title = {'id': 'tt1', 'titleText': 'A Show', 'episodes': {'seasons': [1], 'episodes': [an_episode(1), an_episode(2)]}}
+    (url, first, menu), (_, second, _) = importlib.import_module('a4kStreaming.listing').episode_items(core, title, 1)
+    assert items == [] and first.resume == (900.0, 3000.0) and second.resume is None
+    assert menu == first.context_menu and 'key=tt1%3A1%3A1' in dict(menu)['Reset resume progress']
+    assert dict(menu)['Play from here'] == 'PlayMedia(%s,noresume)' % url
+
 def test_reset_resume_clears_the_entry(core, progress, monkeypatch):
     monkeypatch.setattr(core.kodi, 'json_rpc', lambda *a, **k: None)
     progress.save({'tt1:1:1': {'pos': 1, 'dur': 2}, 'tt5': {'pos': 1, 'dur': 2}})

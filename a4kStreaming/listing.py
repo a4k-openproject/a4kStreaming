@@ -132,13 +132,15 @@ def watchlist_builtin(core, title):
 
 def __set_title_contextmenu(core, title, list_item, autoplay):
     if title['titleType'] == 'person':
-        return
+        return []
     if title['titleType'] != 'tvSeries' and title.get('userRating', None) is not None:
         core.kodi.set_info_tag(list_item, {
             'overlay': 5,
             'playcount': 1
         })
-    list_item.addContextMenuItems(title_context_menu(core, title, autoplay))
+    menu = title_context_menu(core, title, autoplay)
+    list_item.addContextMenuItems(menu)
+    return menu
 
 def __title_type(title):
     titleType = title['titleType']
@@ -339,6 +341,14 @@ def __add_seasons(core, title):
     core.utils.add_directory_items(core, list_items)
 
 def __add_episodes(core, title, season):
+    return __add_titles(core, __season_episodes(core, title, season))
+
+def episode_items(core, title, season):
+    # the detail window's episodes shelf (query type=episodes, raw): the listing's own items, built in the calling
+    # process, as [(url, list_item, menu)] with each item's context menu rows for the window's own sheet
+    return [(url, item, menu) for url, item, _, menu in __title_items(core, __season_episodes(core, title, season))]
+
+def __season_episodes(core, title, season):
     seasons = []
     if isinstance(title, list):
         raw_episodes = title
@@ -402,7 +412,7 @@ def __add_episodes(core, title, season):
         __set_wide_image_as_primary(episode)
         episodes.append(episode)
 
-    return __add_titles(core, episodes)
+    return episodes
 
 def play_type(core, title):
     # the play URL's type param of a movie or an episode fetched by id (play by id), its series' fields folded in; None
@@ -571,6 +581,10 @@ def continue_watching(core):
     core.utils.add_directory_items(core, list_items)
 
 def __add_titles(core, titles):
+    core.utils.add_directory_items(core, [item[:3] for item in __title_items(core, titles)])
+
+def __title_items(core, titles):
+    # [(url, list_item, is_folder, context menu rows)]
     list_items = []
     autoplay = core.kodi.get_bool_setting('general.autoplay')
     store = progress.load() if any(title.get('tvshowid', None) for title in titles) else {}
@@ -671,10 +685,10 @@ def __add_titles(core, titles):
             title['a4k.play'] = url
         if titleType == 'tvEpisode' and store:
             __episode_progress(core, title, list_item, store)
-        __set_title_contextmenu(core, title, list_item, autoplay)
-        list_items.append((url, list_item, action != 'play'))
+        menu = __set_title_contextmenu(core, title, list_item, autoplay)
+        list_items.append((url, list_item, action != 'play', menu))
 
-    core.utils.add_directory_items(core, list_items)
+    return list_items
 
 def root(core):
     items = [

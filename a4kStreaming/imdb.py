@@ -7,6 +7,7 @@ from .listing import (
     __add_seasons,
     __add_episodes,
     __add_titles,
+    episode_items as __episode_items,
     play_type as __play_type,
 )
 
@@ -895,6 +896,9 @@ def query(core, params):
         core.contentType = 'seasons'
         __add_seasons(core, data)
     elif params.type == 'episodes':
+        # raw: the season's items for the detail window's shelf, built in its process
+        if params.raw:
+            return __episode_items(core, data, int(params.season))
         core.contentType = 'episodes'
         __add_episodes(core, data, int(params.season))
     elif params.type == 'browse':

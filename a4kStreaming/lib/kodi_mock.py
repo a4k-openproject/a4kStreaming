@@ -107,6 +107,9 @@ def __create_listitem(*args, **kwargs):
     listitem.setRating = lambda n, r, v, d: None
     listitem.setSubtitles = lambda _: None
     listitem.setContentLookup = lambda _: None
+    listitem.path = kwargs.get('path', '')
+    listitem.setPath = lambda path: setattr(listitem, 'path', path)
+    listitem.getPath = lambda: listitem.path
     listitem.addStreamInfo = lambda _, __: None
     listitem.resume = None
     tag = lambda: None
@@ -125,6 +128,7 @@ def multiselect(*args, **kwargs): return None
 __dialog.multiselect = multiselect
 __dialog.contextmenu = lambda _: -1
 __dialog.textviewer = lambda heading, text, usemono=False: None
+__dialog.info = lambda item: True
 def __create_dialog(*args, **kwargs): return __dialog
 xbmcgui.Dialog = __create_dialog
 

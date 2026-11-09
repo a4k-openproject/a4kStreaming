@@ -1,7 +1,9 @@
 # -*- coding: utf-8 -*-
 # Title detail window (a4k-detail.xml): opened from the home window or the grid for a movie or a series.
 # It paints at once from the card the user selected, then fetches the title on a worker thread and fills the season
-# pills and the cast; the episodes shelf is the plugin's own episodes listing, loaded by Kodi (<content>).
+# pills and the cast; the episodes shelf is the plugin's own episodes listing, built in this process (episodes) and
+# filled from Python, so a long-press reaches onAction and opens the add-on's sheet: Kodi runs its own context menu
+# for a <content> row before the window's Python sees the key, and has none for a Python-filled list.
 
 import copy
 import threading
@@ -21,8 +23,8 @@ EPISODES = 530
 CAST = 540
 PLOT = 510  # the plot's focus frame: select opens the whole plot
 
-EPISODE_LOOK = 0.1  # s between looks for the opened season's episodes, to focus the one asked for
-EPISODE_LOOKS = 50
+ACTION_SHOW_INFO = 11  # the Info key, and the episode menu's Episode details (Action(Info))
+SHELF = threading.Lock()  # one season's episodes go into the shelf at a time (a refresh and a season switch race)
 
 KIND = {'movie': 'Movie', 'tvSeries': 'TV Series', 'tvEpisode': 'Episode'}
 
@@ -287,6 +289,12 @@ def fetch(core, id, series):
     _cache[id] = (time.time(), title)
     return title
 
+def episodes(core, url):
+    # the open season's episodes from its pill's listing URL: the listing's own items, built here (query type=episodes,
+    # raw) as [(url, list_item, menu)]; [] without an answer
+    params = core.utils.DictAsObject(core.utils.parse_qsl(url.split('?', 1)[1]), silent=True, raw=True)
+    return core.query(core, params) or []
+
 def plugin_core():
     # the plugin's core module, imported off the GUI path (the worker thread); its URLs point at the plugin
     from .. import core
@@ -303,6 +311,7 @@ class Detail(kodi.xbmcgui.WindowXML):
     open = 0  # the open season pill: OK on a pill opens it, focus alone only moves the list's cursor
     title = None  # the fetched title, for the season marks again after a play
     stamp = None  # the progress store's change time the episodes listing was asked with (its t param)
+    shelf = ()  # the open season's episodes as [(url, list_item, menu)], in the shelf's order
 
     def paint(self, vm):
         self.vm = vm
@@ -359,15 +368,11 @@ class Detail(kodi.xbmcgui.WindowXML):
             if self.closed:
                 return
             self.paint(vm)
-            self.fill_lists(vm)
-            if wanted:
-                self.focus_episode(*wanted)
-            elif vm['up'] and vm['up'][2]:
-                self.focus_episode(*vm['up'][:2])
+            self.fill_lists(vm, wanted or (vm['up'][:2] if vm['up'] and vm['up'][2] else None))
         except Exception:
             self.__fail()
 
-    def fill_lists(self, vm):
+    def fill_lists(self, vm, focus=None):
         ListItem = kodi.xbmcgui.ListItem
         people = []
         for person in vm['cast']:
@@ -388,9 +393,9 @@ class Detail(kodi.xbmcgui.WindowXML):
         control = self.getControl(SEASONS)
         control.addItems(pills)
         control.selectItem(vm['season'])
-        self.select_season(vm['season'])
+        self.select_season(vm['season'], focus)
 
-    def select_season(self, index=None):
+    def select_season(self, index=None, focus=None):
         if self.closed or not self.vm['seasons']:
             return
         if index is None:
@@ -401,23 +406,47 @@ class Detail(kodi.xbmcgui.WindowXML):
         self.setProperty('a4k.season', pill['label'])  # the XML's open pill look: its label equals this
         if self.getProperty('a4k.episodes') != url:
             self.setProperty('a4k.episodes', url)
+            home.spawn(self, self.load_episodes, url, focus)
+
+    def load_episodes(self, url, focus=None):
+        # the season's episodes into the shelf, asked on a window thread; a season opened meanwhile wins. A reload of
+        # the same season (after a play) keeps the cursor on its episode, as Kodi did for the provider row
+        try:
+            shelf = episodes(plugin_core(), url)
+            with SHELF:
+                if self.closed or self.getProperty('a4k.episodes') != url:
+                    return
+                control = self.getControl(EPISODES)
+                kept = self.label(self.episode())
+                for path, item, _ in shelf:
+                    item.setPath(path)  # ListItem.FolderPath, and the info dialog's play
+                control.reset()
+                control.addItems([item for _, item, _ in shelf])
+                self.shelf = shelf
+                labels = [self.label(episode) for episode in shelf]
+                if focus:
+                    self.focus_episode(*focus)
+                elif kept in labels:
+                    control.selectItem(labels.index(kept))
+        except Exception:
+            self.__fail()
+
+    @staticmethod
+    def label(episode):
+        return episode[1].getProperty('a4k.label') if episode else ''
+
+    def episode(self):
+        # the shelf's selected episode as (url, list_item, menu); None on an empty shelf
+        index = self.getControl(EPISODES).getSelectedPosition()
+        return self.shelf[index] if 0 <= index < len(self.shelf) else None
 
     def focus_episode(self, season, episode):
-        # a Continue Watching card's episode, or the next up: focused once the opened season's listing is in (a bounded
-        # wait, given up when the window closes)
+        # a Continue Watching card's episode, or the next up, once its season's shelf is in
+        labels = [self.label(item) for item in self.shelf]
         label = 'S%s E%s' % (season, episode)
-        for _ in range(EPISODE_LOOKS):
-            if self.closed:
-                return
-            count = int(kodi.xbmc.getInfoLabel('Container(%s).NumItems' % EPISODES) or 0)
-            for index in range(count):
-                if kodi.xbmc.getInfoLabel('Container(%s).ListItemAbsolute(%s).Property(a4k.label)' % (EPISODES, index)) == label:
-                    if self.getFocusId() not in BUTTONS:
-                        return  # the user moved off the buttons the window opened on: their focus stays
-                    kodi.xbmc.executebuiltin('Control.SetFocus(%s,%s,absolute)' % (EPISODES, index))
-                    return
-            if count or self.stopped.wait(EPISODE_LOOK):
-                return  # the listing is in and the episode is not in it, or the window went
+        if label not in labels or self.getFocusId() not in BUTTONS:
+            return  # the user moved off the buttons the window opened on: their focus stays
+        kodi.xbmc.executebuiltin('Control.SetFocus(%s,%s,absolute)' % (EPISODES, labels.index(label)))
 
     def onAction(self, action):
         try:
@@ -426,8 +455,11 @@ class Detail(kodi.xbmcgui.WindowXML):
                 return self.close()
             focus = self.getFocusId()
             if focus == EPISODES and action_id in (home.ACTION_SELECT_ITEM, home.ACTION_MOUSE_LEFT_CLICK):
-                # a provider row: Kodi sends no click to Python (spike 2c); the item's path is its play URL
-                home.run(home.click_builtin(home.labels('Container(%s).ListItem' % EPISODES)))
+                self.play_episode()
+            elif focus == EPISODES and action_id == home.ACTION_CONTEXT_MENU:
+                self.episode_menu()
+            elif focus == EPISODES and action_id == ACTION_SHOW_INFO:
+                self.episode_info()
             elif focus in BUTTONS and action_id == home.ACTION_CONTEXT_MENU:
                 self.menu()
         except Exception:
@@ -459,6 +491,26 @@ class Detail(kodi.xbmcgui.WindowXML):
 
     def menu(self):
         home.menu(self.vm['menu'], self.vm['id'], self.vm['title'], self.__changed)
+
+    def play_episode(self):
+        episode = self.episode()
+        if episode:
+            home.run(home.play_builtin(episode[0]))
+
+    def episode_menu(self):
+        # long-press on an episode: the add-on's sheet with the listing's rows for it (Play from here, Reset resume
+        # progress, Rate, Mark watched, Episode details)
+        episode = self.episode()
+        if episode:
+            item = episode[1]
+            heading = ' \u00b7 '.join(part for part in (item.getProperty('a4k.label'), item.getProperty('a4k.name')) if part)
+            home.menu(episode[2], item.getProperty('a4k.id'), heading)
+
+    def episode_info(self):
+        # Kodi's video info dialog for the episode: a Python-filled list has no provider to open it
+        episode = self.episode()
+        if episode:
+            kodi.xbmcgui.Dialog().info(episode[1])
 
     def __changed(self, builtin):
         # a watchlist row run from the menu flips the button as the button itself does
