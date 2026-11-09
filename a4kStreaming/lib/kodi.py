@@ -85,6 +85,9 @@ NATIVE_BUSY = ('busydialog', 'busydialognocancel')
 NATIVE_LOOK = 0.05  # s between looks for Kodi's busy dialog while the loader stands in for it
 BUSY_BEAT = 1  # s between fresh time stamps in BUSY while the loader is up
 BUSY_STALE = 60  # s: an older stamp was left by a plugin call killed before it could clear it
+# the stamp's clock: monotonic, one for the whole Kodi process, so every interpreter compares it and a wall-clock step
+# (an RTC-less box syncing its time) neither keeps a stale stamp live nor ages a live one
+clock = time.monotonic
 __busy = {'depth': 0, 'done': None, 'watch': None, 'native': False}
 
 def __over_window():
@@ -97,7 +100,7 @@ def busy_live():
     # call killed mid-scope) is cleared here, so it neither blocks the windows nor keeps the loader drawn.
     stamp = xbmcgui.Window(10000).getProperty(BUSY)
     try:
-        if time.time() - float(stamp) < BUSY_STALE:
+        if 0 <= clock() - float(stamp) < BUSY_STALE:  # one from the future is no live call's
             return True
     except ValueError:
         pass
@@ -110,13 +113,13 @@ def __keep_native_closed(done):
     # until the call ends, drawn whenever no other modal dialog is above it. Over the add-on's windows the loader is
     # the one indicator, so Kodi's is closed as soon as it shows (its wait goes on without it and never reopens it).
     # It also renews the stamp in BUSY, for as long as the scope (a play spans the source sheet too) is alive.
-    stamped = time.time()
+    stamped = clock()
     while True:
         for name in NATIVE_BUSY:
             if xbmc.getCondVisibility('Window.IsActive(%s)' % name):
                 xbmc.executebuiltin('Dialog.Close(%s,true)' % name)
-        if time.time() - stamped >= BUSY_BEAT:
-            stamped = time.time()
+        if clock() - stamped >= BUSY_BEAT:
+            stamped = clock()
             xbmcgui.Window(10000).setProperty(BUSY, str(stamped))
         if done.wait(NATIVE_LOOK):
             return
@@ -129,7 +132,7 @@ def open_busy_dialog(native=True):
     if __busy['depth'] > 1:
         return
     if __over_window():
-        xbmcgui.Window(10000).setProperty(BUSY, str(time.time()))
+        xbmcgui.Window(10000).setProperty(BUSY, str(clock()))
         __busy['done'] = done = Event()
         __busy['watch'] = Thread(target=__keep_native_closed, args=(done,), daemon=True)
         __busy['watch'].start()

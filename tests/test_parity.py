@@ -494,10 +494,24 @@ def test_windows_start_nothing_new_while_the_loader_is_up(core, calls, home, age
     # older than 60 s was left by a killed plugin call: the action runs and the stale loader goes.
     home_window = core.kodi.xbmcgui.Window(10000)
     if age is not None:
-        home_window.setProperty('a4k.busy', str(core.kodi.time.time() - age))
+        home_window.setProperty('a4k.busy', str(core.kodi.clock() - age))
     home.run('PlayMedia(%s?action=play&type=&id=tt1)' % PLUGIN)
     assert calls == (['PlayMedia(%s?action=play&type=&id=tt1)' % PLUGIN] if runs else [])
     assert bool(home_window.getProperty('a4k.busy')) == (not runs)
+
+@pytest.mark.parametrize('step', [-3600, 3600])
+def test_a_wall_clock_step_does_not_move_the_loader_stamp(core, on_screen, monkeypatch, step):
+    # an RTC-less box sets its clock at the network sync: a step back kept a killed call's stamp live for an hour, a
+    # step forward aged a live one
+    home_window = core.kodi.xbmcgui.Window(10000)
+    wall = core.kodi.time.time() + step
+    with core.kodi.busy_dialog():
+        monkeypatch.setattr(core.kodi.time, 'time', lambda: wall)  # the step, during a live play
+        assert core.kodi.busy_live()
+    home_window.setProperty('a4k.busy', str(core.kodi.clock() - 61))  # a killed call's, read after the step
+    assert not core.kodi.busy_live()
+    home_window.setProperty('a4k.busy', str(core.kodi.clock() + 3600))  # from the future: no live call's
+    assert not core.kodi.busy_live() and home_window.getProperty('a4k.busy') == ''
 
 @pytest.mark.parametrize('entry', ['detail', 'grid', 'search', 'debrid', 'debrid over the call'])
 def test_no_window_opens_while_the_loader_is_up(core, home, grid, monkeypatch, entry):
@@ -512,7 +526,7 @@ def test_no_window_opens_while_the_loader_is_up(core, home, grid, monkeypatch, e
             'debrid over the call': lambda: debrid.open('downloads', over_call=True)}[entry]
     open()
     assert len(shown) == 1
-    core.kodi.xbmcgui.Window(10000).setProperty('a4k.busy', str(core.kodi.time.time()))
+    core.kodi.xbmcgui.Window(10000).setProperty('a4k.busy', str(core.kodi.clock()))
     open()
     assert len(shown) == (2 if entry == 'debrid over the call' else 1)
 
@@ -520,7 +534,7 @@ def test_a_stale_loader_goes_when_a_window_opens_or_comes_back(core, grid):
     # a play call killed mid-scope left its stamp: the dim layer and the loader stayed over detail, grid and search
     home_window = core.kodi.xbmcgui.Window(10000)
     window = grid.Grid('a4k-grid.xml', '', 'Default', '1080i')
-    home_window.setProperty('a4k.busy', str(core.kodi.time.time() - 61))
+    home_window.setProperty('a4k.busy', str(core.kodi.clock() - 61))
     window.onInit()
     assert home_window.getProperty('a4k.busy') == ''
 
@@ -530,7 +544,7 @@ def test_the_loader_stamp_stays_fresh_while_the_scope_lives(core, on_screen, mon
     monkeypatch.setattr(core.kodi, 'BUSY_BEAT', 0)
     home_window = core.kodi.xbmcgui.Window(10000)
     with core.kodi.busy_dialog():
-        home_window.setProperty('a4k.busy', str(core.kodi.time.time() - 61))
+        home_window.setProperty('a4k.busy', str(core.kodi.clock() - 61))
         for _ in range(100):
             if core.kodi.busy_live():
                 break
