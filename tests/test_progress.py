@@ -142,7 +142,13 @@ def test_a_seek_that_never_lands_lets_the_play_count_after_a_while(service):
     assert not resume.step(True, 20, 6000, 100 + service.SEEK_WAIT) and resume.start == 3000
     assert not resume.step(True, 21, 6000, 101 + service.SEEK_WAIT) and resume.start == 0
 
-@pytest.mark.parametrize('same,total', [(False, 6000), (True, 3020), (True, 2900), (True, None)])
+@pytest.mark.parametrize('total', [None, 0])
+def test_a_stream_of_unknown_length_still_seeks(service, total):
+    # getTotalTime can throw or read 0 on the first poll, even with Player.HasDuration
+    resume = service.Resume(3000)
+    assert resume.step(True, 0, total, 100) and resume.start == 3000
+
+@pytest.mark.parametrize('same,total', [(False, 6000), (True, 3020), (True, 2900)])
 def test_no_seek_for_another_title_or_past_the_new_streams_end(service, same, total):
     # another source of the title can be a shorter cut: a seek past its end would end the play as finished
     resume = service.Resume(3000)

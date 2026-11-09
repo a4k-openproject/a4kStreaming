@@ -43,7 +43,7 @@ class Resume(object):
         if not self.start:
             return False
         if not self.issued:
-            if same_title and self.start < (total or 0) - END_MARGIN:
+            if same_title and (not total or self.start < total - END_MARGIN):  # an unknown length still seeks
                 self.issued = now
                 return True
             self.start = 0  # another title took the play, or the point is past this stream's end
