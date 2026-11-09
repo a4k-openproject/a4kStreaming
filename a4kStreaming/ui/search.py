@@ -81,6 +81,7 @@ class Search(kodi.xbmcgui.WindowXML):
         try:
             keys = self.getControl(KEYS)  # raises when the XML did not load
             kodi.xbmcgui.Window(app.HOME_WINDOW).setProperty(app.OPEN_WINDOW, str(kodi.xbmcgui.getCurrentWindowId()))
+            kodi.busy_live()  # clears a stale loader stamp (home.run), which the skin would keep drawn
             if self.filters is None:
                 self.filters = no_filters()
                 self.setProperty('a4k.hint', HINT)

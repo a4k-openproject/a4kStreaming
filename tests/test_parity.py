@@ -499,6 +499,31 @@ def test_windows_start_nothing_new_while_the_loader_is_up(core, calls, home, age
     assert calls == (['PlayMedia(%s?action=play&type=&id=tt1)' % PLUGIN] if runs else [])
     assert bool(home_window.getProperty('a4k.busy')) == (not runs)
 
+@pytest.mark.parametrize('entry', ['detail', 'grid', 'search', 'debrid', 'debrid over the call'])
+def test_no_window_opens_while_the_loader_is_up(core, home, grid, monkeypatch, entry):
+    # a card, a row's Next, Search or Debrid during a play opened a window over the loader, next to the running call;
+    # the Debrid window the play call opens itself (the uncached wait) still opens
+    debrid = importlib.import_module('a4kStreaming.ui.debrid')
+    shown = []
+    monkeypatch.setattr(core.kodi.xbmcgui.WindowXML, 'doModal', lambda self: shown.append(type(self).__name__))
+    open = {'detail': lambda: home.select(importlib.import_module('tests.test_detail').card()),
+            'grid': lambda: grid.show(PLUGIN + '?action=query&type=popularMovies', 'Trending Movies'),
+            'search': grid.search, 'debrid': debrid.open,
+            'debrid over the call': lambda: debrid.open('downloads', over_call=True)}[entry]
+    open()
+    assert len(shown) == 1
+    core.kodi.xbmcgui.Window(10000).setProperty('a4k.busy', str(core.kodi.time.time()))
+    open()
+    assert len(shown) == (2 if entry == 'debrid over the call' else 1)
+
+def test_a_stale_loader_goes_when_a_window_opens_or_comes_back(core, grid):
+    # a play call killed mid-scope left its stamp: the dim layer and the loader stayed over detail, grid and search
+    home_window = core.kodi.xbmcgui.Window(10000)
+    window = grid.Grid('a4k-grid.xml', '', 'Default', '1080i')
+    home_window.setProperty('a4k.busy', str(core.kodi.time.time() - 61))
+    window.onInit()
+    assert home_window.getProperty('a4k.busy') == ''
+
 def test_the_loader_stamp_stays_fresh_while_the_scope_lives(core, on_screen, monkeypatch):
     # a play spans the source sheet, which can take minutes: the watcher renews the stamp, and its last renewal never
     # lands after the close

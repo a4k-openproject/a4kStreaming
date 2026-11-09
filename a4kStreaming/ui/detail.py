@@ -269,6 +269,7 @@ class Detail(kodi.xbmcgui.WindowXML):
         try:
             self.getControl(PLAY)  # raises when the XML did not load
             kodi.xbmcgui.Window(app.HOME_WINDOW).setProperty(app.OPEN_WINDOW, str(kodi.xbmcgui.getCurrentWindowId()))
+            kodi.busy_live()  # clears a stale loader stamp (home.run), which the skin would keep drawn
             if not self.started:
                 self.started = True
                 self.stamp = progress.stamp()

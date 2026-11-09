@@ -74,6 +74,7 @@ class Grid(kodi.xbmcgui.WindowXML):
         try:
             self.getControl(PANEL)  # raises when the XML did not load
             kodi.xbmcgui.Window(app.HOME_WINDOW).setProperty(app.OPEN_WINDOW, str(kodi.xbmcgui.getCurrentWindowId()))
+            kodi.busy_live()  # clears a stale loader stamp (home.run), which the skin would keep drawn
             if self.year is None and category(self.path):
                 self.year = ''
                 self.setProperty('a4k.years', 'true')

@@ -538,10 +538,12 @@ def modal(window):
     # doModal for a window opened over another a4k window (detail, grid). It takes the open-window slot in its onInit;
     # on close the slot goes back to the window below, and so does the screen when the user went Home and reopened the
     # add-on into this one (Back must not land on Kodi's Home). Its threads are joined before it is freed (release).
+    # Like run(), nothing opens while the loader is up, except Debrid opened by the play call itself (over_call).
     __home = kodi.xbmcgui.Window(app.HOME_WINDOW)
     previous = __home.getProperty(app.OPEN_WINDOW)
     try:
-        window.doModal()
+        if getattr(window, 'over_call', False) or not kodi.busy_live():
+            window.doModal()
     finally:
         window.closed = True
         try:
