@@ -148,9 +148,10 @@ def shown(categories):
         panes.append(pane + [header('')] + own if own else pane)
     return panes
 
-def title(row):
-    # a row named with its group, for a dialog's heading: "Premiumize API key"
-    return row.get('title') or ('%s %s' % (row['group'], row['label'])).strip()
+def title(row, between=' · '):
+    # a row named with its group, for a dialog's heading: "Top of the screen · Top shelf shows" (the heading is drawn
+    # upper-case, where a plain space ran the two together); in a sentence: "Premiumize API key"
+    return row.get('title') or between.join(part for part in (row['group'], row['label']) if part)
 
 def chip(row, value):
     # the value's look (a4k-settings.xml): on (accent fill), off (outline), value (neutral fill), warn (red fill), or
@@ -442,7 +443,7 @@ class Window(kodi.xbmcgui.WindowXMLDialog):
         if get(id):
             from . import sheets
             choice = sheets.select(title(row), ['Replace', 'Remove'])
-            if choice == 1 and confirm('Remove the %s?' % title(row), 'Remove'):
+            if choice == 1 and confirm('Remove the %s?' % title(row, ' '), 'Remove'):
                 self.rejected.discard(id)
                 self.set(id, '')
             if choice != 0:

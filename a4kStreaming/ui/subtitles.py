@@ -16,7 +16,7 @@ ADDON, ON, PREFERRED, ALTERNATIVE, SERVICE = ('subtitles:addon', 'subtitles:on',
 LANGUAGE, LANGUAGES = 'locale.subtitlelanguage', 'subtitles.languages'
 SWITCH = {'none': 'off', 'forced_only': 'forced'}  # the preferred language's values that are the Subtitles switch
 NOT_A_LANGUAGE = ('original', 'default')  # audio and interface language: never in the download list
-RESHAPE = ('kodi:subtitles.backgroundtype',)  # rows show or hide with it (Kodi rejects a hidden setting)
+RESHAPE = ('kodi:subtitles.backgroundtype', ON)  # rows show or hide with the background, the switch writes Find subtitles
 BOX = ('subtitles.backgroundtype', ('2', '3'))  # Kodi shows the background colour and opacity for a box only
 KEPT = 'subtitles.auto_search'  # our hidden setting: a4kSubtitles' automatic search as it was before the switch's Off
 
@@ -95,7 +95,7 @@ ROWS = (
     ('kodi:subtitles.charset', 'enum', 'Character set', 'For files that are not Unicode.', {'dynamic': True}),
     'More',
     ('', 'native', "Kodi's subtitle settings", "Every subtitle setting, in Kodi's own window.",
-     {'action': 'ActivateWindow(playersettings)'}),
+     {'action': 'ActivateWindow(playersettings,subtitles)'}),
 )
 ACCOUNTS = 'Accounts'  # their labels name the provider already: a dialog heading drops the group
 
@@ -166,8 +166,11 @@ def rows():
         source = id.partition(':')[0] or 'ours'
         needs = extra.pop('kodi', id[5:] if source == 'kodi' else None)
         when = extra.pop('when', None)
+        # Kodi 21's GetSettings leaves its colour buttons out (seen on the TV box): those few are asked one by one,
+        # after the box check (Kodi rejects a hidden setting); a colour is never empty
         if source == 'a4ksubtitles' and status != 'ready' or id == SERVICE and status != 'ready' \
-                or needs and needs not in settings or when and text(kodi_mode.get(when[0])) not in when[1]:
+                or when and text(kodi_mode.get(when[0])) not in when[1] \
+                or needs and needs not in settings and not kodi_mode.get(needs):
             continue
         row = dict(id=id, kind=kind, label=label, help=help, group=group, source=source, default=None, action=None)
         if extra.pop('dynamic', False):

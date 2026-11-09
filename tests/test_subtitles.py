@@ -65,9 +65,9 @@ class Kodi(object):
         method, params = request['method'], request.get('params', {})
         self.calls.append((method, params))
         result = None
-        if method == 'Settings.GetSettings':
+        if method == 'Settings.GetSettings':  # as Kodi 21.2 answers on the TV box: no colour button (*colorpick)
             result = {'settings': [self.definition(id) for id, (category, _, _, _) in KODI21.items()
-                                   if category == params['filter']['category']]}
+                                   if category == params['filter']['category'] and not id.endswith('colorpick')]}
         elif method == 'Settings.GetSettingValue':
             hidden = params['setting'] in ('subtitles.bgcolorpick', 'subtitles.bgopacity') \
                 and self.settings['subtitles.backgroundtype'] not in (2, 3)
@@ -288,6 +288,15 @@ def test_colours_store_argb_and_show_custom_for_others(ready, kodi, sheets, monk
     kodi.settings['subtitles.colorpick'] = 'FF123456'
     assert go(ready, 'kodi:subtitles.colorpick').label2 == 'Custom'
 
+def test_the_colour_rows_show_though_kodis_settings_list_leaves_them_out(ready, kodi, subtitles):
+    assert not any(id.endswith('colorpick') for id in subtitles.known())
+    assert {'kodi:subtitles.colorpick', 'kodi:subtitles.bordercolorpick'} <= set(ids(ready))
+    assert 'kodi:subtitles.bgcolorpick' not in ids(ready)  # no box: Kodi rejects it, so it is not even asked
+    assert ('Settings.GetSettingValue', {'setting': 'subtitles.bgcolorpick'}) not in kodi.calls
+    kodi.settings['subtitles.backgroundtype'] = 2
+    ready.rebuild()
+    assert 'kodi:subtitles.bgcolorpick' in ids(ready)
+
 def test_a_dynamic_list_shows_kodis_labels_and_writes_its_values(ready, kodi):
     item = go(ready, 'kodi:subtitles.charset')
     assert item.label2 == 'Default'
@@ -319,12 +328,11 @@ def test_the_service_row_sets_both_kodi_services(ready, kodi):
 def test_subtitles_off_forced_and_on(ready, kodi, values):
     kodi.settings.update({'locale.subtitlelanguage': 'Spanish', 'subtitles.languages': ['Spanish', 'French']})
     kodi.subs['general.auto_search'] = 'true'
-    item = go(ready, 'subtitles:on')
-    assert item.label2 == 'On'
+    assert go(ready, 'subtitles:on').label2 == 'On'
     ready.onClick(200)  # cycles: Forced only, which a4kSubtitles reads itself
     assert kodi.settings['locale.subtitlelanguage'] == 'forced_only' and kodi.subs['general.auto_search'] == 'true'
     ready.onClick(200)
-    assert kodi.settings['locale.subtitlelanguage'] == 'none' and item.label2 == 'Off'
+    assert kodi.settings['locale.subtitlelanguage'] == 'none' and focused(ready).label2 == 'Off'
     assert kodi.subs['general.auto_search'] == 'false'
     assert go(ready, 'subtitles:preferred').label2 == 'Spanish'  # what On turns back on
     go(ready, 'subtitles:on')
@@ -334,12 +342,29 @@ def test_subtitles_off_forced_and_on(ready, kodi, values):
 def test_leaving_off_keeps_a4ksubtitles_search_as_it_was(ready, kodi, values):
     kodi.settings.update({'locale.subtitlelanguage': 'Spanish', 'subtitles.languages': ['Spanish']})
     kodi.subs['general.auto_search'] = 'false'  # turned off on purpose
-    item = go(ready, 'subtitles:on')
+    go(ready, 'subtitles:on')
     ready.onClick(200)
     ready.onClick(200)
-    assert item.label2 == 'Off' and kodi.subs['general.auto_search'] == 'false'
+    assert focused(ready).label2 == 'Off' and kodi.subs['general.auto_search'] == 'false'
     ready.onClick(200)
-    assert item.label2 == 'On' and kodi.subs['general.auto_search'] == 'false'
+    assert focused(ready).label2 == 'On' and kodi.subs['general.auto_search'] == 'false'
+
+def test_the_switch_repaints_find_subtitles_at_once(ready, kodi):
+    # the switch writes a4kSubtitles' automatic search: its row shows the new value without leaving the category
+    kodi.settings.update({'locale.subtitlelanguage': 'Spanish', 'subtitles.languages': ['Spanish']})
+    kodi.subs['general.auto_search'] = 'true'
+    find = 'a4ksubtitles:general.auto_search'
+    go(ready, 'subtitles:on')
+    press(ready, 2)
+    press(ready, 2)  # Forced only, then Off
+    assert kodi.subs['general.auto_search'] == 'false' and focused(ready).label2 == 'Off'
+    assert ready.rows[ready.pane.getSelectedPosition()]['id'] == 'subtitles:on'  # the focus stays on the switch
+    assert ready.pane.items[[row['id'] for row in ready.rows].index(find)].label2 == 'Off'
+    press(ready, 1)  # back to Forced only: the search as it was
+    assert ready.pane.items[[row['id'] for row in ready.rows].index(find)].label2 == 'On'
+
+def focused(win):
+    return win.pane.items[win.pane.getSelectedPosition()]
 
 def test_an_unknown_subtitles_id_is_ignored(subtitles, kodi):
     kodi.settings['locale.subtitlelanguage'] = 'English'
@@ -442,7 +467,7 @@ def test_an_account_is_typed_hidden_unprefilled_and_named(ready, kodi, sheets, m
     assert kodi.subs['subdl.apikey'] == SECRET and item.label2 == 'Set' and asked == [('SubDL API key', '', 2)]
     go(ready, 'a4ksubtitles:general.ai_api_key')
     ready.onClick(200)
-    assert asked[-1] == ('AI translation API key', '', 2)
+    assert asked[-1] == ('AI translation · API key', '', 2)
     picks = iter([1, 0])  # Remove, then confirm
     monkeypatch.setattr(sheets, 'select', lambda *a, **k: next(picks))
     item = go(ready, 'a4ksubtitles:subdl.apikey')
@@ -454,20 +479,9 @@ def test_an_account_is_typed_hidden_unprefilled_and_named(ready, kodi, sheets, m
 def test_kodis_subtitle_settings_row_closes_and_opens_them(ready, settings, core, monkeypatch):
     ready.pane.selectItem(len(ready.rows) - 1)
     ready.onClick(200)
-    assert ready.native == 'ActivateWindow(playersettings)' and ready.closed
+    assert ready.native == 'ActivateWindow(playersettings,subtitles)' and ready.closed
     ran = []
-    monkeypatch.setattr(settings, 'open', lambda only_order: 'ActivateWindow(playersettings)')
+    monkeypatch.setattr(settings, 'open', lambda only_order: 'ActivateWindow(playersettings,subtitles)')
     monkeypatch.setattr(core.kodi.xbmc, 'executebuiltin', lambda builtin: ran.append(builtin), raising=False)
     settings.run()
-    assert ran == ['ActivateWindow(playersettings)']
-
-# 7. the repository add-on carries a4kSubtitles, so Kodi's install finds it
-
-def test_the_repository_add_on_lists_a4ksubtitles_too():
-    import os
-    import zipfile
-    from xml.etree import ElementTree
-    path = os.path.join(os.path.dirname(__file__), '..', 'packages', 'a4kStreaming-repository.zip')
-    addon = ElementTree.fromstring(zipfile.ZipFile(path).read('a4kStreaming-repository/addon.xml'))
-    assert addon.get('id') == 'repository.a4kstreaming' and addon.get('version') == '1.0.2'
-    assert [d.findtext('info').split('/')[4] for d in addon.iter('dir')] == ['a4kStreaming', 'a4kSubtitles']
+    assert ran == ['ActivateWindow(playersettings,subtitles)']

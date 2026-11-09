@@ -179,7 +179,7 @@ def test_enum_ok_cycles_three_options_and_opens_the_picker_for_more(window, valu
     monkeypatch.setattr(sheets, 'select', lambda heading, labels, preselect=-1: asked.append((heading, labels, preselect)) or 1)
     item = go(win, 'appearance.hero_turn')
     win.onClick(200)
-    assert asked == [('Top of the screen Top shelf rotation', ['10 s', '15 s', '20 s', '30 s', 'Off'], 1)]
+    assert asked == [('Top of the screen · Top shelf rotation', ['10 s', '15 s', '20 s', '30 s', 'Off'], 1)]
     assert values['appearance.hero_turn'] == '1' and item.label2 == '15 s'
 
 def test_number_steps_clamps_and_formats(window, values, core, monkeypatch):
@@ -200,7 +200,7 @@ def test_number_steps_clamps_and_formats(window, values, core, monkeypatch):
     monkeypatch.setattr(core.kodi.xbmcgui, 'Dialog', lambda: type('D', (), {
         'numeric': lambda self, t, h, d: headings.append(h) or next(typed)})())
     win.onClick(200)  # typed past the top: the maximum
-    assert values['general.remembered_searches'] == '500' and headings == ['Search Remembered searches']  # the group heads the pad
+    assert values['general.remembered_searches'] == '500' and headings == ['Search · Remembered searches']  # the group heads the pad
     win.onClick(200)  # cancelled: unchanged
     assert values['general.remembered_searches'] == '500'
 
@@ -297,7 +297,7 @@ def test_secret_entry_is_hidden_unprefilled_and_checked(window, values, settings
     assert item.label2 == 'Not set'
     typed.append('   ')  # nothing typed: nothing changes
     win.onClick(200)
-    assert 'premiumize.apikey' not in values and asked == [('Premiumize API key', '', 2)]
+    assert 'premiumize.apikey' not in values and asked == [('Premiumize · API key', '', 2)]
     typed.append(SECRET)
     win.onClick(200)
     assert values['premiumize.apikey'] == SECRET and item.label2 == 'Rejected'

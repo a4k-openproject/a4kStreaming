@@ -3,7 +3,7 @@
   a4kStreaming settings (tvOS-like, read from 3 m). The same rules as a4k-home.xml: 1080p pixels, no includes and no
   named colours, Estuary font names, every control places itself (left/top).
 
-  The add-on's page (bg_home, a little of the window behind showing through), a rail of categories on the left, and the
+  The add-on's page (bg_home, opaque: at 90 % the home's text showed through), a rail of categories on the left, and the
   current category's rows on a raised glass panel (sheet.png) on the right, both lists filled from Python
   (a4kStreaming/ui/settings.py). Up/Down on the rail switches the pane at once; Right or OK enters it. Python owns
   Left/Right in the pane (it steps an option or a number, or goes back to the rail) and steps Up/Down over the group
@@ -28,7 +28,7 @@
 			<top>0</top>
 			<width>1920</width>
 			<height>1080</height>
-			<texture colordiffuse="E6FFFFFF">a4k/bg_home.png</texture>
+			<texture>a4k/bg_home.png</texture>
 		</control>
 		<control type="label">
 			<left>96</left>
