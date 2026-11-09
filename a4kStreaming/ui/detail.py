@@ -166,11 +166,11 @@ def season_marks(season, finished=()):
     progress = rated * 100 // len(season.episode_list) if not watched and 0 < rated < len(season.episode_list) else 0
     return 'true' if watched else '', str(progress) if progress else ''
 
-def next_up(episodes, store, show, today):
+def next_up(episodes, store, show, today, ended=True):
     # (season, episode, focus) a series opens on, the reference app's pick: the first season after the furthest one
     # seen (its last aired episode watched), at the episode after the last watched one there. An episode in progress
     # past the last watched one wins. Never watched: the first episode; every season seen: the last aired episode when
-    # more are coming (caught up), else the first (a rewatch). focus: the shelf takes focus, only with history and not
+    # more are coming or the show has not ended (caught up), else the first (a rewatch). focus: the shelf takes focus, only with history and not
     # when caught up. Watched is season_marks' seen; unaired episodes and specials are left out. None: nothing aired.
     finished = progress.watched_episodes(store, show)
     aired, coming = [], []
@@ -202,7 +202,7 @@ def next_up(episodes, store, show, today):
     done = [s for s, eps in seasons.items() if eps[-1][1]]
     later = [s for s in seasons if not done or s > max(done)]
     if not later:
-        if any(key > aired[-1][:2] for key in coming):
+        if not ended or any(key > aired[-1][:2] for key in coming):
             return aired[-1][0], aired[-1][1], False
         return aired[0][0], aired[0][1], False
     eps = seasons[later[0]]
@@ -222,7 +222,14 @@ def seasons(core, title, *wanted):
         pills.append({'key': key, 'label': 'Season %s' % key, 'watched': watched, 'progress': share,
                       'url': listing.season_url(core, title['id'], key, season) + '&widget=1'})
     keys = [pill['key'] for pill in pills]
-    return pills, next((keys.index(key) for key in wanted if key in keys), 0)
+    exact = next((keys.index(key) for key in wanted if key in keys), None)
+    if exact is not None:
+        return pills, exact
+    # a wanted season with no pill (group_seasons skips a season whose first episode has no date): the nearest one
+    # before it, else the first
+    target = next((key for key in wanted if isinstance(key, int)), None)
+    below = [i for i, key in enumerate(keys) if target is not None and isinstance(key, int) and key <= target]
+    return pills, max(below, key=lambda i: keys[i]) if below else 0
 
 def view_model(core, title, wanted=None):
     # strings and URLs for the window, from a TitleFull (query type=browse, or type=seasons with every episode)
@@ -236,7 +243,7 @@ def view_model(core, title, wanted=None):
     title = dict(title, **{'a4k.show_watched': show_watched(core, title)})
     # the open season: the wanted one (Continue Watching, a refresh), else the next up
     up = next_up((title.get('episodes', None) or {}).get('episodes', None) or [], progress.load(), title['id'],
-                 core.date.today()) if series else None
+                 core.date.today(), bool(title.get('releaseEndYear', None))) if series else None
     pills, selected = seasons(core, title, wanted, up and up[0]) if series else ([], 0)
     # the TV skin's line: an ended series' years, else the release date (else the year); Unaired before it; the
     # signed-in user's own rating as its own mark
@@ -391,8 +398,8 @@ class Detail(kodi.xbmcgui.WindowXML):
         self.open = max(index, 0)
         pill = self.vm['seasons'][self.open]
         url = '%s&t=%s' % (pill['url'], self.stamp)
+        self.setProperty('a4k.season', pill['label'])  # the XML's open pill look: its label equals this
         if self.getProperty('a4k.episodes') != url:
-            self.setProperty('a4k.season', pill['label'])
             self.setProperty('a4k.episodes', url)
 
     def focus_episode(self, season, episode):
@@ -405,6 +412,8 @@ class Detail(kodi.xbmcgui.WindowXML):
             count = int(kodi.xbmc.getInfoLabel('Container(%s).NumItems' % EPISODES) or 0)
             for index in range(count):
                 if kodi.xbmc.getInfoLabel('Container(%s).ListItemAbsolute(%s).Property(a4k.label)' % (EPISODES, index)) == label:
+                    if self.getFocusId() not in BUTTONS:
+                        return  # the user moved off the buttons the window opened on: their focus stays
                     kodi.xbmc.executebuiltin('Control.SetFocus(%s,%s,absolute)' % (EPISODES, index))
                     return
             if count or self.stopped.wait(EPISODE_LOOK):

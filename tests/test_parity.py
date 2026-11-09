@@ -882,7 +882,7 @@ def test_series_row_has_no_play_and_icon_buttons(detail):
         ('76', '$INFO[Window.Property(a4k.wlabel)]'), ('76', '•••')]
     # the season pills read the marks the window sets
     pills = ElementTree.tostring(control(root, detail.SEASONS)).decode()
-    assert set(re.findall(r'ListItem\.Property\((\w+)\)', pills)) == {'url', 'watched', 'progress'}
+    assert set(re.findall(r'ListItem\.Property\((\w+)\)', pills)) == {'watched', 'progress'}
 
 # 8. the ··· menu (#023): the TV skin's rows, in its order, filtered by state, no prefixes
 

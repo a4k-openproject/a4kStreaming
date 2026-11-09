@@ -209,8 +209,13 @@ def opened(core, detail, monkeypatch):
     monkeypatch.setattr(detail.home, 'spawn', Spawned())
     monkeypatch.setattr(detail, 'fetch', lambda core, id, series: fixture()['series' if series else 'movie'])
     windows = []
-    monkeypatch.setattr(detail.Detail, 'doModal', lambda self: windows.append(self) or self.onInit())
+    # Kodi focuses the buttons (group 500) as the window opens
+    monkeypatch.setattr(detail.Detail, 'doModal', lambda self: windows.append(self) or self.setFocusId(detail.TRAILER) or self.onInit())
     return windows
+
+def open_pill(win, detail):
+    # the pill labels drawn with the open look: the XML compares ListItem.Label with Window.Property(a4k.season)
+    return [i.label for i in win.getControl(detail.SEASONS).items if i.label == win.getProperty('a4k.season')]
 
 def test_movie_window_paints_and_fills(core, detail, opened, calls):
     detail.open(card())
@@ -241,6 +246,7 @@ def test_series_window_opens_on_the_next_up_and_switches_on_ok(core, detail, hom
     assert win.getProperty('a4k.series') == 'true'
     assert [i.label for i in win.getControl(detail.SEASONS).items] == ['Season 1', 'Season 2']
     assert win.getProperty('a4k.season') == 'Season 2' and win.getProperty('a4k.episodes') == season(1) and win.open == 1
+    assert open_pill(win, detail) == ['Season 2']
     assert calls == ['Control.SetFocus(530,2,absolute)']
     # the mock list's cursor is on Season 1: moving along the pills loads nothing, OK opens the cursor's season (the
     # mock doModal has returned, so the window counts as closed; reopen it)
@@ -251,6 +257,7 @@ def test_series_window_opens_on_the_next_up_and_switches_on_ok(core, detail, hom
     assert win.getProperty('a4k.episodes') == season(1)
     win.onClick(detail.SEASONS)
     assert win.getProperty('a4k.season') == 'Season 1' and win.getProperty('a4k.episodes') == season(0) and win.open == 0
+    assert open_pill(win, detail) == ['Season 1']
     # back from a play with the cursor left on Season 1 and Season 2 open: the open season reloads
     win.select_season(1)
     monkeypatch.setattr(home, 'after_play', lambda stopped: True)
@@ -378,6 +385,12 @@ def test_every_property_the_xml_reads_is_set(core, detail, opened):
     read = set(re.findall(r'Window\.Property\(([\w.]+)\)', open(XML).read()))
     assert read <= set(opened[0].properties)
 
+def test_open_pill_look_compares_the_label_with_the_open_season():
+    # the pill's url never equals a4k.episodes (that one carries &t=<stamp>), so the open look must key on the label
+    text = open(XML).read()
+    assert 'ListItem.Property(url),Window.Property(a4k.episodes)' not in text
+    assert text.count('String.IsEqual(ListItem.Label,Window.Property(a4k.season))') == 12
+
 def test_episodes_row_shows_on_its_url_alone():
     # the URL arrives after the window opened; a row hidden until it has items never loads them (Kodi skips updating a
     # hidden container), so the episodes shelf stayed empty on the rig
@@ -403,6 +416,21 @@ def test_continue_watching_opens_the_season_and_focuses_the_episode(core, detail
     detail.open(card('tvSeries', SERIES, **{'Property(a4k.at)': '1:2'}))
     win = opened[0]
     assert win.getProperty('a4k.season') == 'Season 1' and calls == ['Control.SetFocus(530,1,absolute)']
+
+def test_next_up_focus_leaves_a_user_who_moved_alone(core, detail, opened, calls, monkeypatch, progress_store):
+    # the listing arrives after the user went to the cast row: the episode is not focused over them
+    watch(progress_store, *[(1, e) for e in range(1, 10)] + [(2, 1), (2, 2)])
+    labels = {'Container(530).NumItems': '3', 'Container(530).ListItemAbsolute(2).Property(a4k.label)': 'S2 E3'}
+    monkeypatch.setattr(core.kodi.xbmc, 'getInfoLabel', lambda label: labels.get(label, ''))
+    monkeypatch.setattr(detail.Detail, 'doModal', lambda self: opened.append(self) or self.setFocusId(detail.CAST) or self.onInit())
+    detail.open(card('tvSeries', SERIES))
+    assert opened[0].getProperty('a4k.season') == 'Season 2' and calls == []
+
+def test_a_wanted_season_without_a_pill_opens_the_nearest_before_it(core, detail):
+    # group_seasons makes no pill for a season whose first episode has no date: next up in it opens the one before
+    assert detail.seasons(core, fixture()['series'], None, 3)[1] == 1
+    assert detail.seasons(core, fixture()['series'], 3, 1)[1] == 0  # an exact match still wins
+    assert detail.seasons(core, fixture()['series'], None, 0)[1] == 0
 
 def test_season_marks_count_episodes_played_to_the_end(core, detail, progress_store):
     episodes = fixture()['series']['episodes']['episodes']
@@ -467,6 +495,12 @@ def show(rated=(), extra=()):
 ])
 def test_next_up(detail, rated, extra, expected):
     assert detail.next_up(show(rated, extra), {}, 'tt0', TODAY) == expected
+
+def test_next_up_caught_up_on_a_returning_show_opens_the_last_aired_episode(detail):
+    # nothing announced yet, the show not ended: the last aired episode, not a rewatch
+    assert detail.next_up(show(EVERY), {}, 'tt0', TODAY, ended=False) == (2, 3, False)
+    assert detail.next_up(show(EVERY), {}, 'tt0', TODAY, ended=True) == (1, 1, False)
+    assert detail.next_up(show(), {}, 'tt0', TODAY, ended=False) == (1, 1, False)  # never watched: still the first
 
 def test_next_up_counts_plays_to_the_end_and_an_episode_in_progress_past_them(detail, progress_store):
     def played(store, id, s, e, pos, t):

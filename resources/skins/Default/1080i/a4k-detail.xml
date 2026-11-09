@@ -300,7 +300,7 @@
 			</control>
 
 			<!-- Season pills (series): 192 x 64 at a 208 pitch. Three looks, as the reference app draws them: idle (10 %, dim
-			     label), open (28 %, white label: its url is a4k.episodes, so focus alone never moves it) and focused (solid). -->
+			     label), open (28 %, white label: its label is a4k.season, set by OK, so focus alone never moves it) and focused (solid). -->
 			<control type="group" id="320">
 				<left>0</left>
 				<top>0</top>
@@ -325,7 +325,7 @@
 							<width>192</width>
 							<height>64</height>
 							<texture border="32" colordiffuse="1AFFFFFF">a4k/pill.png</texture>
-							<visible>!String.IsEqual(ListItem.Property(url),Window.Property(a4k.episodes))</visible>
+							<visible>!String.IsEqual(ListItem.Label,Window.Property(a4k.season))</visible>
 						</control>
 						<control type="image">
 							<left>96</left>
@@ -333,7 +333,7 @@
 							<width>192</width>
 							<height>64</height>
 							<texture border="32" colordiffuse="47FFFFFF">a4k/pill.png</texture>
-							<visible>String.IsEqual(ListItem.Property(url),Window.Property(a4k.episodes))</visible>
+							<visible>String.IsEqual(ListItem.Label,Window.Property(a4k.season))</visible>
 						</control>
 						<control type="label">
 							<left>96</left>
@@ -345,7 +345,7 @@
 							<aligny>center</aligny>
 							<textcolor>B8FFFFFF</textcolor>
 							<label>$INFO[ListItem.Label]</label>
-							<visible>String.IsEmpty(ListItem.Property(watched)) + !String.IsEqual(ListItem.Property(url),Window.Property(a4k.episodes))</visible>
+							<visible>String.IsEmpty(ListItem.Property(watched)) + !String.IsEqual(ListItem.Label,Window.Property(a4k.season))</visible>
 						</control>
 						<control type="label">
 							<left>96</left>
@@ -357,7 +357,7 @@
 							<aligny>center</aligny>
 							<textcolor>FFFFFFFF</textcolor>
 							<label>$INFO[ListItem.Label]</label>
-							<visible>String.IsEmpty(ListItem.Property(watched)) + String.IsEqual(ListItem.Property(url),Window.Property(a4k.episodes))</visible>
+							<visible>String.IsEmpty(ListItem.Property(watched)) + String.IsEqual(ListItem.Label,Window.Property(a4k.season))</visible>
 						</control>
 						<control type="label">
 							<left>96</left>
@@ -369,7 +369,7 @@
 							<aligny>center</aligny>
 							<textcolor>B8FFFFFF</textcolor>
 							<label>$INFO[ListItem.Label]</label>
-							<visible>!String.IsEmpty(ListItem.Property(watched)) + !String.IsEqual(ListItem.Property(url),Window.Property(a4k.episodes))</visible>
+							<visible>!String.IsEmpty(ListItem.Property(watched)) + !String.IsEqual(ListItem.Label,Window.Property(a4k.season))</visible>
 						</control>
 						<control type="label">
 							<left>96</left>
@@ -381,7 +381,7 @@
 							<aligny>center</aligny>
 							<textcolor>FFFFFFFF</textcolor>
 							<label>$INFO[ListItem.Label]</label>
-							<visible>!String.IsEmpty(ListItem.Property(watched)) + String.IsEqual(ListItem.Property(url),Window.Property(a4k.episodes))</visible>
+							<visible>!String.IsEmpty(ListItem.Property(watched)) + String.IsEqual(ListItem.Label,Window.Property(a4k.season))</visible>
 						</control>
 						<control type="image">
 							<left>236</left>
@@ -425,7 +425,7 @@
 								<width>192</width>
 								<height>64</height>
 								<texture border="32" colordiffuse="47FFFFFF">a4k/pill.png</texture>
-								<visible>!Control.HasFocus(520) + String.IsEqual(ListItem.Property(url),Window.Property(a4k.episodes))</visible>
+								<visible>!Control.HasFocus(520) + String.IsEqual(ListItem.Label,Window.Property(a4k.season))</visible>
 							</control>
 							<control type="image">
 								<left>96</left>
@@ -433,7 +433,7 @@
 								<width>192</width>
 								<height>64</height>
 								<texture border="32" colordiffuse="1AFFFFFF">a4k/pill.png</texture>
-								<visible>!Control.HasFocus(520) + !String.IsEqual(ListItem.Property(url),Window.Property(a4k.episodes))</visible>
+								<visible>!Control.HasFocus(520) + !String.IsEqual(ListItem.Label,Window.Property(a4k.season))</visible>
 							</control>
 							<control type="label">
 								<left>96</left>
@@ -490,7 +490,7 @@
 								<aligny>center</aligny>
 								<textcolor>B8FFFFFF</textcolor>
 								<label>$INFO[ListItem.Label]</label>
-								<visible>!Control.HasFocus(520) + String.IsEmpty(ListItem.Property(watched)) + !String.IsEqual(ListItem.Property(url),Window.Property(a4k.episodes))</visible>
+								<visible>!Control.HasFocus(520) + String.IsEmpty(ListItem.Property(watched)) + !String.IsEqual(ListItem.Label,Window.Property(a4k.season))</visible>
 							</control>
 							<control type="label">
 								<left>96</left>
@@ -502,7 +502,7 @@
 								<aligny>center</aligny>
 								<textcolor>FFFFFFFF</textcolor>
 								<label>$INFO[ListItem.Label]</label>
-								<visible>!Control.HasFocus(520) + String.IsEmpty(ListItem.Property(watched)) + String.IsEqual(ListItem.Property(url),Window.Property(a4k.episodes))</visible>
+								<visible>!Control.HasFocus(520) + String.IsEmpty(ListItem.Property(watched)) + String.IsEqual(ListItem.Label,Window.Property(a4k.season))</visible>
 							</control>
 							<control type="label">
 								<left>96</left>
@@ -514,7 +514,7 @@
 								<aligny>center</aligny>
 								<textcolor>B8FFFFFF</textcolor>
 								<label>$INFO[ListItem.Label]</label>
-								<visible>!Control.HasFocus(520) + !String.IsEmpty(ListItem.Property(watched)) + !String.IsEqual(ListItem.Property(url),Window.Property(a4k.episodes))</visible>
+								<visible>!Control.HasFocus(520) + !String.IsEmpty(ListItem.Property(watched)) + !String.IsEqual(ListItem.Label,Window.Property(a4k.season))</visible>
 							</control>
 							<control type="label">
 								<left>96</left>
@@ -526,7 +526,7 @@
 								<aligny>center</aligny>
 								<textcolor>FFFFFFFF</textcolor>
 								<label>$INFO[ListItem.Label]</label>
-								<visible>!Control.HasFocus(520) + !String.IsEmpty(ListItem.Property(watched)) + String.IsEqual(ListItem.Property(url),Window.Property(a4k.episodes))</visible>
+								<visible>!Control.HasFocus(520) + !String.IsEmpty(ListItem.Property(watched)) + String.IsEqual(ListItem.Label,Window.Property(a4k.season))</visible>
 							</control>
 							<control type="image">
 								<left>236</left>
