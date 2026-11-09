@@ -56,6 +56,7 @@ class Kodi(object):
                          for id, (_, _, default, _) in KODI21.items()}
         self.addon = None  # None (missing), False (disabled), True (enabled)
         self.in_repository = True
+        self.declines = False  # the user says No to Kodi's install prompt
         self.subs = {}
         self.builtins, self.calls = [], []
 
@@ -80,7 +81,8 @@ class Kodi(object):
             result = True
         elif method == 'Addons.GetAddons':
             assert params['type'] == 'xbmc.subtitle.module'
-            found = [] if self.addon is None else [{'addonid': 'service.subtitles.a4ksubtitles', 'enabled': self.addon,
+            offered = params.get('installed') is False and self.addon is None and self.in_repository
+            found = [{'addonid': 'service.subtitles.a4ksubtitles'}] if offered else [] if self.addon is None else [{'addonid': 'service.subtitles.a4ksubtitles', 'enabled': self.addon,
                                                    'version': '3.26.0'}]
             result = {'addons': found, 'limits': {}} if found else {'limits': {}}
         elif method == 'Addons.SetAddonEnabled':
@@ -97,7 +99,7 @@ class Kodi(object):
 
     def builtin(self, builtin, wait=False):
         self.builtins.append((builtin, wait))
-        if builtin == 'InstallAddon(service.subtitles.a4ksubtitles)' and self.in_repository:
+        if builtin == 'InstallAddon(service.subtitles.a4ksubtitles)' and self.in_repository and not self.declines:
             self.addon = True
 
     def Addon(self, id):
@@ -198,7 +200,19 @@ def test_install_from_no_repository_says_so_and_changes_nothing(window, kodi, se
     pane(win)
     win.pane.selectItem(1)
     win.onClick(200)
-    assert said == ['a4kSubtitles is in none of your add-on repositories'] and win.rows[1]['label'] == 'Install a4kSubtitles'
+    assert said == ['a4kSubtitles not found: update the a4kStreaming repository and retry']
+    assert win.rows[1]['label'] == 'Install a4kSubtitles' and kodi.builtins == []
+
+def test_declining_kodis_install_prompt_says_nothing(window, kodi, settings, monkeypatch):
+    kodi.declines = True
+    said = []
+    monkeypatch.setattr(settings.subtitles.kodi, 'notification', said.append)
+    win = window()
+    pane(win)
+    win.pane.selectItem(1)
+    win.onClick(200)
+    assert kodi.builtins == [('InstallAddon(service.subtitles.a4ksubtitles)', True)]
+    assert said == [] and win.rows[1]['label'] == 'Install a4kSubtitles'
 
 def test_disabled_a4ksubtitles_is_an_enable_row(window, kodi):
     kodi.addon = False
@@ -302,18 +316,36 @@ def test_the_service_row_sets_both_kodi_services(ready, kodi):
 
 # 4. the language rows
 
-def test_subtitles_off_forced_and_on(ready, kodi):
+def test_subtitles_off_forced_and_on(ready, kodi, values):
     kodi.settings.update({'locale.subtitlelanguage': 'Spanish', 'subtitles.languages': ['Spanish', 'French']})
+    kodi.subs['general.auto_search'] = 'true'
     item = go(ready, 'subtitles:on')
     assert item.label2 == 'On'
-    ready.onClick(200)  # cycles: Forced only
-    assert kodi.settings['locale.subtitlelanguage'] == 'forced_only' and kodi.subs['general.auto_search'] == 'false'
+    ready.onClick(200)  # cycles: Forced only, which a4kSubtitles reads itself
+    assert kodi.settings['locale.subtitlelanguage'] == 'forced_only' and kodi.subs['general.auto_search'] == 'true'
     ready.onClick(200)
     assert kodi.settings['locale.subtitlelanguage'] == 'none' and item.label2 == 'Off'
+    assert kodi.subs['general.auto_search'] == 'false'
     assert go(ready, 'subtitles:preferred').label2 == 'Spanish'  # what On turns back on
     go(ready, 'subtitles:on')
     ready.onClick(200)
     assert kodi.settings['locale.subtitlelanguage'] == 'Spanish' and kodi.subs['general.auto_search'] == 'true'
+
+def test_leaving_off_keeps_a4ksubtitles_search_as_it_was(ready, kodi, values):
+    kodi.settings.update({'locale.subtitlelanguage': 'Spanish', 'subtitles.languages': ['Spanish']})
+    kodi.subs['general.auto_search'] = 'false'  # turned off on purpose
+    item = go(ready, 'subtitles:on')
+    ready.onClick(200)
+    ready.onClick(200)
+    assert item.label2 == 'Off' and kodi.subs['general.auto_search'] == 'false'
+    ready.onClick(200)
+    assert item.label2 == 'On' and kodi.subs['general.auto_search'] == 'false'
+
+def test_an_unknown_subtitles_id_is_ignored(subtitles, kodi):
+    kodi.settings['locale.subtitlelanguage'] = 'English'
+    assert subtitles.get('other:id') == '' and subtitles.set('other:id', 'true') is False
+    assert kodi.settings['locale.subtitlelanguage'] == 'English' and kodi.settings['subtitles.languages'] == ['English']
+    assert all(e[0].partition(':')[0] in ('', 'kodi', 'a4ksubtitles', 'subtitles') for e in subtitles.ROWS if isinstance(e, tuple))
 
 def test_without_a4ksubtitles_the_switch_writes_kodi_only(window, kodi):
     win = window()
@@ -333,11 +365,18 @@ def test_the_preferred_language_leads_the_download_list(ready, kodi, sheets, mon
     assert asked == ['English'] and item.label2 == 'Spanish'
     assert kodi.settings['locale.subtitlelanguage'] == 'Spanish' and kodi.settings['subtitles.languages'] == ['Spanish', 'French']
     monkeypatch.setattr(sheets, 'select', lambda heading, labels, preselect=-1: labels.index('French'))
-    ready.onClick(200)  # the alternative becomes the preferred: listed once
-    assert kodi.settings['subtitles.languages'] == ['French']
+    ready.onClick(200)  # the alternative becomes the preferred: the two swap
+    assert kodi.settings['subtitles.languages'] == ['French', 'Spanish']
     monkeypatch.setattr(sheets, 'select', lambda heading, labels, preselect=-1: labels.index('Original language'))
     ready.onClick(200)  # not a language: the download list stays
-    assert kodi.settings['locale.subtitlelanguage'] == 'original' and kodi.settings['subtitles.languages'] == ['French']
+    assert kodi.settings['locale.subtitlelanguage'] == 'original' and kodi.settings['subtitles.languages'] == ['French', 'Spanish']
+
+def test_a_listed_preferred_language_keeps_every_entry(ready, kodi, sheets, monkeypatch):
+    kodi.settings.update({'locale.subtitlelanguage': 'English', 'subtitles.languages': ['English', 'French', 'German']})
+    monkeypatch.setattr(sheets, 'select', lambda heading, labels, preselect=-1: labels.index('German'))
+    go(ready, 'subtitles:preferred')
+    ready.onClick(200)
+    assert kodi.settings['subtitles.languages'] == ['German', 'French', 'English']
 
 def test_the_preferred_language_while_off_is_the_one_on_turns_back_on(ready, kodi, sheets, monkeypatch):
     kodi.settings.update({'locale.subtitlelanguage': 'none', 'subtitles.languages': ['English']})
@@ -357,7 +396,24 @@ def test_the_alternative_language_is_second_in_the_download_list(ready, kodi, sh
     assert kodi.settings['subtitles.languages'] == ['English', 'German', 'French', 'Portuguese'] and item.label2 == 'German'
     monkeypatch.setattr(sheets, 'select', lambda heading, labels, preselect=-1: 0)
     ready.onClick(200)
-    assert kodi.settings['subtitles.languages'] == ['English'] and item.label2 == 'None'
+    assert kodi.settings['subtitles.languages'] == ['English', 'French', 'Portuguese'] and item.label2 == 'French'  # the next one moves up
+
+def test_the_alternative_never_takes_the_preferred_place(ready, kodi, sheets, settings, monkeypatch):
+    said = []
+    monkeypatch.setattr(settings.subtitles.kodi, 'notification', said.append)
+    kodi.settings.update({'locale.subtitlelanguage': 'English', 'subtitles.languages': ['English', 'French']})
+    monkeypatch.setattr(sheets, 'select', lambda heading, labels, preselect=-1: labels.index('English'))
+    item = go(ready, 'subtitles:alternative')
+    ready.onClick(200)
+    assert kodi.settings['subtitles.languages'] == ['English', 'French'] and item.label2 == 'French'
+    assert said == ['That is already the preferred language']
+    kodi.settings['subtitles.languages'] = []  # an empty list starts with the preferred language
+    monkeypatch.setattr(sheets, 'select', lambda heading, labels, preselect=-1: labels.index('French'))
+    ready.onClick(200)
+    assert kodi.settings['subtitles.languages'] == ['English', 'French']
+    kodi.settings.update({'locale.subtitlelanguage': 'original', 'subtitles.languages': []})
+    ready.onClick(200)
+    assert kodi.settings['subtitles.languages'] == [] and said[-1] == 'Pick the preferred language first'
 
 # 5. secrets
 

@@ -122,7 +122,8 @@ def test_categories_kinds_and_ranges_come_from_settings_xml(settings):
     assert [label for _, label, _ in cats] == ['Playback', 'Sources', 'Home', 'Accounts', 'Advanced']
     rows = {row['id']: row for _, _, rows in cats for row in rows}
     assert sorted(id for id, row in rows.items() if row['kind'] == 'secret') == ['imdb.at-main', 'premiumize.apikey', 'trakt.clientid']
-    assert {id for id, row in rows.items() if row['kind'] == 'hidden'} == {'appearance.order', 'appearance.my_list', 'kodi_mode.prompted'}
+    assert {id for id, row in rows.items() if row['kind'] == 'hidden'} == {
+        'appearance.order', 'appearance.my_list', 'kodi_mode.prompted', 'subtitles.auto_search'}
     assert rows['appearance.order_pick']['kind'] == 'order' and rows['provider.install']['kind'] == 'action'
     assert rows['provider.install']['action'] == 'RunPlugin(plugin://plugin.video.a4kstreaming/?action=provider&type=install)'
     assert (rows['general.remembered_searches']['min'], rows['general.remembered_searches']['step'],

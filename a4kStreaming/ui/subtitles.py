@@ -7,7 +7,7 @@
 # The Kodi ids, types and options are those of Kodi 21's system/settings/settings.xml (tests/test_subtitles.py pins
 # them); a Kodi write is saved to disk at once (kodi_mode.save), since Kodi on Android is often killed, not quit.
 
-from ..lib import kodi
+from ..lib import kodi, logger
 from .. import kodi_mode
 
 SUBS = 'service.subtitles.a4ksubtitles'
@@ -18,6 +18,7 @@ SWITCH = {'none': 'off', 'forced_only': 'forced'}  # the preferred language's va
 NOT_A_LANGUAGE = ('original', 'default')  # audio and interface language: never in the download list
 RESHAPE = ('kodi:subtitles.backgroundtype',)  # rows show or hide with it (Kodi rejects a hidden setting)
 BOX = ('subtitles.backgroundtype', ('2', '3'))  # Kodi shows the background colour and opacity for a box only
+KEPT = 'subtitles.auto_search'  # our hidden setting: a4kSubtitles' automatic search as it was before the switch's Off
 
 def enum(*labels):
     return {'options': list(labels), 'values': [str(i) for i in range(len(labels))]}
@@ -113,9 +114,11 @@ def act():
     # is enabled. True when the section should be rebuilt.
     status, _ = state()
     if status == 'missing':
-        kodi.xbmc.executebuiltin('InstallAddon(%s)' % SUBS, True)  # modal: back once it is installed or declined
-        if state()[0] == 'missing':
-            kodi.notification('a4kSubtitles is in none of your add-on repositories')
+        offered = kodi_mode.rpc('Addons.GetAddons', type='xbmc.subtitle.module', installed=False)
+        if offered is not None and all(a.get('addonid') != SUBS for a in offered.get('addons') or []):
+            kodi.notification('a4kSubtitles not found: update the a4kStreaming repository and retry')
+        else:  # modal: back once it is installed or declined (Kodi's own prompt, nothing to add)
+            kodi.xbmc.executebuiltin('InstallAddon(%s)' % SUBS, True)
     elif status == 'disabled':
         kodi_mode.rpc('Addons.SetAddonEnabled', addonid=SUBS, enabled=True)
     return status != 'ready'
@@ -172,7 +175,7 @@ def rows():
             options = [o for o in settings[needs].get('options') or [] if o.get('value') not in drop]
             if not options:
                 continue
-            extra.update(options=[o['label'] for o in options], values=[o['value'] for o in options])
+            extra.update(options=[o['label'] for o in options], values=[str(o['value']) for o in options])
             if none:
                 extra.update(options=[none] + extra['options'], values=[''] + extra['values'])
         row.update(extra)
@@ -196,6 +199,9 @@ def get(id):
         return text(kodi_mode.get('subtitles.movie') == SUBS == kodi_mode.get('subtitles.tv'))
     if id == ALTERNATIVE:
         return (languages()[1:2] or [''])[0]
+    if id not in (ON, PREFERRED):
+        logger.debug('subtitles: no setting %s' % id)
+        return ''
     language = kodi_mode.get(LANGUAGE)
     if id == ON:
         return SWITCH.get(language, 'on')
@@ -214,14 +220,32 @@ def set(id, value):
             put(service, SUBS if value == 'true' else '')
     elif id == ALTERNATIVE:  # the download list is the fallback order: the first stays, this one is second
         listed = languages()
-        put(LANGUAGES, list(dict.fromkeys(listed[:1] + [value] + listed[1:])) if value else listed[:1])
+        first = listed[:1] or [x for x in [text(kodi_mode.get(LANGUAGE))] if x and x not in tuple(SWITCH) + NOT_A_LANGUAGE]
+        if not value:
+            put(LANGUAGES, listed[:1] + listed[2:])
+        elif value in first or not first:
+            kodi.notification('That is already the preferred language' if first else 'Pick the preferred language first')
+        else:
+            put(LANGUAGES, first + [value] + [x for x in listed[1:] if x != value])
     elif id == ON:
+        was = kodi_mode.get(LANGUAGE)
         put(LANGUAGE, {'off': 'none', 'forced': 'forced_only'}.get(value) or (languages()[:1] or ['original'])[0])
-        if state()[0] == 'ready':  # a4kSubtitles loads nothing while it is off
-            subs().setSetting('general.auto_search', 'true' if value == 'on' else 'false')
-    else:  # the preferred language, first in the download list too: a4kSubtitles finds only what that list has
+        if state()[0] == 'ready':  # Off loads none: a4kSubtitles' search stops, and leaving Off puts it back as it was
+            own = kodi.xbmcaddon.Addon(kodi.addon_id)  # Forced only needs no write: a4kSubtitles reads forced_only itself
+            if value == 'off' and was != 'none':
+                own.setSetting(KEPT, subs().getSetting('general.auto_search'))
+                subs().setSetting('general.auto_search', 'false')
+            elif value != 'off' and was == 'none' and own.getSetting(KEPT):
+                subs().setSetting('general.auto_search', own.getSetting(KEPT))
+                own.setSetting(KEPT, '')
+    elif id == PREFERRED:  # first in the download list too: a4kSubtitles finds only what that list has
         if kodi_mode.get(LANGUAGE) not in SWITCH:
             put(LANGUAGE, value)
-        if value not in NOT_A_LANGUAGE:
-            put(LANGUAGES, list(dict.fromkeys([value] + languages()[1:])))
+        if value not in NOT_A_LANGUAGE:  # already listed: it swaps places with the first, so no entry is lost
+            listed = languages()
+            if value in listed:
+                listed[listed.index(value)] = listed[0]
+            put(LANGUAGES, [value] + listed[1:])
+    else:
+        logger.debug('subtitles: no setting %s' % id)
     return id in RESHAPE

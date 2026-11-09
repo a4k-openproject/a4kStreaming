@@ -70,5 +70,7 @@
         <!-- Kodi setup mode (a4kStreaming/kodi_mode.py); prompted: its one-time question on the home window was asked -->
         <setting id="kodi.mode"                      label="33801" type="action" action="RunScript(plugin.video.a4kstreaming,kodi_mode)"/>
         <setting id="kodi_mode.prompted"             type="bool"   default="false" visible="false"/>
+        <!-- the Subtitles switch: a4kSubtitles' automatic search as it was before Off -->
+        <setting id="subtitles.auto_search"          type="text"   default="" visible="false"/>
     </category>
 </settings>
