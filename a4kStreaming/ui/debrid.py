@@ -531,9 +531,9 @@ class Debrid(kodi.xbmcgui.WindowXML):
         self.error = traceback.format_exc()
         self.close()
 
-def open(tab='downloads', folder='', over_call=False):
+def open(tab='downloads', folder='', over_call=False, root=False):
     # the Browse row's Debrid tile, action=cloud (cloud.py) and the uncached wait's Open Downloads (playback.transfer,
-    # over_call); a window error is logged and closes the window
+    # over_call); a window error is logged and closes the window. root: action=cloud's own window, the call's last step
     try:
         window = Debrid('a4k-debrid.xml', kodi.addon_path, 'Default', '1080i')
         # a reopened add-on (after the Home key) comes back to this window, not to the one under it
@@ -543,7 +543,7 @@ def open(tab='downloads', folder='', over_call=False):
         window.setProperty('a4k.overcall', 'true' if over_call else '')  # the play call's loader is not drawn
         window.tab = CLOUD if tab == 'cloud' else DOWNLOADS
         window.folder = folder or ''
-        home.modal(window)  # joins the window's threads before it is freed
+        home.modal(window, home.ROOT_JOIN if root else home.JOIN)  # joins the window's threads before it is freed
         error = window.error
         del window
         if error:

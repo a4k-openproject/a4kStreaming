@@ -646,6 +646,27 @@ def test_a_close_waits_at_most_join_and_a_later_close_frees_the_left_over(home, 
     home.release(Win())
     assert home.LEFT_OVER == [] and window() is None
 
+def test_the_root_window_waits_the_long_bound_and_a_child_join(core, home, monkeypatch):
+    # nothing waits for keys under the window a call opened first, and the interpreter ends right after its close: a
+    # request still out there would run into the teardown
+    joins = []
+    monkeypatch.setattr(home, 'release', lambda window, join=home.JOIN: joins.append(join))
+    monkeypatch.setattr(home.Home, 'doModal', lambda self: None)
+    monkeypatch.setattr(home.Home, 'rotate', lambda self: None)
+    home.open()
+    home.modal(SimpleNamespace(doModal=lambda: None))
+    assert joins == [home.ROOT_JOIN, home.JOIN] and home.ROOT_JOIN == home.TIMEOUT + 2 and home.JOIN <= 0.5
+    monkeypatch.setattr(core.kodi.xbmcgui.WindowXML, 'doModal', lambda self: None)
+    debrid = importlib.import_module('a4kStreaming.ui.debrid')
+    debrid.open(root=True)
+    debrid.open()
+    assert joins[2:] == [home.ROOT_JOIN, home.JOIN]
+    monkeypatch.undo()
+    win, gate = Win(), threading.Event()
+    home.spawn(win, gate.wait, 0.8)  # longer than JOIN, inside ROOT_JOIN
+    home.release(win, home.ROOT_JOIN)
+    assert not win.threads[0].is_alive() and win not in home.LEFT_OVER
+
 def test_a_stopped_window_thread_makes_no_retry(core, home):
     # a window closed while its request was out: no second or third attempt (each up to TIMEOUT)
     request = importlib.import_module('a4kStreaming.lib.request')

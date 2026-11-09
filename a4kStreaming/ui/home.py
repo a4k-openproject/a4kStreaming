@@ -66,6 +66,7 @@ TIMEOUT = 10  # s per attempt of a request on a window's thread (lib/request's d
 # s a closing window waits for its threads. It waits on the interpreter's main thread, inside the callback of the window
 # below, which takes no keys meanwhile: threads that only wait end at once, one with a request out is left over
 JOIN = 0.5
+ROOT_JOIN = TIMEOUT + 2  # the window a call opened first: no window below, and the interpreter ends right after its close
 LEFT_OVER = []  # windows whose threads outlived JOIN: kept, so they are never freed on one of those threads
 LOCK = threading.Lock()
 
@@ -524,7 +525,7 @@ def spawn(window, target, *args, delay=None):
             thread.start()
     return cancel
 
-def release(window):
+def release(window, join=JOIN):
     # on the interpreter's main thread once the window's doModal returned: its waits end, its threads are joined against
     # one deadline, and a window with a thread still running is kept rather than freed on that thread. Kept windows whose
     # threads have all ended since are dropped here, so they are freed on this thread.
@@ -532,14 +533,14 @@ def release(window):
         if window.stopped:
             window.stopped.set()
         threads = list(window.threads)
-    deadline = time.time() + JOIN
+    deadline = time.time() + join
     for thread in threads:
         thread.join(max(0, deadline - time.time()))
     if any(thread.is_alive() for thread in threads):
         LEFT_OVER.append(window)  # ponytail: a hung request keeps its window until a later close finds it ended
     LEFT_OVER[:] = [kept for kept in LEFT_OVER if any(thread.is_alive() for thread in kept.threads)]
 
-def modal(window):
+def modal(window, join=JOIN):
     # doModal for a window opened over another a4k window (detail, grid). It takes the open-window slot in its onInit;
     # on close the slot goes back to the window below, and so does the screen when the user went Home and reopened the
     # add-on into this one (Back must not land on Kodi's Home). Its threads are joined before it is freed (release).
@@ -557,7 +558,7 @@ def modal(window):
                 if kodi.xbmcgui.getCurrentWindowId() != int(previous) and not kodi.xbmc.Monitor().abortRequested():
                     replace_current(previous)
         finally:
-            release(window)
+            release(window, join)
 
 def open(cover=None):
     # cover: the launch cover (app.launch), closed as the window takes its place
@@ -576,7 +577,7 @@ def open(cover=None):
         window.doModal()
     finally:
         kodi.xbmcgui.Window(app.HOME_WINDOW).clearProperty(app.OPEN_WINDOW)
-        release(window)
+        release(window, ROOT_JOIN)
     error = window.error
     del window
     if error:

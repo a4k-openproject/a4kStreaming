@@ -446,7 +446,7 @@ def test_cloud_play_failure_resolves_nothing(core, cloud, monkeypatch, toasts):
 def test_old_cloud_urls_open_the_window(core, cloud, debrid, monkeypatch, type, id, opened):
     log = []
     monkeypatch.setattr(core.kodi.xbmcplugin, 'endOfDirectory', lambda handle, succeeded=True, **kwargs: log.append(('end', succeeded)), raising=False)
-    monkeypatch.setattr(debrid, 'open', lambda tab, folder: log.append((tab, folder)))
+    monkeypatch.setattr(debrid, 'open', lambda tab, folder, root: log.append((tab, folder)) if root else pytest.fail('a child'))
     params = core.utils.DictAsObject({'type': type, 'id': id})
     assert cloud.cloud(core, params) == core.skip_end_of_dir
     assert log == [('end', False), opened]

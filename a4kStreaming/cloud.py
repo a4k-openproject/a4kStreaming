@@ -26,7 +26,7 @@ def cloud(core, params):
             break
         core.kodi.xbmc.sleep(BUSY_LOOK)
     from .ui import debrid
-    debrid.open('downloads' if params.type == 'premiumize_transfers' else 'cloud', params.id or '')
+    debrid.open('downloads' if params.type == 'premiumize_transfers' else 'cloud', params.id or '', root=True)
     return core.skip_end_of_dir
 
 def subtitles(core, apikey, file):
