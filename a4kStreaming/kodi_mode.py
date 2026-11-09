@@ -10,7 +10,7 @@ import json
 import os
 from xml.etree import ElementTree
 
-from .lib import kodi, logger
+from .lib import kodi, logger, utils
 
 PATH = os.path.join(kodi.addon_profile, 'kodi_mode.json')
 PROMPTED = 'kodi_mode.prompted'  # hidden setting: the one-time question on the add-on's home was asked
@@ -135,8 +135,7 @@ def write(state):
     folder = os.path.dirname(PATH)
     if not os.path.isdir(folder):
         os.makedirs(folder)
-    with io.open(PATH, 'w', encoding='utf-8') as f:
-        f.write(json.dumps(state))
+    utils.write_atomic(PATH, json.dumps(state))  # a kill mid-write leaves the previous file, never a truncated one
 
 def active():
     return os.path.exists(PATH)
@@ -155,9 +154,11 @@ def drift(state):
 
 def status():
     # the settings row's value
-    state = load() if active() else None
-    if state is None:
+    if not active():
         return 'Off'
+    state = load()
+    if state is None:
+        return 'Active (saved values unreadable)'
     changed = len(drift(state))
     return 'Active, %s changed since' % changed if changed else 'Active'
 

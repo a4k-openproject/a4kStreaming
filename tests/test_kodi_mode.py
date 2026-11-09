@@ -141,6 +141,20 @@ def test_restore_skips_the_menu_after_a_skin_change(mode, fake):
     mode.restore()
     assert fake.bools == before
 
+def test_a_write_cut_short_keeps_the_saved_originals(mode, fake, monkeypatch):
+    import os
+    state = turn_on(mode)
+    with monkeypatch.context() as patch:
+        patch.setattr(os, 'replace', lambda src, dst: (_ for _ in ()).throw(OSError('killed')))
+        with pytest.raises(OSError):
+            mode.write({})
+    assert mode.load() == state and os.listdir(os.path.dirname(mode.PATH)) == ['kodi_mode.json']
+
+def test_an_unreadable_file_reads_active_not_off(mode, fake):
+    turn_on(mode)
+    open(mode.PATH, 'w').close()
+    assert mode.status() == 'Active (saved values unreadable)'
+
 def test_reset_sets_every_managed_value_to_kodis_default(mode, fake, tmp_path):
     turn_on(mode)
     fake.settings['general.addonnotifications'] = True  # not changed by the mode, still one it manages
