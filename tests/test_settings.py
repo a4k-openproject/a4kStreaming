@@ -178,7 +178,7 @@ def test_enum_ok_cycles_three_options_and_opens_the_picker_for_more(window, valu
     monkeypatch.setattr(sheets, 'select', lambda heading, labels, preselect=-1: asked.append((heading, labels, preselect)) or 1)
     item = go(win, 'appearance.hero_turn')
     win.onClick(200)
-    assert asked == [('Top shelf rotation', ['10 s', '15 s', '20 s', '30 s', 'Off'], 1)]
+    assert asked == [('Top of the screen Top shelf rotation', ['10 s', '15 s', '20 s', '30 s', 'Off'], 1)]
     assert values['appearance.hero_turn'] == '1' and item.label2 == '15 s'
 
 def test_number_steps_clamps_and_formats(window, values, core, monkeypatch):
@@ -195,9 +195,11 @@ def test_number_steps_clamps_and_formats(window, values, core, monkeypatch):
     press(win, 1)
     assert values['general.remembered_searches'] == '0' and item.label2 == 'Off'
     typed = iter(['999', ''])
-    monkeypatch.setattr(core.kodi.xbmcgui, 'Dialog', lambda: type('D', (), {'numeric': lambda self, t, h, d: next(typed)})())
+    headings = []
+    monkeypatch.setattr(core.kodi.xbmcgui, 'Dialog', lambda: type('D', (), {
+        'numeric': lambda self, t, h, d: headings.append(h) or next(typed)})())
     win.onClick(200)  # typed past the top: the maximum
-    assert values['general.remembered_searches'] == '500'
+    assert values['general.remembered_searches'] == '500' and headings == ['Search Remembered searches']  # the group heads the pad
     win.onClick(200)  # cancelled: unchanged
     assert values['general.remembered_searches'] == '500'
 
@@ -439,6 +441,18 @@ def test_up_and_down_step_over_the_group_headers(window):
     win.pane.selectItem(0)  # Up onto the first header: nothing above it, back down to the first row
     press(win, 3)
     assert win.pane.getSelectedPosition() == 1
+
+def test_page_keys_and_the_wheel_step_over_the_group_headers_too(window):
+    win = window()
+    go(win, 'general.autoplay')
+    skipping = win.pane.getSelectedPosition() + 1
+    for down, up in ((6, 5), (160, 159), (105, 104), (112, 111)):  # page, first / last page, wheel, scroll
+        win.pane.selectItem(skipping)
+        press(win, down)
+        assert win.rows[win.pane.getSelectedPosition()]['id'] == 'general.skip_intro'
+        win.pane.selectItem(skipping)
+        press(win, up)
+        assert win.rows[win.pane.getSelectedPosition()]['id'] == 'general.autoplay'
 
 def test_ok_on_a_header_does_nothing(window, values):
     win = window()

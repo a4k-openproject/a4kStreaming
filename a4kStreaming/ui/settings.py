@@ -21,6 +21,8 @@ from .home import ACTION_PREVIOUS_MENU, ACTION_NAV_BACK
 RAIL = 100
 PANE = 200
 LEFT, RIGHT, UP, DOWN = 1, 2, 3, 4  # Kodi's ACTION_MOVE_*
+# every action that moves the pane's selection, up then down: move, page, first / last page, mouse wheel, scroll
+MOVES_UP, MOVES_DOWN = (UP, 5, 159, 104, 111), (DOWN, 6, 160, 105, 112)
 SESSION = 'a4k.settings.'  # on Kodi's Home window: the last category and its row, for this Kodi session
 PICKER = 3  # an enum with more options than this opens the sheet picker on OK; fewer cycle
 MORE = '›'  # the value of a row that opens something
@@ -317,10 +319,10 @@ class Window(kodi.xbmcgui.WindowXMLDialog):
             elif focus == PANE and self.order is not None:
                 if action_id in (UP, DOWN) and self.grab is not None:
                     self.move(self.pane.getSelectedPosition())
-            elif focus == PANE and action_id in (UP, DOWN):  # Kodi moved onto a header: on past it
+            elif focus == PANE and action_id in MOVES_UP + MOVES_DOWN:  # Kodi moved onto a header: on past it
                 position = self.pane.getSelectedPosition()
                 if self.rows[position]['kind'] == 'header':
-                    self.pane.selectItem(self.land(position, action_id == DOWN))
+                    self.pane.selectItem(self.land(position, action_id in MOVES_DOWN))
             elif focus == PANE and action_id in (LEFT, RIGHT):
                 row = self.rows[self.pane.getSelectedPosition()]
                 if row['kind'] in ('enum', 'number') and not needs_login(row):
@@ -363,13 +365,13 @@ class Window(kodi.xbmcgui.WindowXMLDialog):
             self.set(id, 'false' if get(id, row['default']) == 'true' else 'true')
         elif kind == 'enum' and len(row['options']) > PICKER:
             from . import sheets
-            choice = sheets.select(row['label'], row['options'], preselect=self.index(row))
+            choice = sheets.select(title(row), row['options'], preselect=self.index(row))
             if choice is not None and choice >= 0:
                 self.set(id, str(choice))
         elif kind == 'enum':
             self.set(id, str((self.index(row) + 1) % len(row['options'])))
         elif kind == 'number':
-            typed = kodi.xbmcgui.Dialog().numeric(0, row['label'], str(number(row)))
+            typed = kodi.xbmcgui.Dialog().numeric(0, title(row), str(number(row)))
             if typed:
                 self.set(id, str(min(max(int(typed), row['min']), row['max'])))
         elif kind == 'text':
