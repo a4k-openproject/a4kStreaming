@@ -134,12 +134,36 @@ def test_restore_puts_back_what_was_and_keeps_what_the_user_changed_since(mode, 
     assert fake.builtins[-2:] == ['Action(reloadkeymaps)', 'Skin.Reset(a4k.kodi_mode)']
     assert not mode.active() and mode.status() == 'Off'
 
-def test_restore_skips_the_menu_after_a_skin_change(mode, fake):
+def test_restore_after_a_skin_change_keeps_the_menu_for_when_estuary_is_back(mode, fake):
     turn_on(mode)
     fake.settings['lookandfeel.skin'] = 'skin.other'
     before = set(fake.bools)
     mode.restore()
-    assert fake.bools == before
+    assert fake.bools == before and not mode.active()
+    assert not mode.finish_leftover() and fake.bools == before  # still on the other skin
+    fake.settings['lookandfeel.skin'] = 'skin.estuary'
+    fake.bools.discard('homemenunovideosbutton')  # the user showed it again since
+    assert mode.finish_leftover()
+    assert fake.bools == {'homemenunomoviebutton'} and fake.builtins[-1] == 'Skin.Reset(a4k.kodi_mode)'
+    assert not mode.finish_leftover()  # done once
+
+def test_reset_after_a_skin_change_resets_the_menu_when_estuary_is_back(mode, fake):
+    turn_on(mode)
+    fake.settings['lookandfeel.skin'] = 'skin.other'
+    mode.reset_defaults()
+    assert len(fake.bools) == 11 and not mode.active()
+    fake.settings['lookandfeel.skin'] = 'skin.estuary'
+    assert mode.finish_leftover() and fake.bools == set()
+
+def test_the_confirm_finishes_a_leftover_before_it_plans(mode, fake, monkeypatch):
+    turn_on(mode)
+    fake.settings['lookandfeel.skin'] = 'skin.other'
+    mode.restore()
+    fake.settings['lookandfeel.skin'] = 'skin.estuary'
+    sheets = importlib.import_module('a4kStreaming.ui.sheets')
+    monkeypatch.setattr(sheets, 'select', lambda heading, labels, preselect=-1, rows=None, actions=0: 0)
+    assert mode.confirm()
+    assert mode.load()['skin_bools']['HomeMenuNoVideosButton'] == {'was': False, 'set': True}  # the original, not the stripped
 
 def test_a_write_cut_short_keeps_the_saved_originals(mode, fake, monkeypatch):
     import os

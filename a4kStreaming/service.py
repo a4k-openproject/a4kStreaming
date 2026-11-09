@@ -121,6 +121,7 @@ def start(api):
     player.onPlayBackEnded = lambda: ended(natural=True)
     player.onPlayBackStopped = lambda: ended(natural=False)
 
+    kodi_mode.finish_leftover()  # Kodi setup mode turned off on another skin: Estuary's menu, once it is back
     kodi_mode.autoopen(monitor)  # Kodi setup mode: the add-on opens once Kodi's Home is up
 
     while not monitor.abortRequested():

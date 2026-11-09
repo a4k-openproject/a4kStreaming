@@ -124,21 +124,46 @@ def reload_keymaps():
 
 # the saved state
 
-def load():
+def load(path=None):
     try:
-        with io.open(PATH, encoding='utf-8') as f:
+        with io.open(path or PATH, encoding='utf-8') as f:
             return json.load(f)
     except Exception:
         return None
 
-def write(state):
+def write(state, path=None):
     folder = os.path.dirname(PATH)
     if not os.path.isdir(folder):
         os.makedirs(folder)
-    utils.write_atomic(PATH, json.dumps(state))  # a kill mid-write leaves the previous file, never a truncated one
+    utils.write_atomic(path or PATH, json.dumps(state))  # a kill mid-write leaves the previous file, never a truncated one
 
 def active():
     return os.path.exists(PATH)
+
+def leftover_path():
+    # Estuary's home menu bools a turn-off on another skin could not put back: Skin.SetBool reaches the current skin only
+    return os.path.splitext(PATH)[0] + '.leftover.json'
+
+def leave_for_later(state, reset=False):
+    if state.get('skin_bools') and skin() != state.get('skin'):
+        write({'skin': state['skin'], 'skin_bools': state['skin_bools'], 'reset': reset}, leftover_path())
+
+def finish_leftover():
+    # the menu bools left by a turn-off on another skin, done once their skin is the current one (the service at start,
+    # the confirm sheet before it plans). True when done.
+    state = load(leftover_path()) if os.path.exists(leftover_path()) else None
+    if not state or skin() != state.get('skin'):
+        return False
+    if state.get('reset'):  # as reset_defaults on Estuary: every bool the mode manages
+        for name in SKIN_BOOLS:
+            kodi.xbmc.executebuiltin('Skin.Reset(%s)' % name, True)
+    else:  # as restore: what was, except those changed since
+        for name, item in state.get('skin_bools', {}).items():
+            if skin_bool(name) == item['set']:
+                set_skin_bool(name, item['was'])
+    save()
+    os.remove(leftover_path())
+    return True
 
 def drift(state):
     # the saved items the user changed since: [(label, label2)]
@@ -242,6 +267,7 @@ def restore():
         for name, item in state.get('skin_bools', {}).items():
             if skin_bool(name) == item['set']:
                 set_skin_bool(name, item['was'])
+    leave_for_later(state)
     remove_extras(state)
     save()
     os.remove(PATH)
@@ -255,6 +281,7 @@ def reset_defaults():
     if skin() == ESTUARY:
         for name in SKIN_BOOLS:
             kodi.xbmc.executebuiltin('Skin.Reset(%s)' % name, True)
+    leave_for_later(state, reset=True)
     remove_extras(state, any_favourite=True)
     save()
     if os.path.exists(PATH):
@@ -286,6 +313,7 @@ def sheet():
 def confirm():
     # every change in plain words, then Turn on / Cancel. True when turned on.
     from .ui import sheets
+    finish_leftover()
     state = plan()
     rows = [('Turn on', ''), ('Cancel', '')] + lines(state)
     if sheets.select('Set up Kodi for a4kStreaming', [label for label, _ in rows], preselect=0, rows=rows, actions=2) != 0:
