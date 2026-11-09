@@ -6,6 +6,9 @@ STILL_WATCHING = (FULLSCREEN_VIDEO, 12900)
 TICK = 0.5  # s between looks while a play the add-on started is on
 IDLE = 2  # s otherwise
 SAVE_EVERY = 15  # s between progress writes during a play
+END_MARGIN = 30  # s: a resume point this close to the stream's end (another source, a shorter cut) plays from the start
+LANDED = 5  # s short of the resume point that count as there
+SEEK_WAIT = 30  # s a resume seek may take to land before the play counts from where it is
 
 class BackStop(object):
     # Back from the video goes to the windows and leaves the play running behind them. With the Back stops playback
@@ -26,6 +29,28 @@ class BackStop(object):
             return False
         self.away += 1
         return self.away == 2
+
+class Resume(object):
+    # Resume from: the seek to the entry's position once the stream plays (Kodi starts a resolved plugin play at 0).
+    # start stays set until the play is there, and while it is set the old position is kept (service save_progress):
+    # a network stream can report the time before the seek for seconds while it buffers at the new one.
+    def __init__(self, start=0):
+        self.start = start
+        self.issued = 0
+
+    def step(self, same_title, played, total, now):
+        # True when the seek should be issued now
+        if not self.start:
+            return False
+        if not self.issued:
+            if same_title and self.start < (total or 0) - END_MARGIN:
+                self.issued = now
+                return True
+            self.start = 0  # another title took the play, or the point is past this stream's end
+            return False
+        if (played or 0) >= self.start - LANDED or now - self.issued > SEEK_WAIT:
+            self.start = 0
+        return False
 
 def start(api):
     core = api.core
@@ -49,7 +74,7 @@ def start(api):
     # the play the add-on started (the hand-off's Continue Watching entry), None for any other
     ours = lambda: None
     ours.meta = None
-    ours.start = 0  # Resume from: seconds to seek to once the stream plays (Kodi starts a resolved plugin play at 0)
+    ours.resume = Resume()
     ours.saved = 0
     ours.back = BackStop()
 
@@ -75,7 +100,7 @@ def start(api):
             ours.meta = None  # a hand-off whose stream never started, taken by another play
 
     def save_progress(finished=False):
-        if not ours.meta or not watched.total_time or ours.start:  # a resume not reached yet keeps the old position
+        if not ours.meta or not watched.total_time or ours.resume.start:  # a resume not reached yet keeps the old position
             return
         ours.saved = core.time.time()
         store = progress.record(progress.load(), ours.meta, watched.time_played or 0, watched.total_time, progress.now(), finished)
@@ -93,7 +118,7 @@ def start(api):
             core.profile(core, core.utils.DictAsObject({ 'type': 'mark_as_watched', 'id': watched.playing_imdb_id, 'silent': True }))
         finally:
             reset_vars()
-            ours.meta, ours.start = None, 0
+            ours.meta, ours.resume = None, Resume()
 
     # intro / recap skip and the next episode for the playing episode (ui/skip.py)
     skip_watch = lambda: None
@@ -106,7 +131,7 @@ def start(api):
         skip_watch.current = skip.start(core, player, monitor, handoff, on_next=lambda: mark_as_watched(finished=True))
         reset_vars()
         ours.meta, ours.saved, ours.back = handoff.get('progress'), core.time.time(), BackStop()
-        ours.start = (ours.meta or {}).get('start', 0)
+        ours.resume = Resume((ours.meta or {}).get('start', 0))
         update_playing_imdb_id(retry=True)
 
     def ended(natural):
@@ -151,14 +176,17 @@ def start(api):
 
         if not ours.meta:
             continue
-        if ours.start:
+        if ours.resume.start:
             try:
-                if player.getVideoInfoTag().getIMDBNumber() == ours.meta.get('id'):
-                    player.seekTime(ours.start)
+                same = player.getVideoInfoTag().getIMDBNumber() == ours.meta.get('id')
             except Exception:
-                pass
-            ours.start = 0
-            continue
+                same = False
+            if ours.resume.step(same, watched.time_played, watched.total_time, core.time.time()):
+                try:
+                    player.seekTime(ours.resume.start)
+                except Exception:
+                    ours.resume.start = 0
+                continue
         if ours.back.step(core.kodi.xbmcgui.getCurrentWindowId(), core.kodi.get_setting('general.back_stops') != 'false'):
             player.stop()  # onPlayBackStopped records the position
         elif core.time.time() - ours.saved >= SAVE_EVERY:

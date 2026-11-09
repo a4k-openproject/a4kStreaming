@@ -128,6 +128,26 @@ def test_a_play_still_loading_and_the_screensaver_never_stop(service):
     assert not any(steps(service, [HOME, HOME, HOME]))  # the video window never showed yet
     assert not any(steps(service, [VIDEO, SCREENSAVER, SCREENSAVER, VIDEO, HOME]))  # one look away is not two
 
+# B2. Resume from (service.Resume)
+
+def test_the_resume_seeks_once_and_keeps_the_old_position_until_the_play_is_there(service):
+    resume = service.Resume(3000)
+    assert resume.step(True, 0, 6000, 100) and resume.start == 3000
+    assert not resume.step(True, 2, 6000, 105) and resume.start == 3000  # still buffering at the new position
+    assert not resume.step(True, 2996, 6000, 108) and resume.start == 0  # landed: the play counts from here
+
+def test_a_seek_that_never_lands_lets_the_play_count_after_a_while(service):
+    resume = service.Resume(3000)
+    resume.step(True, 0, 6000, 100)
+    assert not resume.step(True, 20, 6000, 100 + service.SEEK_WAIT) and resume.start == 3000
+    assert not resume.step(True, 21, 6000, 101 + service.SEEK_WAIT) and resume.start == 0
+
+@pytest.mark.parametrize('same,total', [(False, 6000), (True, 3020), (True, 2900), (True, None)])
+def test_no_seek_for_another_title_or_past_the_new_streams_end(service, same, total):
+    # another source of the title can be a shorter cut: a seek past its end would end the play as finished
+    resume = service.Resume(3000)
+    assert not resume.step(same, 0, total, 100) and resume.start == 0
+
 # C. the row's listing and the episode cards
 
 def test_continue_watching_lists_the_store(core, progress, items):
