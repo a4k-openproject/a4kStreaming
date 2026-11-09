@@ -1,3 +1,10 @@
+* [v1.74.0](https://github.com/newt-sc/a4kStreaming/releases/tag/plugin.video.a4kstreaming%2Fplugin.video.a4kstreaming-1.74.0):
+  * Settings window redesigned for the TV: grouped categories, value chips, Left/Right to change a value, one line of help
+  * A Subtitles section: one switch (On, Forced only, Off), preferred and second language, look and timing, a4kSubtitles providers and an Install a4kSubtitles button
+  * Series page opens on the next episode to watch; OK on a season opens it, and the open season stays marked
+  * Windows close at once and stay responsive while a request is still running; nothing new opens while a video is starting
+  * Continue Watching and Kodi setup mode save safely; Resume from skips a point too close to the end
+  * The a4kStreaming repository add-on 1.0.3 updates itself and lists a4kSubtitles
 * [v1.73.0](https://github.com/newt-sc/a4kStreaming/releases/tag/plugin.video.a4kstreaming%2Fplugin.video.a4kstreaming-1.73.0):
   * Fixes Kodi 21 closing by itself after a video, when returning to the home screen
   * Continue Watching row on Home, resume bars on cards, and Resume or Start over when you play
