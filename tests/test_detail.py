@@ -325,11 +325,15 @@ def test_episode_long_press_opens_the_add_on_sheet_with_its_rows(core, detail, h
     win.onAction(Action(home.ACTION_CONTEXT_MENU))
     # signed out: the account rows go; the first row runs
     assert menus == [('S1 E2 \u00b7 Chapter', ['Play from here', 'Episode details'])] and calls == [rows[0][1]]
-    # Episode details runs Action(Info): Kodi's info dialog for the item, as the provider opened it
+    # the Info key and Episode details: Kodi's info dialog for the item, as the provider opened it; the row opens it
+    # itself (an Action(Info) sent as the sheet closes is dropped)
     infos = []
     monkeypatch.setattr(core.kodi.xbmcgui, 'Dialog', lambda: SimpleNamespace(info=infos.append))
     win.onAction(Action(detail.ACTION_SHOW_INFO))
-    assert infos == [win.shelf[1][1]] and win.error is None
+    monkeypatch.setattr(sheets, 'select', lambda heading, items: menus.append((heading, items)) or 1)
+    win.onAction(Action(home.ACTION_CONTEXT_MENU))
+    assert infos == [win.shelf[1][1]] * 2 and calls == [rows[0][1]] and win.error is None
+    menus.pop()
     # an empty shelf: nothing opens, nothing plays
     win.shelf = []
     win.onAction(Action(home.ACTION_CONTEXT_MENU))

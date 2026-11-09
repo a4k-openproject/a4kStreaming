@@ -23,7 +23,8 @@ EPISODES = 530
 CAST = 540
 PLOT = 510  # the plot's focus frame: select opens the whole plot
 
-ACTION_SHOW_INFO = 11  # the Info key, and the episode menu's Episode details (Action(Info))
+ACTION_SHOW_INFO = 11  # the Info key
+INFO = 'Action(Info)'  # the episode menu's Episode details row (listing.title_context_menu)
 SHELF = threading.Lock()  # one season's episodes go into the shelf at a time (a refresh and a season switch race)
 
 KIND = {'movie': 'Movie', 'tvSeries': 'TV Series', 'tvEpisode': 'Episode'}
@@ -504,7 +505,10 @@ class Detail(kodi.xbmcgui.WindowXML):
         if episode:
             item = episode[1]
             heading = ' \u00b7 '.join(part for part in (item.getProperty('a4k.label'), item.getProperty('a4k.name')) if part)
-            home.menu(episode[2], item.getProperty('a4k.id'), heading)
+            # Episode details opens the dialog itself: Kodi drops an Action(Info) sent while the sheet's close
+            # animation still runs (seen on the Shield)
+            rows = [(label, '' if builtin == INFO else builtin) for label, builtin in episode[2]]
+            home.menu(rows, item.getProperty('a4k.id'), heading, lambda builtin: builtin or self.episode_info())
 
     def episode_info(self):
         # Kodi's video info dialog for the episode: a Python-filled list has no provider to open it
