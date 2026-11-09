@@ -55,5 +55,7 @@ def test_the_repository_add_on_has_both_dirs():
     addon = ElementTree.parse(os.path.join(SRC, 'addon.xml')).getroot()
     dirs = list(addon.iter('dir'))
     assert [d.findtext('info').split('/')[4] for d in dirs] == ['a4kStreaming', 'a4kSubtitles']
-    assert [d.findtext('datadir') for d in dirs] == ['https://github.com/newt-sc/a4kStreaming/archive',
-                                                     'https://github.com/newt-sc/a4kSubtitles/archive']
+    assert [d.findtext('datadir') for d in dirs] == ['https://github.com/a4k-openproject/a4kStreaming/archive',
+                                                     'https://github.com/a4k-openproject/a4kSubtitles/archive']
+    urls = [u.text for d in dirs for u in d]  # all on the projects' owner, never through a rename redirect
+    assert len(urls) == 8 and all(u.split('/')[3] == 'a4k-openproject' for u in urls)
