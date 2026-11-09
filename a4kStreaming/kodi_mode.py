@@ -352,7 +352,7 @@ def autoopen(monitor):
         if xbmc.getCondVisibility('Player.HasMedia') or home.getProperty('a4k.ui.window'):
             return False
         idle = idle + 1 if xbmc.getCondVisibility('Window.IsActive(home) + !System.HasActiveModalDialog') else 0
-        if idle * LOOK >= AUTOOPEN_SETTLE:
+        if (idle - 1) * LOOK >= AUTOOPEN_SETTLE:  # the time since the first idle look, not the count of looks
             xbmc.executebuiltin('RunScript(%s,autoopen)' % kodi.addon_id)
             return True
         if monitor.waitForAbort(LOOK):

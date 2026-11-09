@@ -323,7 +323,7 @@ def autoopen(mode, fake, looks):
 
 HOME_IDLE = 'Window.IsActive(home) + !System.HasActiveModalDialog'
 
-SETTLED = [(HOME_IDLE,)] * 8  # 4 s of looks
+SETTLED = [(HOME_IDLE,)] * 9  # 4 s of looks: the first at 0 s, the ninth at 4 s
 
 def test_it_opens_once_per_session_once_home_stayed_idle(mode, fake):
     turn_on(mode)
@@ -331,6 +331,14 @@ def test_it_opens_once_per_session_once_home_stayed_idle(mode, fake):
     assert autoopen(mode, fake, [(), (HOME_IDLE,), (HOME_IDLE,), ()] + SETTLED)
     assert fake.builtins == ['RunScript(plugin.video.a4kstreaming,autoopen)']
     assert not autoopen(mode, fake, SETTLED) and len(fake.builtins) == 1
+
+def test_home_stays_idle_the_full_settle_before_it_opens(mode, fake):
+    turn_on(mode)
+    mode.kodi.xbmcgui.Window(10000).setProperty(mode.AUTOOPENED, '')  # a new Kodi session
+    waited = []
+    monitor = types.SimpleNamespace(waitForAbort=lambda seconds: waited.append(seconds) and False)
+    fake.conditions = {HOME_IDLE: True}
+    assert mode.autoopen(monitor) and sum(waited) == mode.AUTOOPEN_SETTLE
 
 def test_it_does_not_open_with_the_mode_off_or_a_play(mode, fake):
     assert not autoopen(mode, fake, [(HOME_IDLE,)])
