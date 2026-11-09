@@ -94,6 +94,16 @@ def test_turning_on_records_only_what_it_changes(mode, fake, tmp_path):
     assert 'Action(reloadkeymaps)' in fake.builtins and fake.builtins[-1] == 'Skin.Reset(a4k.kodi_mode)'  # saved to disk
     assert mode.load() == state and mode.status() == 'Active'
 
+def test_a_second_turn_on_keeps_the_saved_originals(mode, fake):
+    # two sheets up at once (a double OK on the settings row, or the home's question next to it), both answered Turn on
+    early = mode.plan()  # planned before either was answered: its favourite toggle would take the tile away again
+    state = turn_on(mode)
+    assert mode.apply(mode.plan()) == state and mode.apply(early) == state and mode.load() == state
+    assert fake.favourites == ['plugin.video.a4kstreaming']
+    mode.restore()
+    assert fake.settings['audiooutput.guisoundmode'] == 1 and fake.settings['lookandfeel.enablerssfeeds'] is True
+    assert fake.bools == {'homemenunomoviebutton'}
+
 def test_the_sheet_lists_each_change(mode, fake):
     lines = [label for label, _ in mode.lines(mode.plan())]
     assert lines == ['Opens a4kStreaming when Kodi starts', "Back on a4kStreaming's home asks first", 'Menu sounds off',

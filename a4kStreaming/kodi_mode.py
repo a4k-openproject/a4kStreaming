@@ -223,7 +223,10 @@ def lines(state):
     return rows + [UNDO]
 
 def apply(state):
-    # the planned changes, the file written before the first one; the file keeps what took
+    # the planned changes, the file written before the first one; the file keeps what took. On already (another sheet
+    # was answered first): nothing, so the saved originals are not overwritten by values the mode set itself
+    if active():
+        return load()
     state = dict((key, value) for key, value in state.items() if key != 'estuary')
     state['v'] = 1
     write(state)
