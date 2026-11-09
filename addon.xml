@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <addon id="plugin.video.a4kstreaming"
        name="a4kStreaming"
-       version="1.72.0"
+       version="1.73.0"
        provider-name="Unknown">
     <requires>
       <import addon="xbmc.python" version="3.0.1"/>
@@ -38,6 +38,14 @@ A TV-style interface of its own: a top shelf and rows, title detail, browse grid
             <screenshot>screenshot-08.jpg</screenshot>
         </assets>
         <news>
+[v1.73.0]:
+  * Fixes Kodi 21 closing by itself after a video, when returning to the home screen
+  * Continue Watching row on Home, resume bars on cards, and Resume or Start over when you play
+  * Back from a video stops it and keeps its place (setting: Back stops playback)
+  * Debrid window: Premiumize downloads and cloud, live; a source waiting for its download can open it
+  * A settings window of its own, with grouped categories and masked keys
+  * Kodi setup mode: Kodi opens into a4kStreaming, its home shows only it, menu sounds off, and it reverts exactly
+  * One loading indicator over the add-on's windows; the classic list interface is gone
 [v1.72.0]:
   * Quick sources: cached sources show in about 2 seconds, with "Search all providers" for the full search
   * Skip intro and Skip recap buttons, and a Next episode countdown at the credits (Auto, Button or Off in settings)

@@ -1,3 +1,11 @@
+* [v1.73.0](https://github.com/newt-sc/a4kStreaming/releases/tag/plugin.video.a4kstreaming%2Fplugin.video.a4kstreaming-1.73.0):
+  * Fixes Kodi 21 closing by itself after a video, when returning to the home screen
+  * Continue Watching row on Home, resume bars on cards, and Resume or Start over when you play
+  * Back from a video stops it and keeps its place (setting: Back stops playback)
+  * Debrid window: Premiumize downloads and cloud, live; a source waiting for its download can open it
+  * A settings window of its own, with grouped categories and masked keys
+  * Kodi setup mode: Kodi opens into a4kStreaming, its home shows only it, menu sounds off, and it reverts exactly
+  * One loading indicator over the add-on's windows; the classic list interface is gone
 * [v1.72.0](https://github.com/newt-sc/a4kStreaming/releases/tag/plugin.video.a4kstreaming%2Fplugin.video.a4kstreaming-1.72.0):
   * Quick sources: cached sources show in about 2 seconds, with "Search all providers" for the full search
   * Skip intro and Skip recap buttons, and a Next episode countdown at the credits (Auto, Button or Off in settings)
