@@ -1,3 +1,7 @@
+* [v1.74.1](https://github.com/newt-sc/a4kStreaming/releases/tag/plugin.video.a4kstreaming%2Fplugin.video.a4kstreaming-1.74.1):
+  * Long-press on a card or an episode opens the add-on's own menu, on Home, Browse, Search and the series page
+  * Info on a card opens its details
+  * Reset resume progress no longer shows an error
 * [v1.74.0](https://github.com/newt-sc/a4kStreaming/releases/tag/plugin.video.a4kstreaming%2Fplugin.video.a4kstreaming-1.74.0):
   * Settings window redesigned for the TV: grouped categories, value chips, Left/Right to change a value, one line of help
   * A Subtitles section: one switch (On, Forced only, Off), preferred and second language, look and timing, a4kSubtitles providers and an Install a4kSubtitles button

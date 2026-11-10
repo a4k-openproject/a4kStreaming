@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <addon id="plugin.video.a4kstreaming"
        name="a4kStreaming"
-       version="1.74.0"
+       version="1.74.1"
        provider-name="Unknown">
     <requires>
       <import addon="xbmc.python" version="3.0.1"/>
@@ -38,6 +38,10 @@ A TV-style interface of its own: a top shelf and rows, title detail, browse grid
             <screenshot>screenshot-08.jpg</screenshot>
         </assets>
         <news>
+[v1.74.1]:
+  * Long-press on a card or an episode opens the add-on's own menu, on Home, Browse, Search and the series page
+  * Info on a card opens its details
+  * Reset resume progress no longer shows an error
 [v1.74.0]:
   * Settings window redesigned for the TV: grouped categories, value chips, Left/Right to change a value, one line of help
   * A Subtitles section: one switch (On, Forced only, Off), preferred and second language, look and timing, a4kSubtitles providers and an Install a4kSubtitles button
