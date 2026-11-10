@@ -964,7 +964,7 @@ def query(core, params):
         if params.target_year:
             url += '&target_year=%s' % params.target_year
 
-        core.kodi.xbmcplugin.addDirectoryItem(core.handle, url, next_list_item, True)
+        core.utils.add_directory_items(core, [(url, next_list_item, True)])
 
     return data if isinstance(data, list) else [data]
 

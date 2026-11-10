@@ -2,15 +2,15 @@
 <!--
   a4kStreaming search (the Apple TV-style search). The same rules as
   a4k-home.xml: 1080p pixels = reference app units x2, no includes and no named colours, Estuary font names, every control places
-  itself (left/top), containers say noop at their edges (a container without an edge action wraps), and the results'
-  <content> sorts by programcount so play and stop do not reload it.
+  itself (left/top), containers say noop at their edges (a container without an edge action wraps). Every list is
+  filled from Python, none is a <content> row: Kodi opens its own context menu on a <content> row's long-press before
+  the window's Python sees the key.
 
   Left: the keyboard, a ten-column panel of 60 x 68 keys at a 68 x 80 step,
   filled by Python. Right: the query line beside the first key row, the facet chips (two rows of three, 300 px at a 316 px
   step) beside the other two. Under them the results, six columns of 216 x 324 posters, two rows on screen (the reference app's 108u
-  search posters). The results are the plugin's own listing at a4k.path; the panel is always visible (a hidden
-  container never takes the items its provider fetched, spike 2b) and its no-op onclick keeps Kodi from opening or
-  playing the item itself; Python handles the select (spike 2c).
+  search posters). The results are the plugin's own listing for a4k.path, built in the window's process; a4k.loading is
+  set while a new search loads. Python handles OK and the long-press.
 -->
 <window>
 	<defaultcontrol>600</defaultcontrol>
@@ -244,7 +244,7 @@
 			<top>582</top>
 			<width>180</width>
 			<height>180</height>
-			<visible>Container(620).IsUpdating + Integer.IsEqual(Container(620).NumItems,0)</visible>
+			<visible>!String.IsEmpty(Window.Property(a4k.loading)) + Integer.IsEqual(Container(620).NumItems,0)</visible>
 			<animation effect="fade" start="0" end="100" time="200" delay="250">Visible</animation>
 			<control type="image">
 				<left>0</left>
@@ -270,7 +270,7 @@
 			<textcolor>80FFFFFF</textcolor>
 			<align>center</align>
 			<label>No titles found</label>
-			<visible>!String.IsEmpty(Window.Property(a4k.path)) + !Container(620).IsUpdating + Integer.IsEqual(Container(620).NumItems,0)</visible>
+			<visible>!String.IsEmpty(Window.Property(a4k.path)) + String.IsEmpty(Window.Property(a4k.loading)) + Integer.IsEqual(Container(620).NumItems,0)</visible>
 		</control>
 		<control type="panel" id="620">
 			<onup>600</onup>
@@ -284,7 +284,6 @@
 			<orientation>vertical</orientation>
 			<scrolltime tween="cubic" easing="out">320</scrolltime>
 			<preloaditems>2</preloaditems>
-			<onclick>SetProperty(a4k.click,620)</onclick>
 			<itemlayout width="288" height="388">
 				<control type="image">
 					<left>48</left>
@@ -498,7 +497,6 @@
 					<label>$INFO[ListItem.Property(a4k.meta)]</label>
 				</control>
 			</focusedlayout>
-			<content target="videos" sortby="programcount">$INFO[Window.Property(a4k.path)]</content>
 		</control>
 		<control type="image">
 			<left>0</left>

@@ -2,12 +2,12 @@
 <!--
   a4kStreaming browse grid (tvOS-like). The same rules as a4k-home.xml: 1080p pixels = reference app units x2, no includes and
   no named colours, Estuary font names, every control places itself (left/top), the panel says noop at its edges (a
-  container without an edge action wraps), and its <content> sorts by programcount so play and stop do not reload it.
+  container without an edge action wraps). The panel is filled from Python, not a <content> row: Kodi opens its own
+  context menu on a <content> row's long-press before the window's Python sees the key.
 
-  The panel is the plugin's own listing at a4k.path (lists, watchlist, recommended, a year, search results, more like
-  this, known for). Python only swaps that path: the listing's Next item for the next page, a list or a person in place,
-  Back for the step before. The panel is always visible: a hidden container never takes the items its provider fetched
-  (spike 2b). Its no-op onclick keeps Kodi from opening or playing the item itself; Python handles the click (spike 2c).
+  The panel is the plugin's own listing (lists, watchlist, recommended, a year, search results, more like this, known
+  for), built in the window's process. Python swaps the listing: the listing's Next item for the next page, a list or a
+  person in place, Back for the step before; a4k.loading is set while one loads. Python handles OK and the long-press.
 
   Six columns of 232 x 348 posters in 296 x 468 slots, captions as on home. Only the poster zooms (1.08 about its
   centre): the captions keep their place, and the zoomed poster, ring and shadow stay inside the slot, clear of the row
@@ -58,7 +58,7 @@
 			<top>450</top>
 			<width>180</width>
 			<height>180</height>
-			<visible>Container(500).IsUpdating + Integer.IsEqual(Container(500).NumItems,0)</visible>
+			<visible>!String.IsEmpty(Window.Property(a4k.loading)) + Integer.IsEqual(Container(500).NumItems,0)</visible>
 			<animation effect="fade" start="0" end="100" time="200" delay="250">Visible</animation>
 			<control type="image">
 				<left>0</left>
@@ -84,7 +84,7 @@
 			<textcolor>80FFFFFF</textcolor>
 			<align>center</align>
 			<label>Nothing here</label>
-			<visible>!Container(500).IsUpdating + Integer.IsEqual(Container(500).NumItems,0)</visible>
+			<visible>String.IsEmpty(Window.Property(a4k.loading)) + Integer.IsEqual(Container(500).NumItems,0)</visible>
 		</control>
 		<control type="panel" id="500">
 			<onup>520</onup>
@@ -98,7 +98,6 @@
 			<orientation>vertical</orientation>
 			<scrolltime tween="cubic" easing="out">320</scrolltime>
 			<preloaditems>2</preloaditems>
-			<onclick>SetProperty(a4k.click,500)</onclick>
 			<itemlayout width="296" height="468">
 				<control type="group">
 					<left>0</left>
@@ -394,7 +393,6 @@
 					</control>
 				</control>
 			</focusedlayout>
-			<content target="videos" sortby="programcount">$INFO[Window.Property(a4k.path)]</content>
 		</control>
 		<!-- the category's year chips: Up from the grid's first row reveals them, shown only while they hold
 		  focus (as the home's menu); All Years then this year back to 1970, the chosen one marked current -->

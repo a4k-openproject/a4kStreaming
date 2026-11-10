@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 # Search window (a4k-search.xml), in the Apple TV style: an on-screen QWERTY keyboard, the query line, the facet
 # chips (Type, Genre, Era, Rating, Country, Clear) and a six-column results grid that follows the typing after a 500 ms
-# pause. The results are the plugin's own listing, loaded by Kodi from the a4k.path property (<content>): text alone is
-# IMDb's title search (type=find), any facet the advanced title search (type=facets), whose page grows as focus nears the
-# end. A window error is logged and closes the window.
+# pause. The results are the plugin's own listing, built in this process and filled from Python (grid.load), so a
+# long-press on a result opens the add-on's sheet: text alone is IMDb's title search (type=find), any facet the advanced
+# title search (type=facets), whose page grows as focus nears the end. A window error is logged and closes the window.
 
 import threading
 import traceback
@@ -11,7 +11,7 @@ from urllib.parse import urlencode
 
 from ..lib import kodi, logger
 from .. import imdb
-from . import app, home
+from . import app, grid, home
 
 KEYS = 600
 FACETS = 610
@@ -75,6 +75,7 @@ class Search(kodi.xbmcgui.WindowXML):
     filters = None
     count = 0
     path = ''
+    items = ()  # the results as [(url, list_item, is_folder, menu)], in the panel's order (grid.load)
 
     def onInit(self):
         # runs again on every return (after detail or playback): no network, nothing to undo
@@ -195,10 +196,17 @@ class Search(kodi.xbmcgui.WindowXML):
         self.count = self.count + imdb.SEARCH_PAGE if more else imdb.SEARCH_PAGE
         path = url(self.query, self.filters, self.count)
         if path and path != self.path:
-            if not more:
-                self.getControl(RESULTS).selectItem(0)
+            position = self.position() if more else 0
+            if not more:  # a new search empties the results (the loader shows); a longer page replaces them in place
+                self.items = ()
+                self.getControl(RESULTS).reset()
+                self.setProperty('a4k.loading', 'true')
             self.path = path
             self.setProperty('a4k.path', path)
+            home.spawn(self, grid.load, self, RESULTS, path, position, self.getFocusId() == RESULTS)
+
+    def position(self):
+        return self.getControl(RESULTS).getSelectedPosition()
 
     def onAction(self, action):
         try:
@@ -210,19 +218,21 @@ class Search(kodi.xbmcgui.WindowXML):
             if action_id in home.ACTION_MOVES:
                 self.moved()
             elif action_id in (home.ACTION_SELECT_ITEM, home.ACTION_MOUSE_LEFT_CLICK):
-                # a provider list: Kodi sends no click to Python (spike 2c)
                 info = home.labels('Container(%s).ListItem' % RESULTS)
                 if info['Property(a4k.type)']:
                     home.select(info)
+            elif action_id == home.ACTION_CONTEXT_MENU:
+                grid.menu(self, RESULTS)
+            elif action_id == grid.ACTION_SHOW_INFO:
+                grid.info(self, RESULTS)
         except Exception:
             self.__fail()
 
     def moved(self):
         self.dwell()
         # a facet search whose page came back full may have more: ask for the next page before focus gets to the end
-        count = int(kodi.xbmc.getInfoLabel('Container(%s).NumItems' % RESULTS) or 0)
-        position = int(kodi.xbmc.getInfoLabel('Container(%s).CurrentItem' % RESULTS) or 1) - 1
-        if 'type=facets' in self.path and count >= self.count and count - position <= NEAR_END and self.count < imdb.SEARCH_MAX:
+        count = len(self.items)
+        if 'type=facets' in self.path and count >= self.count and count - self.position() <= NEAR_END and self.count < imdb.SEARCH_MAX:
             self.apply(more=True)
 
     def dwell(self):

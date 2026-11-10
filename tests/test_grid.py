@@ -132,62 +132,92 @@ def test_home_row_next_item_opens_the_rest_of_the_row(core, home, labels, shown)
 
 # B. the grid window
 
+FAN = PLUGIN + '?action=query&type=fan_picks&widget=1'
+
 @pytest.fixture
-def opened(core, grid, monkeypatch):
+def listings(core, detail, monkeypatch):
+    # what core.listing_items answers per path, built in the window's process; a test fills it, [] otherwise
+    answers = {}
+    monkeypatch.setattr(detail.plugin_core(), 'listing_items', lambda path: answers.get(path, []))
+    return answers
+
+@pytest.fixture
+def opened(core, grid, listings, monkeypatch):
     # open() runs the window the way Kodi would: onInit; the window is kept for the test
     monkeypatch.setattr(grid.home, 'spawn', Spawned())  # the window's threads run at once
     windows = []
     monkeypatch.setattr(grid.Grid, 'doModal', lambda self: windows.append(self) or self.onInit())
     return windows
 
+def card(type='', path='', label='', id='', menu=()):
+    # a listing entry as core.listing_items answers it: (url, list_item, is_folder, menu rows)
+    item = importlib.import_module('a4kStreaming.lib.kodi').xbmcgui.ListItem(label=label, offscreen=True)
+    item.setProperty('a4k.type', type)
+    item.setProperty('a4k.id', id)
+    return (path, item, type != 'movie', list(menu))
+
+def page(count, next=None):
+    return [card('movie', PLUGIN + '?action=play&id=tt%s' % n, 'Title %s' % n, 'tt%s' % n) for n in range(count)] + \
+        ([card(path=next, label='Next')] if next else [])
+
 class Panel(object):
-    # the grid's panel as Python sees a provider list: no position (getSelectedPosition is -1), selectItem works
-    def __init__(self): self.selected = []
-    def getSelectedPosition(self): return -1
+    # the grid's panel as Python fills it: its items and its cursor
+    def __init__(self): self.items, self.selected, self.position = [], [], 0
+    def reset(self): self.items = []
+    def addItems(self, items): self.items.extend(items)
+    def getSelectedPosition(self): return self.position if self.items else -1
     def selectItem(self, index): self.selected.append(index)
 
-def window(grid, opened, monkeypatch, path=PLUGIN + '?action=query&type=fan_picks&widget=1', title='Fan Favorites',
-           kicker='Browse'):
+def window(grid, opened, monkeypatch, path=FAN, title='Fan Favorites', kicker='Browse'):
+    panel, controls = Panel(), {}
+    monkeypatch.setattr(grid.Grid, 'getControl', lambda self, id: panel if id == grid.PANEL else controls.setdefault(
+        id, importlib.import_module('a4kStreaming.lib.kodi_mock').ControlList()))
     grid.show(path, title, kicker)
     win = opened[0]
     win.closed = False  # the mock doModal has returned
-    panel = Panel()
-    monkeypatch.setattr(win, 'getControl', lambda id: panel if id == grid.PANEL else pytest.fail(id))
-    monkeypatch.setattr(win, 'refocus', lambda: None)  # test_focus_comes_back_* drives it
     win.setFocusId(grid.PANEL)
     return win, panel
 
-def test_grid_paints_its_header_and_listing(core, grid, opened):
-    grid.show(PLUGIN + '?action=query&type=fan_picks&widget=1', 'Fan Favorites', 'Browse')
-    win = opened[0]
-    assert win.error is None and win.steps == []
-    assert {k: win.getProperty('a4k.' + k) for k in ('kicker', 'title', 'page', 'path')} == {
-        'kicker': 'BROWSE', 'title': 'Fan Favorites', 'page': '', 'path': PLUGIN + '?action=query&type=fan_picks&widget=1'}
+def test_grid_paints_its_header_and_listing(core, grid, opened, listings, monkeypatch):
+    listings[FAN] = page(3)
+    win, panel = window(grid, opened, monkeypatch)
+    assert win.error is None and win.steps == [] and win.path == FAN
+    assert {k: win.getProperty('a4k.' + k) for k in ('kicker', 'title', 'page', 'loading')} == {
+        'kicker': 'BROWSE', 'title': 'Fan Favorites', 'page': '', 'loading': ''}
+    assert panel.items == [item for _, item, _, _ in listings[FAN]] and win.items == listings[FAN]
+    assert [item.getPath() for item in panel.items] == [url for url, _, _, _ in listings[FAN]]  # ListItem.FolderPath
     assert core.kodi.xbmcgui.Window(10000).getProperty('a4k.ui.window') == '10025'
+    win.onInit()  # back from a detail or a play: nothing reloads
+    assert panel.selected == [0]
 
-def test_next_item_pages_forward_and_back_walks_back(core, grid, opened, labels, monkeypatch):
+def test_next_item_pages_forward_and_back_walks_back(core, grid, opened, listings, labels, monkeypatch):
     closed = []
     monkeypatch.setattr(grid.Grid, 'close', lambda self: closed.append(True))
+    listings[FAN], listings[NEXT + '&widget=1'] = page(30, NEXT), page(5)
     win, panel = window(grid, opened, monkeypatch)
-    labels.update({'Container(500).ListItem.FolderPath': NEXT, 'Container(500).CurrentItem': '30'})
+    labels.update({'Container(500).ListItem.FolderPath': NEXT})
+    panel.position = 30
     win.onAction(Action(7))
-    assert win.getProperty('a4k.path') == NEXT + '&widget=1' and win.getProperty('a4k.page') == 'Page 2'
-    assert win.getProperty('a4k.title') == 'Fan Favorites' and panel.selected == [0]  # the new page starts at the top
-    labels['Container(500).CurrentItem'] = '5'
+    assert win.path == NEXT + '&widget=1' and win.getProperty('a4k.page') == 'Page 2'
+    assert win.getProperty('a4k.title') == 'Fan Favorites' and panel.selected == [0, 0]  # the new page starts at the top
+    assert win.items == listings[NEXT + '&widget=1'] and len(panel.items) == 5
+    panel.position = 4
     win.onAction(Action(92))
-    assert win.getProperty('a4k.path') == PLUGIN + '?action=query&type=fan_picks&widget=1' and win.getProperty('a4k.page') == ''
-    assert panel.selected == [0, 29] and closed == []  # back on the Next item it came from
+    assert win.path == FAN and win.getProperty('a4k.page') == '' and len(panel.items) == 31
+    assert panel.selected == [0, 0, 30] and closed == []  # back on the Next item it came from
     win.onAction(Action(10))
     assert closed == [True] and win.error is None
 
-def test_a_list_opens_in_place_with_its_name(core, grid, opened, labels, monkeypatch):
-    win, panel = window(grid, opened, monkeypatch, PLUGIN + '?action=query&type=lists&widget=1', 'Lists', '')
+def test_a_list_opens_in_place_with_its_name(core, grid, opened, listings, labels, monkeypatch):
+    lists = PLUGIN + '?action=query&type=lists&widget=1'
     path = PLUGIN + '?action=query&type=list&id=ls1'
-    labels.update({'Container(500).ListItem.FolderPath': path, 'Container(500).ListItem.Label': 'Weekend',
-                   'Container(500).CurrentItem': '3'})
+    listings[lists] = [card(path=path, label='Weekend')] * 3
+    win, panel = window(grid, opened, monkeypatch, lists, 'Lists', '')
+    labels.update({'Container(500).ListItem.FolderPath': path, 'Container(500).ListItem.Label': 'Weekend'})
+    panel.position = 2
     win.onAction(Action(7))
-    assert (win.getProperty('a4k.title'), win.getProperty('a4k.kicker'), win.getProperty('a4k.path')) == ('Weekend', '', path + '&widget=1')
-    assert win.steps == [(PLUGIN + '?action=query&type=lists&widget=1', 'Lists', '', 2)]
+    assert (win.getProperty('a4k.title'), win.getProperty('a4k.kicker'), win.path) == ('Weekend', '', path + '&widget=1')
+    assert win.steps == [(lists, 'Lists', '', 2)]
 
 def test_select_routes_titles_people_and_episodes(core, grid, home, opened, labels, calls, notes, monkeypatch):
     selected = []
@@ -204,34 +234,70 @@ def test_select_routes_titles_people_and_episodes(core, grid, home, opened, labe
     win.select(item())  # an empty item does nothing
     assert len(win.steps) == 1
 
-def test_focus_near_the_end_prefetches_the_next_page_once(core, grid, opened, labels, monkeypatch):
+def test_focus_near_the_end_prefetches_the_next_page_once(core, grid, opened, listings, monkeypatch):
     rpc = []
     monkeypatch.setattr(core.kodi, 'json_rpc', lambda method, params, log_error=True: rpc.append((method, params['directory'])))
+    listings[FAN] = page(30, NEXT)
     win, panel = window(grid, opened, monkeypatch)
-    labels.update({'Container(500).NumItems': '31', 'Container(500).ListItemAbsolute(30).FolderPath': NEXT,
-                   'Container(500).CurrentItem': '6'})
+    panel.position = 5
     win.onAction(Action(4))
     assert rpc == []
-    labels['Container(500).CurrentItem'] = '20'  # two rows of six from the Next item
+    panel.position = 19  # two rows of six from the Next item
     win.onAction(Action(4))
     win.onAction(Action(3))
     assert rpc == [('Files.GetDirectory', NEXT + '&widget=1')] and win.error is None
 
-@pytest.mark.parametrize('counts, focused', [
-    (['0', '0', '30'], [500]),  # back from an empty page: Kodi dropped focus, the items come, the panel gets it
-    (['30'], [500]),            # the panel is the only focusable control: focusing it again moves nothing
-    (['0'] * 200, []),          # still empty after 15 s: give up
-])
-def test_focus_comes_back_when_items_come(core, grid, opened, labels, monkeypatch, counts, focused):
+def test_an_answer_for_a_page_the_grid_left_is_dropped(core, grid, opened, listings, labels, monkeypatch):
+    listings[FAN], listings[NEXT + '&widget=1'] = page(30, NEXT), page(5)
     win, panel = window(grid, opened, monkeypatch)
-    sleeps, calls = [], []
-    monkeypatch.setattr(core.kodi.xbmc, 'sleep', lambda ms: sleeps.append(ms))
-    monkeypatch.setattr(core.kodi.xbmc, 'getInfoLabel', lambda label: counts.pop(0) if label == 'Container(500).NumItems' else '')
-    monkeypatch.setattr(win, 'setFocusId', calls.append)
-    win.wait_and_focus(win.path)
-    assert calls == focused and len(sleeps) <= 150
-    win.wait_and_focus('another page')  # a later step owns the focus now
-    assert calls == focused
+    monkeypatch.setattr(grid.home, 'spawn', Spawned(run=False))
+    loads = grid.home.spawn
+    labels.update({'Container(500).ListItem.FolderPath': NEXT})
+    win.onAction(Action(7))
+    assert panel.items == [] and win.getProperty('a4k.loading') == 'true'  # the loader shows until the page is in
+    win.onAction(Action(92))
+    loads[0].fire()  # the Next page answers after Back
+    assert panel.items == [] and win.items == ()
+    loads[1].fire()
+    assert len(panel.items) == 31 and win.getProperty('a4k.loading') == ''
+
+@pytest.mark.parametrize('focus, focused', [
+    (500, 500),  # a step from the panel: Kodi drops the focus of the emptied panel, the items bring it back
+    (520, 520),  # a year chip picked: the chips keep it
+])
+def test_the_panel_takes_focus_once_its_items_are_in(core, grid, opened, listings, monkeypatch, focus, focused):
+    listings[FAN] = page(3)
+    win, panel = window(grid, opened, monkeypatch)
+    win.setFocusId(focus)
+    win.fill()
+    assert win.getFocusId() == focused and len(panel.items) == 3
+
+def test_long_press_opens_the_add_ons_sheet_with_the_titles_rows(core, grid, home, opened, listings, calls, monkeypatch):
+    sheets = []
+    monkeypatch.setattr(home, 'menu', lambda rows, id, title, ran=None: sheets.append((rows, id, title, ran)))
+    info = []
+    monkeypatch.setattr(core.kodi.xbmcgui, 'Dialog', lambda: SimpleNamespace(info=info.append))
+    rows = [('Play from here', 'PlayMedia(x,noresume)'), ('Episode details', 'Action(Info)')]
+    listings[FAN] = [card('tvEpisode', 'x', 'S1 E1 Pilot', 'tt7', rows), card('person', 'p', 'Ana Torres', 'nm1'), card(path=NEXT, label='Next')]
+    win, panel = window(grid, opened, monkeypatch)
+    win.onAction(Action(home.ACTION_CONTEXT_MENU))
+    (shown, id, title, ran), = sheets
+    assert shown == [('Play from here', 'PlayMedia(x,noresume)'), ('Episode details', '')] and (id, title) == ('tt7', 'S1 E1 Pilot')
+    ran('')  # Episode details: Kodi's info dialog, opened here (an Action(Info) sent while the sheet closes is dropped)
+    assert info == [panel.items[0]] and calls == []
+    win.onAction(Action(grid.ACTION_SHOW_INFO))  # the Info key
+    assert info == [panel.items[0]] * 2
+    for position in (1, 2):  # a person and the Next item have no rows and no info
+        panel.position = position
+        win.onAction(Action(home.ACTION_CONTEXT_MENU))
+        win.onAction(Action(grid.ACTION_SHOW_INFO))
+    assert len(sheets) == 1 and len(info) == 2 and win.error is None
+
+def test_a_failed_listing_is_logged_and_the_loader_goes(core, grid, opened, detail, errors, monkeypatch):
+    def broken(path): raise RuntimeError('offline')
+    monkeypatch.setattr(detail.plugin_core(), 'listing_items', broken)
+    win, panel = window(grid, opened, monkeypatch)
+    assert len(errors) == 1 and win.getProperty('a4k.loading') == '' and win.error is None
 
 def test_moves_outside_the_panel_are_ignored(core, grid, opened, monkeypatch):
     win, panel = window(grid, opened, monkeypatch)
@@ -506,18 +572,14 @@ def test_panel_is_wrappable_and_keeps_focus_in(grid):
     panel = [c for c in window.iter('control') if c.get('id') == str(grid.PANEL)][0]
     assert panel.get('type') == 'panel' and window.findtext('defaultcontrol') == str(grid.PANEL)
     assert all(panel.findtext(edge) == 'noop' for edge in ('ondown', 'onleft', 'onright'))
-    # a provider list hands select to Kodi unless the container has its own onclick (spike 2c)
-    assert panel.findtext('onclick')
+    # Python fills it and handles OK: no <content> row (Kodi's own context menu), no onclick
+    assert panel.find('content') is None and panel.find('onclick') is None
     # up reaches the category's year chips, which say noop at their own edges and go back down to the panel
     years = [c for c in window.iter('control') if c.get('id') == str(grid.YEARS)][0]
     assert panel.findtext('onup') == str(grid.YEARS) and years.findtext('ondown') == str(grid.PANEL)
     assert all(years.findtext(edge) == 'noop' for edge in ('onup', 'onleft', 'onright'))
     focusable = [c for c in window.iter('control') if c.get('type') in ('list', 'panel', 'button', 'wraplist', 'fixedlist')]
     assert focusable == [panel, years]
-
-def test_panel_lists_the_path_property(grid):
-    content = root().find(".//control[@id='500']/content")
-    assert content.text.strip() == '$INFO[Window.Property(a4k.path)]' and content.get('target') == 'videos'
 
 def test_every_property_the_xml_reads_is_set(core, grid, opened):
     grid.show(NEXT, 'Fan Favorites', 'Browse')

@@ -246,7 +246,9 @@ def __popular(core, **extra):
 @pytest.fixture
 def next_urls(core, monkeypatch):
     urls = []
-    monkeypatch.setattr(core.kodi.xbmcplugin, 'addDirectoryItem', lambda handle, url, item, folder: urls.append(url))
+    # the Next item, added after the titles
+    monkeypatch.setattr(core.kodi.xbmcplugin, 'addDirectoryItems', lambda handle, items, count: urls.extend(
+        url for url, item, _ in items if item.getLabel() == 'Next'))
     return urls
 
 def __keys(store, prefix='graphql.imdb.com_'):
@@ -323,6 +325,25 @@ def test_next_item_carries_page_and_cursor_time(core, request_module, monkeypatc
     assert params['paginationToken'] == 'a+b/c=='
     assert params['page'] == '3'
     assert abs(int(params['cursor_time']) - core.time.time()) < 5
+
+def test_listing_items_builds_the_listing_in_process(core, request_module, monkeypatch, mem_db):
+    # the add-on's windows fill their lists with these (core.listing_items): the titles with their menu rows, then Next,
+    # nothing handed to Kodi
+    settings(core, monkeypatch)
+    fake_session(request_module, monkeypatch, [__page(cursor='c2', title_id='tt1')])
+    for name in ('addDirectoryItem', 'addDirectoryItems', 'setContent', 'setResolvedUrl', 'addSortMethod'):
+        monkeypatch.setattr(core.kodi.xbmcplugin, name, lambda *a, **k: pytest.fail('handed to Kodi'))
+    items = core.listing_items('plugin://plugin.video.a4kstreaming/?action=query&type=popularMovies&widget=1')
+    (url, title, folder, menu), (next_url, next_item, next_folder, next_menu) = items
+    assert title.getProperty('a4k.id') == 'tt1' and folder is False and menu == title.context_menu
+    assert ('Add to watchlist', 'RunPlugin(%s?action=profile&type=watchlist_add&id=tt1)' % core.url) in menu
+    assert next_item.getLabel() == 'Next' and 'paginationToken=c2' in next_url and next_folder and next_menu == []
+    assert not core.utils.collecting()
+    # a listing that needs the IMDb login says so and answers no plugin call
+    notes = []
+    monkeypatch.setattr(core.kodi, 'notification', lambda text, time=3000: notes.append(text))
+    assert core.listing_items('plugin://plugin.video.a4kstreaming/?action=query&type=watchlist&widget=1') == []
+    assert notes == ['Missing IMDb authentication cookies']
 
 def test_expired_cursor_walks_from_the_first_page(core, request_module, monkeypatch, mem_db):
     settings(core, monkeypatch)

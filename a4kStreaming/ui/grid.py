@@ -1,7 +1,9 @@
 # -*- coding: utf-8 -*-
 # Browse grid (a4k-grid.xml): one window for the Browse tiles (lists, watchlist, recommended, a year, search results,
 # the public lists), more like this, a person's known-for titles and the rest of a home row. Its items are the
-# plugin's own listing, loaded by Kodi from the a4k.path property (<content>).
+# plugin's own listing, built in this process (load) and filled from Python, so a long-press on a card reaches onAction
+# and opens the add-on's sheet: Kodi runs its own context menu for a <content> row before the window's Python sees the
+# key, and has none for a Python-filled list.
 # The listing's Next item pages forward and a list or a person opens in place; Back walks those steps back, then closes.
 # A window error is logged and closes the window.
 
@@ -19,6 +21,8 @@ NEAR_END = 12  # two rows of six: focus this close to a Next item fetches the ne
 # the category galleries (the home's tabs) take year chips: All Years, then this year back to 1970
 CATEGORIES = ('popularMovies', 'popularTVShows', 'popularAnimations', 'popularAnimationTVShows', 'popularRealityTVShows')
 FIRST_YEAR = 1970
+ACTION_SHOW_INFO = 11  # the Info key
+FILL = threading.Lock()  # one listing goes into a panel at a time (a step and a late answer race)
 
 def category(path):
     match = re.search(r'[?&]type=(\w+)', path)
@@ -48,6 +52,55 @@ def prefetch_page(path):
     except Exception:
         logger.debug(traceback.format_exc())
 
+def load(window, panel, path, position=0, focus=False):
+    # the listing at path into the window's panel (grid and search), asked on a window thread: the plugin's own items,
+    # built here (core.listing_items) as window.items [(url, list_item, is_folder, menu)]. An answer for a path the
+    # window has left is dropped. The cursor goes to position; focus gives the panel focus once it has items (Kodi
+    # drops it from an emptied list, and getFocusId() still answers the panel, seen live).
+    from . import detail
+    try:
+        core = detail.plugin_core()
+        items = core.listing_items(path)
+        with FILL:
+            if window.closed or window.path != path:
+                return
+            for url, item, _, _ in items:
+                item.setPath(url)  # ListItem.FolderPath, which select reads, and the info dialog's play
+            control = window.getControl(panel)
+            control.reset()
+            control.addItems([item for _, item, _, _ in items])
+            window.items = items
+            control.selectItem(max(min(position, len(items) - 1), 0))
+            window.setProperty('a4k.loading', '')
+            if focus and items:
+                window.setFocusId(panel)
+        core.request.revalidate(core)  # a stale page answered from the cache is asked again, now that it shows
+    except Exception:
+        logger.error('listing failed: %s' % traceback.format_exc())
+        if window.path == path:
+            window.setProperty('a4k.loading', '')
+
+def entry(window, panel):
+    # the panel's selected item as (url, list_item, is_folder, menu); None on an empty panel
+    index = window.getControl(panel).getSelectedPosition()
+    return window.items[index] if 0 <= index < len(window.items) else None
+
+def menu(window, panel):
+    # long-press on a card: the add-on's sheet with the listing's rows for it; nothing for a person, a list or Next.
+    # Episode details opens Kodi's info dialog itself: Kodi drops an Action(Info) sent while the sheet closes
+    from . import detail
+    selected = entry(window, panel)
+    if selected and selected[3]:
+        item = selected[1]
+        rows = [(label, '' if builtin == detail.INFO else builtin) for label, builtin in selected[3]]
+        home.menu(rows, item.getProperty('a4k.id'), item.getLabel(), lambda builtin: builtin or info(window, panel))
+
+def info(window, panel):
+    # Kodi's video info dialog for a title: a Python-filled list has no provider to open it
+    selected = entry(window, panel)
+    if selected and selected[1].getProperty('a4k.type') not in ('', 'person'):
+        kodi.xbmcgui.Dialog().info(selected[1])
+
 class Grid(kodi.xbmcgui.WindowXML):
     error = None
     closed = False
@@ -60,6 +113,8 @@ class Grid(kodi.xbmcgui.WindowXML):
     kicker = ''
     steps = None  # the (path, title, kicker, position) of every page or list under the one shown
     year = None  # the chosen year chip ('' for All Years) once the chips are filled
+    items = ()  # the shown listing as [(url, list_item, is_folder, menu)], in the panel's order (load)
+    started = False
 
     def go(self, path, title, kicker=''):
         self.path, self.title, self.kicker = widget(path), title, kicker
@@ -67,14 +122,25 @@ class Grid(kodi.xbmcgui.WindowXML):
         self.setProperty('a4k.kicker', kicker.upper())
         self.setProperty('a4k.title', title)
         self.setProperty('a4k.page', 'Page %s' % page if page > 1 else '')
-        self.setProperty('a4k.path', self.path)
+
+    def fill(self, position=0):
+        # the shown path's listing: the panel empties (the loader shows) until it is in, then takes focus unless the
+        # year chips hold it (the panel is the only other control that takes focus)
+        focus = self.getFocusId() != YEARS
+        self.items = ()
+        self.getControl(PANEL).reset()
+        self.setProperty('a4k.loading', 'true')
+        home.spawn(self, load, self, PANEL, self.path, position, focus)
 
     def onInit(self):
-        # runs again on every return (after detail, playback or a listing): no network, nothing to undo
+        # runs again on every return (after detail, playback or a listing): only the first asks for the listing
         try:
             self.getControl(PANEL)  # raises when the XML did not load
             kodi.xbmcgui.Window(app.HOME_WINDOW).setProperty(app.OPEN_WINDOW, str(kodi.xbmcgui.getCurrentWindowId()))
             kodi.busy_live()  # clears a stale loader stamp (home.run), which the skin would keep drawn
+            if not self.started:  # a return keeps its items: play and stop reload nothing
+                self.started = True
+                self.fill()
             if self.year is None and category(self.path):
                 self.year = ''
                 self.setProperty('a4k.years', 'true')
@@ -111,8 +177,8 @@ class Grid(kodi.xbmcgui.WindowXML):
         for index, chip in enumerate(year_chips()):
             chips.getListItem(index).setProperty('on', 'true' if chip == year else '')
         self.steps = []
-        self.getControl(PANEL).selectItem(0)
         self.go(year_path(self.path, year), self.title, year)
+        self.fill()
 
     def onAction(self, action):
         try:
@@ -124,8 +190,12 @@ class Grid(kodi.xbmcgui.WindowXML):
             if action_id in home.ACTION_MOVES:
                 self.moved()
             elif action_id in (home.ACTION_SELECT_ITEM, home.ACTION_MOUSE_LEFT_CLICK):
-                # a provider list: Kodi sends no click to Python (spike 2c); the item's InfoLabels say what it is
+                # the item's InfoLabels say what it is
                 self.select(home.labels('Container(%s).ListItem' % PANEL))
+            elif action_id == home.ACTION_CONTEXT_MENU:
+                menu(self, PANEL)
+            elif action_id == ACTION_SHOW_INFO:
+                info(self, PANEL)
         except Exception:
             self.__fail()
 
@@ -143,53 +213,26 @@ class Grid(kodi.xbmcgui.WindowXML):
             self.step(path, info['Label'], self.kicker)
 
     def position(self):
-        # the focused index; Python's getSelectedPosition() answers -1 for items a provider added (seen live)
-        return int(kodi.xbmc.getInfoLabel('Container(%s).CurrentItem' % PANEL) or 1) - 1
+        return self.getControl(PANEL).getSelectedPosition()
 
     def step(self, path, title, kicker):
-        # forward to the next page, a list or a person: the new listing keeps the selected index, so start it at the top
+        # forward to the next page, a list or a person, from its top
         self.steps.append((self.path, self.title, self.kicker, self.position()))
-        self.getControl(PANEL).selectItem(0)
         self.go(path, title, kicker)
-        self.refocus()
+        self.fill()
 
     def back(self):
         if not self.steps:
             return self.close()
         path, title, kicker, position = self.steps.pop()
-        self.getControl(PANEL).selectItem(position)  # kept by the listing that comes back
         self.go(path, title, kicker)
-        self.refocus()
-
-    def refocus(self):
-        home.spawn(self, self.wait_and_focus, self.path)
-
-    def wait_and_focus(self, path):
-        # An empty listing cannot keep focus: Kodi drops it (and logs that it cannot focus the panel), and nothing gives
-        # it back when Back or Next brings items again. Wait for them (100 ms looks, 15 s at most), then focus the panel.
-        # ponytail: a poll, as for the home's top shelf; Kodi sends a script window no event when a list fills.
-        try:
-            for _ in range(150):
-                if self.closed or path != self.path:
-                    return
-                if kodi.xbmc.getInfoLabel('Container(%s).NumItems' % PANEL) not in ('', '0'):
-                    break
-                kodi.xbmc.sleep(100)
-            else:
-                return
-            if not self.closed:
-                # unconditionally: getFocusId() still answers 500 after Kodi dropped the focus (seen live), and the
-                # panel is the only control that takes focus, so this never moves it anywhere else
-                self.setFocusId(PANEL)
-        except Exception:
-            logger.debug(traceback.format_exc())
+        self.fill(position)  # back on the item it stepped from
 
     def moved(self):
         self.dwell()
-        count = int(kodi.xbmc.getInfoLabel('Container(%s).NumItems' % PANEL) or 0)
-        if count - self.position() > NEAR_END:
+        if not self.items or len(self.items) - self.position() > NEAR_END:
             return
-        last = kodi.xbmc.getInfoLabel('Container(%s).ListItemAbsolute(%s).FolderPath' % (PANEL, count - 1))
+        last = self.items[-1][0]
         if 'paginationToken=' in last and last != self.prefetched:
             self.prefetched = last
             home.spawn(self, prefetch_page, last)  # holds no window, but the window's close waits for it all the same
@@ -221,6 +264,7 @@ def show(path, title, kicker=''):
         window.stopped = threading.Event()
         # a reopened add-on (after the Home key) comes back to this window, not to the one under it
         window.setProperty('a4k.home', 'true')
+        window.setProperty('a4k.loading', 'true')  # the loader, not "Nothing here", until onInit asks for the listing
         window.steps = []
         window.go(path, title, kicker)
         home.modal(window)

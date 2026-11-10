@@ -10,6 +10,7 @@ import zipfile
 import shutil
 import tempfile
 import time
+import threading
 import hashlib
 import unicodedata
 from datetime import date, timedelta
@@ -371,14 +372,35 @@ def cleanup_result(result, no_meta=False):
     result['title'] += '  |  %s' % result['release_title']
 
 def end_action(core, success, item=None):
+    if collecting():
+        return  # no plugin call to answer: the listing runs in an add-on window's process
     if not item:
         item = core.kodi.xbmcgui.ListItem(offscreen=True)
     core.kodi.xbmcplugin.setResolvedUrl(core.handle, success, item)
 
+__collected = threading.local()  # collect(): the calling thread's directory items
+
+def collect(listing, *args):
+    # a listing run in the calling process (an add-on window fills its own list): its directory items as [(url,
+    # list_item, is_folder, context menu rows)], never handed to Kodi
+    __collected.items = []
+    try:
+        listing(*args)
+        return __collected.items
+    finally:
+        __collected.items = None
+
+def collecting():
+    return getattr(__collected, 'items', None) is not None
+
 def add_directory_items(core, list_items):
-    # the content type goes in before the items, then the whole batch at once
+    # (url, list_item, is_folder[, context menu rows]) each: the content type goes in before the items, then the whole
+    # batch at once; under collect() they go to its caller instead
+    if collecting():
+        __collected.items.extend((url, item, folder, rest[0] if rest else []) for url, item, folder, *rest in list_items)
+        return
     core.kodi.xbmcplugin.setContent(core.handle, core.contentType)
-    core.kodi.xbmcplugin.addDirectoryItems(core.handle, list_items, len(list_items))
+    core.kodi.xbmcplugin.addDirectoryItems(core.handle, [item[:3] for item in list_items], len(list_items))
 
 def generic_list_items(core, items):
     list_items = []

@@ -165,7 +165,8 @@ def test_type_key_opens_kodis_keyboard_and_searches_at_once(core, search, timers
     win = window(search)
     win.press('type')
     assert win.getProperty('a4k.path') == PLUGIN + '?action=query&type=find&query=Le+Mans&widget=1'
-    assert timers[-1].cancel.is_set()
+    assert [t.cancel.is_set() for t in timers if t.delay] == [True]  # the typing pause; the listing loads at once
+    assert timers[-1].args[1:] == (search.RESULTS, win.path, 0, False)  # from the top, the keys keep focus
 
 @pytest.mark.parametrize('query,filters,count,expected', [
     ('', {}, 0, ''),
@@ -259,19 +260,41 @@ def test_results_select_opens_detail_and_back_closes(core, search, home, monkeyp
     win.onAction(type('A', (), {'getId': lambda self: home.ACTION_NAV_BACK})())
     assert closed == [True] and win.error is None
 
+def test_results_fill_from_python_and_a_long_press_opens_the_add_ons_sheet(core, search, home, monkeypatch):
+    sheets = []
+    monkeypatch.setattr(home, 'menu', lambda rows, id, title, ran=None: sheets.append((rows, id, title)))
+    rows = [('Rate', 'RunPlugin(x)')]
+    item = core.kodi.xbmcgui.ListItem(label='Heat', offscreen=True)
+    item.setProperty('a4k.id', 'tt9')
+    item.setProperty('a4k.type', 'movie')
+    monkeypatch.setattr(importlib.import_module('a4kStreaming.ui.detail').plugin_core(), 'listing_items',
+                        lambda path: [('u', item, False, rows)] if 'query=h&' in path else [])
+    monkeypatch.setattr(search.home, 'spawn', Spawned())  # the pause and the load run at once
+    win = window(search)
+    win.press('h')
+    assert win.getControl(search.RESULTS).items == [item] and win.items == [('u', item, False, rows)]
+    assert win.getProperty('a4k.loading') == '' and win.getFocusId() == search.KEYS  # typing keeps the keys
+    win.setFocusId(search.RESULTS)
+    win.onAction(type('A', (), {'getId': lambda self: home.ACTION_CONTEXT_MENU})())
+    assert sheets == [(rows, 'tt9', 'Heat')] and win.error is None
+
 def test_results_ask_for_more_near_the_end_of_a_full_facet_page(core, search, timers, monkeypatch):
-    values = {}
-    monkeypatch.setattr(core.kodi.xbmc, 'getInfoLabel', lambda label: values.get(label, ''))
     win = window(search)
     win.filters['genre'] = ['Action']
     win.apply()
-    values.update({'Container(620).NumItems': '36', 'Container(620).CurrentItem': '20'})
+    at = [19]
+    monkeypatch.setattr(win, 'position', lambda: at[0])
+    win.items = [None] * 36
+    win.setFocusId(search.RESULTS)
     win.moved()
-    assert 'count=36&' in win.getProperty('a4k.path')  # 16 left: not yet
-    values['Container(620).CurrentItem'] = '25'
+    assert 'count=36&' in win.getProperty('a4k.path')  # 17 left: not yet
+    at[0] = 24
     win.moved()
     assert 'count=72&' in win.getProperty('a4k.path')
-    values.update({'Container(620).NumItems': '50', 'Container(620).CurrentItem': '45'})
+    # the longer page replaces the results in place: the cursor and the focus stay where they are
+    assert timers[-1].args[1:] == (search.RESULTS, win.path, 24, True) and len(win.items) == 36
+    win.items = [None] * 50
+    at[0] = 44
     win.moved()
     assert 'count=72&' in win.getProperty('a4k.path')  # a short page: IMDb has no more
 
@@ -284,45 +307,46 @@ def test_search_entry_points_route_to_the_window(core, home, monkeypatch):
 
 # 3. year chips over the category grids
 
-def category_window(grid, path):
+def category_window(grid, path, monkeypatch):
+    monkeypatch.setattr(grid.home, 'spawn', Spawned(run=False))  # the listing is test_grid's
     win = grid.Grid('a4k-grid.xml', '', 'Default', '1080i')
     win.steps = []
     win.go(path, 'Animations')
     win.onInit()
     return win
 
-def test_category_grids_take_year_chips_and_others_do_not(core, grid):
+def test_category_grids_take_year_chips_and_others_do_not(core, grid, monkeypatch):
     from datetime import datetime
-    win = category_window(grid, PLUGIN + '?action=query&type=popularAnimations')
+    win = category_window(grid, PLUGIN + '?action=query&type=popularAnimations', monkeypatch)
     chips = win.getControl(grid.YEARS).items
     labels = [c.getLabel() for c in chips]
     assert labels[:2] == ['All Years', str(datetime.now().year)] and labels[-1] == '1970'
     assert len(labels) == datetime.now().year - 1970 + 2 and chips[0].getProperty('on') == 'true'
     assert win.getProperty('a4k.years') == 'true' and win.error is None
-    other = category_window(grid, PLUGIN + '?action=query&type=fan_picks')
+    other = category_window(grid, PLUGIN + '?action=query&type=fan_picks', monkeypatch)
     assert other.getProperty('a4k.years') == '' and other.getControl(grid.YEARS).items == []
 
-def test_a_year_chip_reruns_the_same_category_within_the_year(core, grid):
-    win = category_window(grid, PLUGIN + '?action=query&type=popularAnimations&widget=1')
+def test_a_year_chip_reruns_the_same_category_within_the_year(core, grid, monkeypatch):
+    win = category_window(grid, PLUGIN + '?action=query&type=popularAnimations&widget=1', monkeypatch)
     win.steps.append(('x', 'y', 'z', 3))  # a page under the one shown
     win.path = PLUGIN + '?action=query&type=popularAnimations&paginationToken=abc&page=2&cursor_time=1&widget=1'
     win.pick_year('2019')
-    assert win.getProperty('a4k.path') == PLUGIN + '?action=query&type=popularAnimations&widget=1&target_year=2019'
+    assert win.path == PLUGIN + '?action=query&type=popularAnimations&widget=1&target_year=2019'
     assert win.steps == [] and win.getProperty('a4k.kicker') == '2019' and win.getProperty('a4k.title') == 'Animations'
     chips = win.getControl(grid.YEARS).items
     assert [c.getLabel() for c in chips if c.getProperty('on')] == ['2019']
     win.onInit()  # a return from detail keeps the chosen year
     assert [c.getLabel() for c in win.getControl(grid.YEARS).items if c.getProperty('on')] == ['2019']
     win.pick_year('')
-    assert win.getProperty('a4k.path') == PLUGIN + '?action=query&type=popularAnimations&widget=1'
+    assert win.path == PLUGIN + '?action=query&type=popularAnimations&widget=1'
     assert win.getProperty('a4k.kicker') == '' and win.error is None
 
-def test_year_chip_clicks_reach_python(core, grid):
-    win = category_window(grid, PLUGIN + '?action=query&type=popularMovies&widget=1')
+def test_year_chip_clicks_reach_python(core, grid, monkeypatch):
+    win = category_window(grid, PLUGIN + '?action=query&type=popularMovies&widget=1', monkeypatch)
     chips = win.getControl(grid.YEARS)
     chips.getSelectedItem = lambda: chips.items[3]  # the mock list has no selection of its own
     win.onClick(grid.YEARS)
-    assert win.getProperty('a4k.path').endswith('&target_year=%s' % grid.year_chips()[3]) and win.error is None
+    assert win.path.endswith('&target_year=%s' % grid.year_chips()[3]) and win.error is None
 
 @pytest.mark.parametrize('year,expected', [
     ('', (None, '2026-11-07')),

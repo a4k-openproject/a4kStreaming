@@ -188,7 +188,8 @@ def __add_lists(core, data):
 
     list_items = core.utils.generic_list_items(core, items)
     core.utils.add_directory_items(core, list_items)
-    core.kodi.xbmcplugin.addSortMethod(core.handle, core.kodi.xbmcplugin.SORT_METHOD_LABEL_IGNORE_THE)
+    if not core.utils.collecting():  # a window's own list keeps IMDb's order, as its <content> did
+        core.kodi.xbmcplugin.addSortMethod(core.handle, core.kodi.xbmcplugin.SORT_METHOD_LABEL_IGNORE_THE)
 
 def group_seasons(core, episodes):
     # {season number: season} in first-aired order, each with its episode count and ids and the release-date window
@@ -581,7 +582,7 @@ def continue_watching(core):
     core.utils.add_directory_items(core, list_items)
 
 def __add_titles(core, titles):
-    core.utils.add_directory_items(core, [item[:3] for item in __title_items(core, titles)])
+    core.utils.add_directory_items(core, __title_items(core, titles))
 
 def __title_items(core, titles):
     # [(url, list_item, is_folder, context menu rows)]
