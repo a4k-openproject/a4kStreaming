@@ -56,8 +56,13 @@ def listing_items(url):
     # a query listing URL's items built in the calling process, as [(url, list_item, is_folder, context menu rows)]: the
     # add-on's windows fill their lists with them from Python, so a long-press reaches the window (Kodi runs its own
     # context menu for a <content> row before the window's Python sees the key). The caller runs request.revalidate(core)
-    # once they show, as main() does after endOfDirectory.
-    return utils.collect(query, core, utils.DictAsObject(utils.parse_qsl(url.split('?', 1)[1])))
+    # once they show, as main() does after endOfDirectory. The home's Continue Watching row (action=continue) too.
+    core.api_mode_enabled = False  # a stale gallery page is answered at once, as in a plugin call (request.execute)
+    params = utils.DictAsObject(utils.parse_qsl(url.split('?', 1)[1]))
+    if params.action == 'continue':
+        from .listing import continue_watching
+        return utils.collect(continue_watching, core)
+    return utils.collect(query, core, params)
 
 def not_supported():
     kodi.notification('Not supported yet')

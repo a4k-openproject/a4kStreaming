@@ -330,6 +330,7 @@ def test_listing_items_builds_the_listing_in_process(core, request_module, monke
     # the add-on's windows fill their lists with these (core.listing_items): the titles with their menu rows, then Next,
     # nothing handed to Kodi
     settings(core, monkeypatch)
+    monkeypatch.setattr(core, 'api_mode_enabled', True)  # restored after: listing_items turns it off
     fake_session(request_module, monkeypatch, [__page(cursor='c2', title_id='tt1')])
     for name in ('addDirectoryItem', 'addDirectoryItems', 'setContent', 'setResolvedUrl', 'addSortMethod'):
         monkeypatch.setattr(core.kodi.xbmcplugin, name, lambda *a, **k: pytest.fail('handed to Kodi'))
@@ -338,7 +339,7 @@ def test_listing_items_builds_the_listing_in_process(core, request_module, monke
     assert title.getProperty('a4k.id') == 'tt1' and folder is False and menu == title.context_menu
     assert ('Add to watchlist', 'RunPlugin(%s?action=profile&type=watchlist_add&id=tt1)' % core.url) in menu
     assert next_item.getLabel() == 'Next' and 'paginationToken=c2' in next_url and next_folder and next_menu == []
-    assert not core.utils.collecting()
+    assert not core.utils.collecting() and core.api_mode_enabled is False  # a stale first page shows at once
     # a listing that needs the IMDb login says so and answers no plugin call
     notes = []
     monkeypatch.setattr(core.kodi, 'notification', lambda text, time=3000: notes.append(text))

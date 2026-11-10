@@ -167,6 +167,7 @@ class Panel(object):
     def addItems(self, items): self.items.extend(items)
     def getSelectedPosition(self): return self.position if self.items else -1
     def selectItem(self, index): self.selected.append(index)
+    def controlDown(self, control): pass
 
 def window(grid, opened, monkeypatch, path=FAN, title='Fan Favorites', kicker='Browse'):
     panel, controls = Panel(), {}
@@ -378,6 +379,7 @@ def test_title_menu_is_a_sheet_and_hides_account_actions_when_signed_out(core, h
     monkeypatch.setattr(importlib.import_module('a4kStreaming.ui.sheets'), 'select',
                         lambda heading, labels: shown.append((heading, labels)) or labels.index(labels[0]))
     monkeypatch.setattr(core.kodi.xbmcgui.Dialog(), 'contextmenu', lambda labels: pytest.fail('stock context menu'))
+    monkeypatch.setattr(importlib.import_module('a4kStreaming.ui.grid'), 'show', lambda path, title, kicker='': None)
     home.menu(items, 'tt1', 'Heat')
     account = ['Rate', 'Add to watchlist', 'Remove from watchlist', 'Add to IMDb list', 'Remove from IMDb list']
     assert shown[0] == ('Heat', ['More Like This'])  # picked: the grid opens, nothing runs
@@ -432,6 +434,7 @@ def test_on_init_starts_the_rotation_once_and_close_stops_it(core, home, monkeyp
 def test_open_stops_the_rotation_when_the_window_ends(core, home, monkeypatch):
     windows = []
     monkeypatch.setattr(home.Home, 'rotate', lambda self: None)
+    monkeypatch.setattr(home, 'load', lambda window, row, url: None)
     monkeypatch.setattr(home.Home, 'doModal', lambda self: windows.append(self) or self.onInit())
     home.open()
     assert windows[0].stopped.is_set()
@@ -561,6 +564,95 @@ def test_two_turns_never_run_at_once(core, home, labels, monkeypatch):
     for turn in turns:
         turn.join(2)
     assert most == [1] and win.hero == 2
+
+# E2. the home rows: filled from Python, so a long-press reaches the window
+
+TRENDING = PLUGIN + '?action=query&type=popularMovies&widget=1'
+
+def home_window(home, monkeypatch, urls):
+    # a home window whose slots have these listings ({row: url}), with Python-filled lists that keep a cursor
+    lists = {}
+    monkeypatch.setattr(home.Home, 'getControl', lambda self, id: lists.setdefault(id, Panel()))
+    win = home.Home('a4k-home.xml', '', 'Default', '1080i')
+    win.stopped = threading.Event()
+    for row, url in urls.items():
+        win.setProperty('a4k.row.%s' % row, url)
+    return win, lists
+
+def test_the_first_on_init_loads_every_row_on_a_thread_of_its_own(core, home, monkeypatch):
+    spawned = Spawned(run=False)
+    monkeypatch.setattr(home, 'spawn', spawned)
+    win, _ = home_window(home, monkeypatch, {})
+    monkeypatch.setattr(home.kodi.addon, 'getSetting', lambda key: 'token' if key == 'imdb.at-main' else '')
+    home.apply(win)
+    win.stopped = None
+    win.onInit()
+    rows = {row: url for row, url in home.listings(win).items() if url}
+    assert set(rows) == {301, 302, 303, home.CONTINUE}  # the default rows and Continue Watching, signed in
+    assert [(t.target, t.args) for t in spawned] == [(win.rotate, ())] + [(home.load, (win, row, url)) for row, url in rows.items()]
+    assert all(win.getProperty('a4k.loading.%s' % row) == 'true' for row in rows)  # each slot shows while it loads
+    win.onInit()  # a return loads nothing
+    assert len(spawned) == 1 + len(rows) and win.error is None
+
+def test_a_row_takes_its_listing_and_a_reload_keeps_the_cursors_title(core, home, listings, monkeypatch):
+    listings[TRENDING] = page(5, NEXT)
+    win, lists = home_window(home, monkeypatch, {301: TRENDING})
+    win.setProperty('a4k.loading.301', 'true')
+    home.load(win, 301, TRENDING)
+    assert lists[301].items == [item for _, item, _, _ in listings[TRENDING]] and win.items[301] == listings[TRENDING]
+    assert lists[301].items[-1].getPath() == NEXT and win.getProperty('a4k.loading.301') == ''  # FolderPath: see all
+    lists[301].position = 2  # on Title 2, which the new listing has moved to the front
+    listings[TRENDING] = [listings[TRENDING][2]] + page(2)
+    home.load(win, 301, TRENDING)
+    assert lists[301].selected == [0, 0] and win.items[301] == listings[TRENDING]
+    lists[301].position = 2  # a title the new listing lost: the cursor keeps its index
+    listings[TRENDING] = [card('movie', 'other%s' % n) for n in range(4)]
+    home.load(win, 301, TRENDING)
+    assert lists[301].selected == [0, 0, 2]
+
+def test_an_answer_for_a_listing_the_slot_left_is_dropped(core, home, listings, errors, monkeypatch):
+    listings[TRENDING] = page(3)
+    win, lists = home_window(home, monkeypatch, {301: TRENDING + '&id=new'})
+    win.setProperty('a4k.loading.301', 'true')
+    home.load(win, 301, TRENDING)  # the settings changed the slot meanwhile: its own load clears the loader
+    assert 301 not in lists and win.items == {} and win.getProperty('a4k.loading.301') == 'true'
+    win.stopped.set()  # nor into a closed window
+    home.load(win, 301, TRENDING + '&id=new')
+    assert 301 not in lists and errors == []
+
+def test_a_slot_whose_listing_went_empties_and_the_others_keep_theirs(core, home, listings, monkeypatch):
+    spawned = Spawned()
+    monkeypatch.setattr(home, 'spawn', spawned)
+    listings[TRENDING], listings[NEXT] = page(3), page(2)
+    win, lists = home_window(home, monkeypatch, {301: TRENDING, 302: NEXT})
+    win.fill()
+    before = home.listings(win)
+    win.setProperty('a4k.row.302', '')
+    win.fill(before)
+    assert [t.args[1] for t in spawned] == [301, 302] and len(lists[301].items) == 3 and lists[302].items == []
+    assert list(win.items) == [301]
+
+def test_long_press_on_a_row_card_opens_the_add_ons_sheet(core, home, listings, calls, monkeypatch):
+    sheets, info = [], []
+    monkeypatch.setattr(home, 'menu', lambda rows, id, title, ran=None: sheets.append((rows, id, title)))
+    monkeypatch.setattr(core.kodi.xbmcgui, 'Dialog', lambda: SimpleNamespace(info=info.append))
+    rows = [('Add to watchlist', 'RunPlugin(w)'), ('More Like This', 'ActivateWindow(m)')]
+    listings[TRENDING] = [card('movie', 'x', 'Heat', 'tt1', rows), card(path=NEXT, label='Next')]
+    win, lists = home_window(home, monkeypatch, {303: TRENDING})
+    home.load(win, 303, TRENDING)
+    win.setFocusId(303)
+    win.onAction(Action(home.ACTION_CONTEXT_MENU))
+    win.onAction(Action(home.ACTION_SHOW_INFO))
+    assert sheets == [(rows, 'tt1', 'Heat')] and info == [lists[303].items[0]]
+    lists[303].position = 1  # the Next item: no sheet, no info
+    win.onAction(Action(home.ACTION_CONTEXT_MENU))
+    win.onAction(Action(home.ACTION_SHOW_INFO))
+    assert len(sheets) == 1 and len(info) == 1 and calls == [] and win.error is None
+
+def test_home_rows_are_python_lists_in_the_xml(home):
+    window = ElementTree.parse(os.path.join(WINDOWS, 'a4k-home.xml')).getroot()
+    lists = [c for c in window.iter('control') if c.get('id') in {str(row) for row in home.LISTS}]
+    assert len(lists) == len(home.LISTS) and all(c.find('content') is None and c.find('onclick') is None for c in lists)
 
 # F. skin lint
 

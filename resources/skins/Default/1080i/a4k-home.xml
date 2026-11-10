@@ -4,10 +4,10 @@
   script window resolves both against the active skin (report 010-phase2, spike 7). Fonts are Estuary's names; an
   unknown name falls back to font13.
 
-  Rows are the plugin's own listings, loaded by Kodi on job threads. Their URL is a window property set before the
-  window opens; an empty property loads nothing and hides the row. A row is visible while it loads or has items: a
-  hidden container never takes the items its provider fetched (spike 2b). Each row has a no-op onclick so Kodi does not
-  play or open the item itself; Python handles the click in onAction (spike 2c).
+  Rows are the plugin's own listings, built in the window's process (one thread per row) and filled from Python, none
+  is a <content> row: Kodi opens its own context menu on a <content> row's long-press before the window's Python sees
+  the key. Their URL is the window property a4k.row.<id>; an empty property loads nothing and hides the row. A row is
+  visible while it loads (a4k.loading.<id>) or has items. Python handles OK, Info and the long-press in onAction.
 
   The page grouplist links only its direct children, the groups; the lists and buttons inside them get no up/down
   from it. So each focusable control names its neighbour groups in onup/ondown, and a hidden group passes the move on
@@ -17,8 +17,8 @@
   The active skin's Defaults.xml fills in every tag a control leaves out (Confluence gives a textbox left 330, top 333),
   so every control sets left and top itself.
 
-  Rows sort by programcount (0 on every plugin item, stable sort, so the listing order stays): Kodi reloads an unsorted
-  <content> on every play and stop, and those parallel reloads next to a running plugin call crash Kodi 21.
+  No <content> rows: Kodi reloads a <content> on play and stop, and parallel reloads next to a running plugin call
+  crashed Kodi 21. Python reloads only Continue Watching after a play, once the player went.
 -->
 <window>
 	<defaultcontrol>201</defaultcontrol>
@@ -33,7 +33,7 @@
 			<texture>a4k/bg_home.png</texture>
 		</control>
 		<!-- The top shelf's own sources (Hero shows) when no row shows them: trending movies (291) and TV (292). Never
-		     drawn (empty layouts), never hidden: a hidden container does not load. -->
+		     drawn (empty layouts), filled from Python like the rows. -->
 		<control type="list" id="291">
 			<left>0</left>
 			<top>0</top>
@@ -41,7 +41,6 @@
 			<height>1</height>
 			<itemlayout width="1" height="1"/>
 			<focusedlayout width="1" height="1"/>
-			<content target="videos" sortby="programcount">$INFO[Window.Property(a4k.row.291)]</content>
 		</control>
 		<control type="list" id="292">
 			<left>0</left>
@@ -50,7 +49,6 @@
 			<height>1</height>
 			<itemlayout width="1" height="1"/>
 			<focusedlayout width="1" height="1"/>
-			<content target="videos" sortby="programcount">$INFO[Window.Property(a4k.row.292)]</content>
 		</control>
 		<control type="grouplist" id="100">
 			<animation effect="fade" start="0" end="0" time="0" reversible="false" condition="!String.IsEmpty(Window.Property(a4k.loading))">Conditional</animation>
@@ -386,7 +384,7 @@
 				<left>0</left>
 				<width>1920</width>
 				<height>430</height>
-				<visible>!String.IsEmpty(Window.Property(a4k.row.308)) + [Integer.IsGreater(Container(308).NumItems,0) | Container(308).IsUpdating | !String.IsEmpty(Window.Property(a4k.fresh))]</visible>
+				<visible>!String.IsEmpty(Window.Property(a4k.row.308)) + [Integer.IsGreater(Container(308).NumItems,0) | !String.IsEmpty(Window.Property(a4k.loading.308))]</visible>
 				<control type="label">
 					<left>96</left>
 					<top>0</top>
@@ -408,7 +406,6 @@
 					<orientation>horizontal</orientation>
 					<scrolltime tween="cubic" easing="out">320</scrolltime>
 					<preloaditems>2</preloaditems>
-					<onclick>SetProperty(a4k.click,308)</onclick>
 					<itemlayout width="512" height="380">
 						<control type="image">
 							<left>96</left>
@@ -528,7 +525,6 @@
 							<label>$INFO[ListItem.Property(a4k.meta)]</label>
 						</control>
 					</focusedlayout>
-					<content target="videos" sortby="programcount">$INFO[Window.Property(a4k.row.308)]</content>
 				</control>
 			</control>
 
@@ -536,8 +532,7 @@
 			     (a4k.title.30n) and listing (a4k.row.30n); a slot without a listing is hidden and navigation passes over it.
 			     304 x 536 slots: the art (264 x 396 at 96,40) overflows its slot to the right, so the first card
 			     sits on the 96 px margin while the list spans the screen and nothing clips the lift, ring or shadow.
-			     A slot hides while its row is empty, but a hidden list never loads: a4k.fresh shows every slot with a listing
-			     for a moment after the settings change them, so the new listings start loading. -->
+			     A slot hides while its row is empty, and shows while its listing loads (a4k.loading.30n). -->
 			<control type="group" id="310">
 				<onup>380</onup>
 				<ondown>320</ondown>
@@ -545,7 +540,7 @@
 				<left>0</left>
 				<width>1920</width>
 				<height>586</height>
-				<visible>!String.IsEmpty(Window.Property(a4k.row.301)) + [Integer.IsGreater(Container(301).NumItems,0) | Container(301).IsUpdating | !String.IsEmpty(Window.Property(a4k.fresh))]</visible>
+				<visible>!String.IsEmpty(Window.Property(a4k.row.301)) + [Integer.IsGreater(Container(301).NumItems,0) | !String.IsEmpty(Window.Property(a4k.loading.301))]</visible>
 				<control type="label">
 					<left>96</left>
 					<top>0</top>
@@ -567,7 +562,6 @@
 					<orientation>horizontal</orientation>
 					<scrolltime tween="cubic" easing="out">320</scrolltime>
 					<preloaditems>2</preloaditems>
-					<onclick>SetProperty(a4k.click,301)</onclick>
 					<itemlayout width="304" height="536">
 						<control type="image">
 							<left>96</left>
@@ -781,7 +775,6 @@
 							<label>$INFO[ListItem.Property(a4k.meta)]</label>
 						</control>
 					</focusedlayout>
-					<content target="videos" sortby="programcount">$INFO[Window.Property(a4k.row.301)]</content>
 				</control>
 			</control>
 
@@ -792,7 +785,7 @@
 				<left>0</left>
 				<width>1920</width>
 				<height>586</height>
-				<visible>!String.IsEmpty(Window.Property(a4k.row.302)) + [Integer.IsGreater(Container(302).NumItems,0) | Container(302).IsUpdating | !String.IsEmpty(Window.Property(a4k.fresh))]</visible>
+				<visible>!String.IsEmpty(Window.Property(a4k.row.302)) + [Integer.IsGreater(Container(302).NumItems,0) | !String.IsEmpty(Window.Property(a4k.loading.302))]</visible>
 				<control type="label">
 					<left>96</left>
 					<top>0</top>
@@ -814,7 +807,6 @@
 					<orientation>horizontal</orientation>
 					<scrolltime tween="cubic" easing="out">320</scrolltime>
 					<preloaditems>2</preloaditems>
-					<onclick>SetProperty(a4k.click,302)</onclick>
 					<itemlayout width="304" height="536">
 						<control type="image">
 							<left>96</left>
@@ -1028,7 +1020,6 @@
 							<label>$INFO[ListItem.Property(a4k.meta)]</label>
 						</control>
 					</focusedlayout>
-					<content target="videos" sortby="programcount">$INFO[Window.Property(a4k.row.302)]</content>
 				</control>
 			</control>
 
@@ -1039,7 +1030,7 @@
 				<left>0</left>
 				<width>1920</width>
 				<height>586</height>
-				<visible>!String.IsEmpty(Window.Property(a4k.row.303)) + [Integer.IsGreater(Container(303).NumItems,0) | Container(303).IsUpdating | !String.IsEmpty(Window.Property(a4k.fresh))]</visible>
+				<visible>!String.IsEmpty(Window.Property(a4k.row.303)) + [Integer.IsGreater(Container(303).NumItems,0) | !String.IsEmpty(Window.Property(a4k.loading.303))]</visible>
 				<control type="label">
 					<left>96</left>
 					<top>0</top>
@@ -1061,7 +1052,6 @@
 					<orientation>horizontal</orientation>
 					<scrolltime tween="cubic" easing="out">320</scrolltime>
 					<preloaditems>2</preloaditems>
-					<onclick>SetProperty(a4k.click,303)</onclick>
 					<itemlayout width="304" height="536">
 						<control type="image">
 							<left>96</left>
@@ -1275,7 +1265,6 @@
 							<label>$INFO[ListItem.Property(a4k.meta)]</label>
 						</control>
 					</focusedlayout>
-					<content target="videos" sortby="programcount">$INFO[Window.Property(a4k.row.303)]</content>
 				</control>
 			</control>
 
@@ -1286,7 +1275,7 @@
 				<left>0</left>
 				<width>1920</width>
 				<height>586</height>
-				<visible>!String.IsEmpty(Window.Property(a4k.row.304)) + [Integer.IsGreater(Container(304).NumItems,0) | Container(304).IsUpdating | !String.IsEmpty(Window.Property(a4k.fresh))]</visible>
+				<visible>!String.IsEmpty(Window.Property(a4k.row.304)) + [Integer.IsGreater(Container(304).NumItems,0) | !String.IsEmpty(Window.Property(a4k.loading.304))]</visible>
 				<control type="label">
 					<left>96</left>
 					<top>0</top>
@@ -1308,7 +1297,6 @@
 					<orientation>horizontal</orientation>
 					<scrolltime tween="cubic" easing="out">320</scrolltime>
 					<preloaditems>2</preloaditems>
-					<onclick>SetProperty(a4k.click,304)</onclick>
 					<itemlayout width="304" height="536">
 						<control type="image">
 							<left>96</left>
@@ -1522,7 +1510,6 @@
 							<label>$INFO[ListItem.Property(a4k.meta)]</label>
 						</control>
 					</focusedlayout>
-					<content target="videos" sortby="programcount">$INFO[Window.Property(a4k.row.304)]</content>
 				</control>
 			</control>
 
@@ -1533,7 +1520,7 @@
 				<left>0</left>
 				<width>1920</width>
 				<height>586</height>
-				<visible>!String.IsEmpty(Window.Property(a4k.row.305)) + [Integer.IsGreater(Container(305).NumItems,0) | Container(305).IsUpdating | !String.IsEmpty(Window.Property(a4k.fresh))]</visible>
+				<visible>!String.IsEmpty(Window.Property(a4k.row.305)) + [Integer.IsGreater(Container(305).NumItems,0) | !String.IsEmpty(Window.Property(a4k.loading.305))]</visible>
 				<control type="label">
 					<left>96</left>
 					<top>0</top>
@@ -1555,7 +1542,6 @@
 					<orientation>horizontal</orientation>
 					<scrolltime tween="cubic" easing="out">320</scrolltime>
 					<preloaditems>2</preloaditems>
-					<onclick>SetProperty(a4k.click,305)</onclick>
 					<itemlayout width="304" height="536">
 						<control type="image">
 							<left>96</left>
@@ -1769,7 +1755,6 @@
 							<label>$INFO[ListItem.Property(a4k.meta)]</label>
 						</control>
 					</focusedlayout>
-					<content target="videos" sortby="programcount">$INFO[Window.Property(a4k.row.305)]</content>
 				</control>
 			</control>
 
@@ -1780,7 +1765,7 @@
 				<left>0</left>
 				<width>1920</width>
 				<height>586</height>
-				<visible>!String.IsEmpty(Window.Property(a4k.row.306)) + [Integer.IsGreater(Container(306).NumItems,0) | Container(306).IsUpdating | !String.IsEmpty(Window.Property(a4k.fresh))]</visible>
+				<visible>!String.IsEmpty(Window.Property(a4k.row.306)) + [Integer.IsGreater(Container(306).NumItems,0) | !String.IsEmpty(Window.Property(a4k.loading.306))]</visible>
 				<control type="label">
 					<left>96</left>
 					<top>0</top>
@@ -1802,7 +1787,6 @@
 					<orientation>horizontal</orientation>
 					<scrolltime tween="cubic" easing="out">320</scrolltime>
 					<preloaditems>2</preloaditems>
-					<onclick>SetProperty(a4k.click,306)</onclick>
 					<itemlayout width="304" height="536">
 						<control type="image">
 							<left>96</left>
@@ -2016,7 +2000,6 @@
 							<label>$INFO[ListItem.Property(a4k.meta)]</label>
 						</control>
 					</focusedlayout>
-					<content target="videos" sortby="programcount">$INFO[Window.Property(a4k.row.306)]</content>
 				</control>
 			</control>
 
@@ -2027,7 +2010,7 @@
 				<left>0</left>
 				<width>1920</width>
 				<height>586</height>
-				<visible>!String.IsEmpty(Window.Property(a4k.row.307)) + [Integer.IsGreater(Container(307).NumItems,0) | Container(307).IsUpdating | !String.IsEmpty(Window.Property(a4k.fresh))]</visible>
+				<visible>!String.IsEmpty(Window.Property(a4k.row.307)) + [Integer.IsGreater(Container(307).NumItems,0) | !String.IsEmpty(Window.Property(a4k.loading.307))]</visible>
 				<control type="label">
 					<left>96</left>
 					<top>0</top>
@@ -2049,7 +2032,6 @@
 					<orientation>horizontal</orientation>
 					<scrolltime tween="cubic" easing="out">320</scrolltime>
 					<preloaditems>2</preloaditems>
-					<onclick>SetProperty(a4k.click,307)</onclick>
 					<itemlayout width="304" height="536">
 						<control type="image">
 							<left>96</left>
@@ -2263,7 +2245,6 @@
 							<label>$INFO[ListItem.Property(a4k.meta)]</label>
 						</control>
 					</focusedlayout>
-					<content target="videos" sortby="programcount">$INFO[Window.Property(a4k.row.307)]</content>
 				</control>
 			</control>
 		</control>

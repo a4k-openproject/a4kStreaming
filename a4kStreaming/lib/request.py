@@ -141,6 +141,10 @@ def execute(core, request, cache=True, stale_ok=False):
     return response
 
 def revalidate(core):
-    while pending_revalidation:
-        request, ttl = pending_revalidation.pop(0)
+    # the home window's row threads run this side by side (core.listing_items): each takes what is left
+    while True:
+        try:
+            request, ttl = pending_revalidation.pop(0)
+        except IndexError:
+            return
         execute(core, request, ttl)

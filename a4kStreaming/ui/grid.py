@@ -64,13 +64,8 @@ def load(window, panel, path, position=0, focus=False):
         with FILL:
             if window.closed or window.path != path:
                 return
-            for url, item, _, _ in items:
-                item.setPath(url)  # ListItem.FolderPath, which select reads, and the info dialog's play
-            control = window.getControl(panel)
-            control.reset()
-            control.addItems([item for _, item, _, _ in items])
+            put(window.getControl(panel), items, position)
             window.items = items
-            control.selectItem(max(min(position, len(items) - 1), 0))
             window.setProperty('a4k.loading', '')
             if focus and items:
                 window.setFocusId(panel)
@@ -80,10 +75,20 @@ def load(window, panel, path, position=0, focus=False):
         if window.path == path:
             window.setProperty('a4k.loading', '')
 
+def put(control, items, position):
+    # a listing's items into a Python-filled list (grid, search and the home rows), the cursor on position
+    for url, item, _, _ in items:
+        item.setPath(url)  # ListItem.FolderPath, which select reads, and the info dialog's play
+    control.reset()
+    control.addItems([item for _, item, _, _ in items])
+    control.selectItem(max(min(position, len(items) - 1), 0))
+
 def entry(window, panel):
-    # the panel's selected item as (url, list_item, is_folder, menu); None on an empty panel
+    # the panel's selected item as (url, list_item, is_folder, menu); None on an empty panel. The home window keeps a
+    # listing per row ({row: items}), grid and search the one
+    items = window.items.get(panel, ()) if isinstance(window.items, dict) else window.items
     index = window.getControl(panel).getSelectedPosition()
-    return window.items[index] if 0 <= index < len(window.items) else None
+    return items[index] if 0 <= index < len(items) else None
 
 def menu(window, panel):
     # long-press on a card: the add-on's sheet with the listing's rows for it; nothing for a person, a list or Next.

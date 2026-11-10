@@ -175,6 +175,13 @@ def test_core_routes_the_row_uncached(core, progress, items, monkeypatch):
     core.main(PLUGIN, 1, 'action=continue&widget=1&t=0')
     assert items == [] and ends == [False]
 
+def test_the_home_window_builds_the_row_with_each_cards_sheet_rows(core, progress, items):
+    # core.listing_items in the window's process: nothing handed to Kodi, each card with its title's long-press rows
+    progress.save(progress.record({}, progress.meta(MOVIE), 600, 6000, 100))
+    (url, movie, folder, menu), = core.listing_items(PLUGIN + '?action=continue&widget=1&t=1')
+    assert items == [] and url == PLUGIN + '?action=play&type=&id=tt5' and movie.getLabel() == 'A Film'
+    assert ('Add to watchlist', 'RunPlugin(%s?action=profile&type=watchlist_add&id=tt5)' % PLUGIN) in menu
+
 def an_episode(number, rating=None):
     return {'id': 'tt9%s' % number, 'titleType': 'tvEpisode', 'titleText': 'Chapter %s' % number, 'primaryImage': None,
             'userRating': rating, 'series': {'seasonNumber': 1, 'episodeNumber': number},
@@ -278,13 +285,17 @@ def test_the_row_reloads_on_return_only_when_the_store_moved(core, home, progres
     threads.clear()  # the top shelf's rotation
     window.onInit()  # back, nothing played
     assert threads == []
-    progress.save({'tt5': {'pos': 1, 'dur': 2}})
+    progress.save(progress.record({}, progress.meta(MOVIE), 600, 6000, 100))
     window.onInit()  # back from a play
     assert [t.target for t in threads] == [window.reload_continue]
     media[:] = [True, True]  # Back from the video: the player stops a moment after the window shows
     window.reload_continue()
     assert sleeps == [home.PLAYER_LOOK, home.PLAYER_LOOK, home.CONTINUE_SETTLE]
     assert window.getProperty('a4k.row.308') == PLUGIN + '?action=continue&widget=1&t=' + progress.stamp()
+    # the row's new listing is in, built on that thread
+    assert [url for url, _, _, _ in window.items[home.CONTINUE]] == [PLUGIN + '?action=play&type=&id=tt5']
+    assert window.getControl(home.CONTINUE).items == [window.items[home.CONTINUE][0][1]]
+    assert window.getProperty('a4k.loading.308') == ''
 
 class Stopped(object):
     # a window's stopped Event whose waits are recorded and return at once

@@ -1,7 +1,9 @@
 # -*- coding: utf-8 -*-
 # Home window: the top shelf (the titles of its Hero shows source in turn), the Browse tiles and the rows of a4k-home.xml.
-# The rows are the plugin's own listings loaded by Kodi (<content>), so this file only routes clicks and the hero menu,
-# fills the row slots from the Appearance settings and turns the top shelf.
+# The rows are the plugin's own listings, built in this process (load, one window thread per row) and filled from Python,
+# so a long-press on a card reaches onAction and opens the add-on's sheet: Kodi runs its own context menu for a <content>
+# row before the window's Python sees the key. This file routes clicks and the menus, fills the row slots from the
+# Appearance settings and turns the top shelf.
 
 import threading
 import time
@@ -21,6 +23,7 @@ HERO_PLAY = 201
 HERO_INFO = 202
 HERO_ROW = 301
 HERO_LISTS = {'trending_movies': 291, 'trending_tv': 292}  # the top shelf's own lists when no row shows its source
+LISTS = ROWS + (CONTINUE,) + tuple(HERO_LISTS.values())  # every list filled from its a4k.row.<id> listing
 TILES = 400
 
 # the top menu (a4k-home.xml 160): Watch Now, the category tabs (the Category tabs setting), Search and the Settings gear
@@ -42,8 +45,6 @@ HERO_FIELDS = {'label': 'Label', 'plot': 'Plot', 'year': 'Year', 'rating': 'Rati
 HERO_TYPES = {'movie': 'Movie', 'tvSeries': 'TV Series'}  # the TV skin's hero badge after the rating
 HERO_RELOAD = 1.0  # after the settings change the sources: the new listings' time to land before the shelf starts over
 HERO_FADE = 0.25
-FRESH = 'a4k.fresh'
-FRESH_TIME = 5  # a hidden list never loads; once loading, a slot stays shown by Container.IsUpdating
 SETTINGS_LOOK = 0.25  # how often the home window looks whether the settings it opened have closed
 SETTINGS_SHOWN = 'Window.IsActive(a4k-settings.xml) | Window.IsActive(addonsettings)'
 SETTINGS_SETTLE = 1  # seen live: read at once, the Home order just saved was still the old one
@@ -58,6 +59,7 @@ ACTION_NAV_BACK = 92
 ACTION_SELECT_ITEM = 7
 ACTION_MOUSE_LEFT_CLICK = 100
 ACTION_CONTEXT_MENU = 117
+ACTION_SHOW_INFO = 11  # the Info key
 ACTION_MOVES = (1, 2, 3, 4)
 PREFETCH_DWELL = 0.4
 
@@ -152,6 +154,34 @@ def continue_url():
         return ''
     return '%s?action=continue&widget=1&t=%s' % (app.PLUGIN, progress.stamp())
 
+def listings(window):
+    # {list id: its listing URL ('' for none)}, as apply() set them
+    return {row: window.getProperty('a4k.row.%s' % row) for row in LISTS}
+
+def load(window, row, url):
+    # a row's listing, asked on a window thread: the plugin's own items, built here (core.listing_items) into the list
+    # and window.items[row]. An answer for a listing the slot has left is dropped. A reload keeps the cursor on its
+    # item, found by its URL (Kodi's own reload of a <content> row did the same), else on its index.
+    from . import detail, grid
+    try:
+        core = detail.plugin_core()
+        items = core.listing_items(url)
+        with grid.FILL:
+            if window.stopped.is_set() or window.getProperty('a4k.row.%s' % row) != url:
+                return
+            control = window.getControl(row)
+            shown = grid.entry(window, row)
+            urls = [entry[0] for entry in items]
+            position = urls.index(shown[0]) if shown and shown[0] in urls else control.getSelectedPosition()
+            grid.put(control, items, position)
+            window.items = {**window.items, row: items}
+        core.request.revalidate(core)  # a stale page answered from the cache is asked again, now that it shows
+    except Exception:
+        logger.error('row %s failed: %s' % (row, traceback.format_exc()))
+    finally:
+        if window.getProperty('a4k.row.%s' % row) == url:
+            window.setProperty('a4k.loading.%s' % row, '')
+
 def apply(window):
     # the Appearance settings as the window's properties: the Browse row, the category tabs, each row slot's title and
     # listing (a slot without one is hidden), and the top shelf's sources and rotation
@@ -189,6 +219,7 @@ class Home(kodi.xbmcgui.WindowXML):
     hero_turn = HERO_TURN
     shown = None  # (container, index, kicker) of the title on the top shelf
     turning = threading.Lock()  # one turn at a time: the restart after a settings change and the rotation
+    items = {}  # {list id: its listing as [(url, list_item, is_folder, menu)]}, replaced whole on each fill (load)
     asked = False
 
     def onInit(self):
@@ -203,11 +234,12 @@ class Home(kodi.xbmcgui.WindowXML):
             if self.stopped is None:
                 self.stopped = threading.Event()
                 spawn(self, self.rotate)
+                self.fill()
             elif self.getProperty('a4k.row.%s' % CONTINUE) and (playing() or self.getProperty('a4k.row.%s' % CONTINUE) != continue_url()):
                 # back from a play (or a detail window that played): the Continue Watching row reloads once, after the
-                # player went and only with nothing over the window. Rows reloading next to a running plugin call or
-                # the player's stop, or right as a window of this interpreter closes, crashed Kodi (a4k-home.xml,
-                # ui/settings.py).
+                # player went (it records the position on stop, service.py) and only with nothing over the window.
+                # <content> rows reloading next to a running plugin call or the player's stop, or right as a window of
+                # this interpreter closes, crashed Kodi (ui/settings.py); the row is Python's now, the waits stay.
                 spawn(self, self.reload_continue)
         except Exception:
             self.__fail()
@@ -220,8 +252,8 @@ class Home(kodi.xbmcgui.WindowXML):
             if self.stopped.is_set() or not self.idle() or self.getProperty('a4k.row.%s' % CONTINUE) == url:
                 return  # the next return to the window looks again
             self.setProperty('a4k.row.%s' % CONTINUE, url)
-            self.setProperty(FRESH, 'true')  # an empty row is hidden, and a hidden list never loads
-            spawn(self, self.setProperty, FRESH, '', delay=FRESH_TIME)
+            self.setProperty('a4k.loading.%s' % CONTINUE, 'true')
+            load(self, CONTINUE, url)  # on this thread: it is the window's already
         except Exception:
             logger.debug(traceback.format_exc())
 
@@ -251,8 +283,13 @@ class Home(kodi.xbmcgui.WindowXML):
                     from . import grid
                     grid.browse(tile, kodi.xbmc.getInfoLabel('Container(%s).ListItem.Label' % TILES))
             elif action_id == ACTION_CONTEXT_MENU and focus in (HERO_PLAY, HERO_INFO):
-                # rows get Kodi's own menu with the listing's items; the hero buttons are not list items
-                self.hero_menu()
+                self.hero_menu()  # the hero buttons are not list items
+            elif action_id == ACTION_CONTEXT_MENU and focus in ROWS + (CONTINUE,):
+                from . import grid  # the listing's rows for the card, as in the grid
+                grid.menu(self, focus)
+            elif action_id == ACTION_SHOW_INFO and focus in ROWS + (CONTINUE,):
+                from . import grid
+                grid.info(self, focus)
         except Exception:
             self.__fail()
 
@@ -335,15 +372,32 @@ class Home(kodi.xbmcgui.WindowXML):
 
     def reapply(self):
         # the rows load their new listings and the top shelf starts over on its sources
-        sources = self.sources
+        sources, before = self.sources, listings(self)
         apply(self)
         self.wire()
-        self.setProperty(FRESH, 'true')  # every slot with a listing shows for a moment, so a new listing starts loading
-        spawn(self, self.setProperty, FRESH, '', delay=FRESH_TIME)
+        self.fill(before)
         if self.sources != sources:
             self.hero = -1
             self.setProperty('a4k.hero.shown', '')  # the old title goes; the buttons do nothing until the next paints
             spawn(self, self.turn, delay=HERO_RELOAD)
+
+    def fill(self, before=None):
+        # every list whose listing changed (all of them at the first onInit) loads it, each on a window thread of its own,
+        # so the rows load in parallel; a slot whose listing went empties. a4k.loading.<id> keeps a slot shown while it
+        # loads (a4k-home.xml), and a loaded list keeps its items until the new ones are in.
+        before = before or {}
+        for row, url in listings(self).items():
+            if url == before.get(row, ''):
+                continue
+            if url:
+                self.setProperty('a4k.loading.%s' % row, 'true')
+                spawn(self, load, self, row, url)
+            else:
+                from . import grid
+                with grid.FILL:
+                    self.getControl(row).reset()
+                    self.items = {key: items for key, items in self.items.items() if key != row}
+                self.setProperty('a4k.loading.%s' % row, '')
 
     def wire(self):
         # Down on the last row that shows stays there. Past it only hidden slots follow, their chain ends in noop, and
@@ -563,7 +617,7 @@ def modal(window, join=JOIN):
 def open(cover=None):
     # cover: the launch cover (app.launch), closed as the window takes its place
     window = Home('a4k-home.xml', kodi.addon_path, 'Default', '1080i')
-    # row URLs are set before the window opens: a row's provider fires once, at load (spike 2b)
+    # row URLs are set before the window opens; its first onInit loads them (Home.fill)
     window.setProperty('a4k.home', 'true')
     window.setProperty('a4k.loading', 'true')  # the traced D until the top shelf has its first title
     window.setProperty('a4k.hero.act', 'Play')

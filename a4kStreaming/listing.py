@@ -578,7 +578,9 @@ def continue_watching(core):
         list_item.setProperty('a4k.meta', 'S%s E%s \u00b7 %s' % (entry['season'], entry['episode'], entry['title'])
                               if episode else str(entry.get('year', None) or ''))
         list_item.getVideoInfoTag().setResumePoint(entry['pos'], entry['dur'])
-        list_items.append(('%s?action=play&type=&id=%s' % (core.url, entry['id']), list_item, False))
+        # the card's long-press sheet (ui/home.py): the title's rows, as for its card in any other row
+        menu = title_context_menu(core, {'id': list_item.getProperty('a4k.id'), 'titleType': list_item.getProperty('a4k.type')})
+        list_items.append(('%s?action=play&type=&id=%s' % (core.url, entry['id']), list_item, False, menu))
     core.utils.add_directory_items(core, list_items)
 
 def __add_titles(core, titles):

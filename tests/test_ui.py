@@ -76,6 +76,11 @@ def no_rotation(home, monkeypatch):
     monkeypatch.setattr(home.Home, 'rotate', lambda self: None)
 
 @pytest.fixture(autouse=True)
+def no_rows(home, monkeypatch):
+    # the first onInit loads the rows on window threads; test_grid.py drives load() itself
+    monkeypatch.setattr(home, 'load', lambda window, row, url: None)
+
+@pytest.fixture(autouse=True)
 def clean_windows(core):
     properties = importlib.import_module('a4kStreaming.lib.kodi_mock')._window_properties
     properties.clear()
@@ -156,7 +161,7 @@ def test_window_uses_no_includes_or_named_colours(path):
     colours += [node.get('colordiffuse') for node in root.iter() if node.get('colordiffuse')]
     assert colours and all(re.fullmatch(r'[0-9A-F]{8}', colour) for colour in colours)
 
-@pytest.mark.parametrize('name,count', [('a4k-home.xml', 10), ('a4k-detail.xml', 0), ('a4k-grid.xml', 0), ('a4k-search.xml', 0)])
+@pytest.mark.parametrize('name,count', [('a4k-home.xml', 0), ('a4k-detail.xml', 0), ('a4k-grid.xml', 0), ('a4k-search.xml', 0)])
 def test_rows_do_not_reload_on_play_or_stop(name, count):
     # Kodi reloads every unsorted <content> on each OnPlay/OnStop (DirectoryProvider::Announce). The reloads start new
     # Python interpreters next to the playing plugin call, and two starting at once crash Kodi 21 (seen live with the
@@ -224,7 +229,8 @@ def test_every_row_property_the_xml_reads_is_set(core, home, monkeypatch):
     xml = open(os.path.join(WINDOWS, 'a4k-home.xml')).read()
     hero = {'a4k.hero.' + key for key in list(home.HERO_FIELDS) + ['shown', 'kicker', 'type']}  # set once a title is in
     read = set(re.findall(r'Window\.Property\(([\w.]+)\)', xml))
-    assert read - hero - {home.FRESH} <= set(opened) and read & hero == hero  # a4k.fresh: after the settings
+    loading = {'a4k.loading.%s' % row for row in home.LISTS}  # set while a row's listing loads (Home.fill)
+    assert read - hero - loading <= set(opened) and read & hero == hero
     assert opened['a4k.row.301'] == PLUGIN + '?action=query&type=popularMovies&widget=1'
     assert opened['a4k.row.303'] == PLUGIN + '?action=query&type=watchlist&widget=1'
 
@@ -704,7 +710,7 @@ def test_a_released_window_is_freed_at_its_del_with_no_cycle_left(home):
         win.stopped = threading.Event()
         win.dwell()
         win.dwell()  # a restarted dwell: the first one cancelled
-        win.reapply()  # the FRESH reset and the top shelf's restart, both delayed
+        win.reapply()  # the top shelf's restart, delayed
         home.spawn(win, win.rotate)
         home.release(win)
         window = weakref.ref(win)

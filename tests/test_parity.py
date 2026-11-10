@@ -776,9 +776,9 @@ def test_the_settings_apply_the_new_appearance_once_closed(core, home, monkeypat
     assert window.getProperty('a4k.title.303') == ''
     window.settings_closed()
     assert window.getProperty('a4k.title.303') == 'Reality TV' and list(window.sources) == [(302, 'TRENDING NOW')]
-    # every slot with a listing shows for FRESH_TIME (a hidden list never loads), then the shelf starts over
-    assert window.getProperty('a4k.fresh') == 'true' and [(t.target, t.args, t.delay) for t in spawned[1:]] == [
-        (window.setProperty, ('a4k.fresh', ''), home.FRESH_TIME), (window.turn, (), home.HERO_RELOAD)]
+    # only the slot whose listing changed loads it (and shows while it loads), then the shelf starts over
+    assert window.getProperty('a4k.loading.303') == 'true' and [(t.target, t.args, t.delay) for t in spawned[1:]] == [
+        (home.load, (window, 303, url('popularRealityTVShows')), None), (window.turn, (), home.HERO_RELOAD)]
     assert window.hero == -1 and window.error is None
 
 def test_settings_watch_stops_looking_when_nothing_opens(core, home, monkeypatch):
