@@ -9,7 +9,8 @@ def progress_store(request, tmp_path, monkeypatch):
     # add-on without the Kodi mock on purpose
     if request.module.__name__.endswith('test_api'):
         return None
-    from tests import common  # noqa: F401  (the add-on's import paths and the Kodi mock)
+    from tests import common  # the add-on's import paths
+    common.api.A4kStreamingApi({'kodi': True})  # the Kodi mock, also when the first test run never built one
     progress = importlib.import_module('a4kStreaming.progress')
     monkeypatch.setattr(progress, 'PATH', str(tmp_path / 'progress.json'))
     monkeypatch.setattr(importlib.import_module('a4kStreaming.kodi_mode'), 'PATH', str(tmp_path / 'kodi_mode.json'))  # off

@@ -302,7 +302,7 @@ def test_ratings():
 def test_search():
     a4kstreaming_api = api.A4kStreamingApi({'kodi': True})
 
-    fn = __invoke(a4kstreaming_api, 'search', { 'query': 'tenet' })
+    fn = __invoke(a4kstreaming_api, 'query', { 'type': 'facets', 'query': 'tenet', 'count': '36' })
 
     assert len(fn.results) > 0
 
