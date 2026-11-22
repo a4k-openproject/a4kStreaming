@@ -30,6 +30,9 @@ def __remove_cache(a4kstreaming_api):
 def __setup_provider(a4kstreaming_api, settings={}):
     def select(*args, **kwargs): return 1
     a4kstreaming_api.core.kodi.xbmcgui.Dialog().select = select
+    # the source picker is the add-on's own sheet window: one pick, then cancel, so dead links fail instead of looping
+    picks = iter([1])
+    sys.modules['a4kStreaming.ui.sheets'].select = lambda *args, **kwargs: next(picks, -1)
     keyboard = a4kstreaming_api.core.kodi.xbmc.Keyboard('', '')
     keyboard.getText = lambda: provider_url
     keyboard.isConfirmed = lambda: True
